@@ -1,35 +1,84 @@
-"""Roadmap read view (R1) and the standalone static HTML export (R2)."""
+"""Roadmap: the read view (R1), an explicit edit mode — phase moves via
+drag-and-drop or a per-row select, both against the same endpoint — and the
+standalone static HTML export (R2)."""
 
+import logging
 import sqlite3
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.auth.core import Principal, krav_forvaltare
+from app.auth.csrf import krav_csrf
 from app.db import get_conn
 from app.services import roadmap as tjanst
-from app.web import templates
+from app.services.roadmap import FASTA_FASER, UTAN_FAS
+from app.web import is_htmx, templates
 
 router = APIRouter(prefix="/roadmap")
+audit = logging.getLogger("teaball.audit")
+
+
+def _ctx(request: Request, conn, principal, visa_krav: bool, redigera: bool):
+    grupper = tjanst.roadmap_data(conn, visa_krav, endast_synliga=False)
+    if redigera:
+        # In edit mode the empty named phases (and "utan fas") must render too,
+        # as drop targets.
+        per_fas = dict(grupper)
+        ordning = list(dict.fromkeys([*FASTA_FASER, *[f for f, _ in grupper], UTAN_FAS]))
+        grupper = [(f, per_fas.get(f, [])) for f in ordning]
+    fas_alternativ = list(dict.fromkeys(
+        [*FASTA_FASER, *[f for f, _ in grupper if f != UTAN_FAS]]))
+    return {
+        "principal": principal,
+        "visa_krav": visa_krav,
+        "redigera": redigera,
+        "grupper": grupper,
+        "fas_alternativ": fas_alternativ,
+    }
 
 
 @router.get("")
 def visa(
     request: Request,
     visa_krav: str = "",
+    redigera: str = "",
     principal: Principal = Depends(krav_forvaltare),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     return templates.TemplateResponse(
         request,
         "roadmap/index.html",
-        {
-            "principal": principal,
-            "visa_krav": visa_krav == "1",
-            "grupper": tjanst.roadmap_data(conn, visa_krav == "1", endast_synliga=False),
-        },
+        _ctx(request, conn, principal, visa_krav == "1", redigera == "1"),
     )
+
+
+@router.post("/flytta", dependencies=[Depends(krav_csrf)])
+def flytta(
+    request: Request,
+    nod_id: int = Form(...),
+    fas: str = Form(""),
+    visa_krav: str = Form(""),
+    principal: Principal = Depends(krav_forvaltare),
+    conn: sqlite3.Connection = Depends(get_conn),
+):
+    """Move one node to another phase. Deliberately only the node itself —
+    children keep their own fas, exactly as in the tree editor."""
+    if conn.execute("SELECT 1 FROM funktion WHERE id = ?", (nod_id,)).fetchone() is None:
+        raise HTTPException(status_code=404, detail="Noden finns inte.")
+    ny_fas = fas.strip()[:50] or None
+    conn.execute("UPDATE funktion SET fas = ? WHERE id = ?", (ny_fas, nod_id))
+    conn.commit()
+    audit.info("forvaltare=%s op=roadmap_flytta nod=%s fas=%r", principal.namn, nod_id, ny_fas)
+    if is_htmx(request):
+        return templates.TemplateResponse(
+            request,
+            "roadmap/_grupper.html",
+            _ctx(request, conn, principal, visa_krav == "1", True),
+        )
+    mal = "/roadmap?redigera=1" + ("&visa_krav=1" if visa_krav == "1" else "")
+    return RedirectResponse(mal, status_code=303)
 
 
 @router.get("/export")

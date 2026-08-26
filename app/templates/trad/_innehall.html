@@ -5,7 +5,7 @@
   {% endif %}
   <div class="rounded-lg border border-stone-200 bg-white">
     <ul class="syskon" data-foralder="">
-      {% for n in rotter %}{{ m.nod(n, request) }}{% endfor %}
+      {% for n in rotter %}{{ m.nod(n, request, detaljerad) }}{% endfor %}
     </ul>
     {% if not rotter %}
     <p class="p-4 text-sm text-stone-400">Inga noder ännu. Skapa den första med ”+ Ny nod”.</p>

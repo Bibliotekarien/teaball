@@ -2,7 +2,8 @@
 a flat CSV or JSON list.
 
 Tree columns/keys: namn, foralder (parent's name, empty for root), typ, status,
-fas. Two passes: first create every node in file order (which becomes the
+fas, and optionally lank_dokumentation / lank_jira (absolute http(s) URLs).
+Two passes: first create every node in file order (which becomes the
 sibling order), then wire parents by name. A parent name must be unambiguous —
 within the file, or failing that among pre-existing nodes in the database.
 
@@ -14,7 +15,7 @@ import json
 import sqlite3
 
 TILLATNA_TYPER = {"förmåga", "funktion", "krav"}
-TILLATNA_STATUS = {"befintlig", "planerad", "idé", "utgår"}
+TILLATNA_STATUS = {"driftsatt", "planerad", "idé", "utreds", "utgår"}
 
 
 def las_rader(innehall: str, filnamn: str) -> list[dict]:
@@ -67,9 +68,17 @@ def importera_trad(conn: sqlite3.Connection, rader: list[dict]) -> int:
             raise ValueError(f"Rad {radnr}: okänd typ {typ!r}.")
         if status not in TILLATNA_STATUS:
             raise ValueError(f"Rad {radnr}: okänd status {status!r}.")
+        lankar = {}
+        for falt in ("lank_dokumentation", "lank_jira"):
+            lank = (rad.get(falt) or "").strip() or None
+            if lank and not lank.startswith(("http://", "https://")):
+                raise ValueError(f"Rad {radnr}: {falt} måste börja med http:// eller https://.")
+            lankar[falt] = lank
         cur = conn.execute(
-            "INSERT INTO funktion (namn, typ, status, fas, sortering) VALUES (?, ?, ?, ?, ?)",
-            (namn, typ, status, (rad.get("fas") or "").strip() or None, (i + 1) * 10),
+            "INSERT INTO funktion (namn, typ, status, fas, sortering,"
+            " lank_dokumentation, lank_jira) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (namn, typ, status, (rad.get("fas") or "").strip() or None, (i + 1) * 10,
+             lankar["lank_dokumentation"], lankar["lank_jira"]),
         )
         if namn in namn_till_id:
             dubbletter.add(namn)

@@ -1,0 +1,41 @@
+{# Phase groups. In edit mode every row gets a drag handle and a no-JS fas
+   form; roadmap.js enhances cross-phase drops onto the same endpoint. #}
+<div id="roadmap-grupper" {% if redigera %}data-redigera="1"{% endif %}{% if visa_krav %} data-visa-krav="1"{% endif %}>
+  {% for fas, rader in grupper %}
+  <h2 class="mb-1 mt-4 font-serif text-sm text-blue-900">{{ fas }}</h2>
+  <ol class="fas-lista list-none rounded-lg border border-stone-200 bg-white{% if redigera %} min-h-[14px]{% endif %}"
+      data-fas="{{ '' if fas == 'utan fas' else fas }}">
+    {% for n in rader %}
+    <li class="flex items-center gap-2 border-b border-stone-100 py-1.5 pr-2"
+        style="padding-left: {{ n.djup * 22 + 10 }}px" data-nod="{{ n.id }}">
+      {% if redigera %}<span class="greppyta cursor-grab select-none px-1 text-stone-300" title="Dra till en annan fas">⋮⋮</span>{% endif %}
+      <span class="min-w-0 flex-1 truncate text-sm {{ TYP_CLS[n.typ] }}">{{ n.namn }}</span>
+      {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400" title="Utelämnas ur exporten">dold</span>{% endif %}
+      <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ n.typ }}</span>
+      <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}" title="{{ STATUS[n.status].beskrivning }}">{{ STATUS[n.status].label }}</span>
+      {% if redigera %}
+      <form method="post" action="/roadmap/flytta" class="fas-form flex items-center gap-1"
+            hx-post="/roadmap/flytta" hx-target="#roadmap-grupper" hx-swap="outerHTML">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+        <input type="hidden" name="nod_id" value="{{ n.id }}">
+        <input type="hidden" name="redigera" value="1">
+        {% if visa_krav %}<input type="hidden" name="visa_krav" value="1">{% endif %}
+        <select name="fas" class="rounded border border-stone-300 px-1 py-0.5 text-xs">
+          {% for f in fas_alternativ %}
+          <option value="{{ f }}" {% if (n.fas or '') == f %}selected{% endif %}>{{ f }}</option>
+          {% endfor %}
+          <option value="" {% if not n.fas %}selected{% endif %}>utan fas</option>
+        </select>
+        <button class="rounded border border-stone-200 px-1.5 py-0.5 text-xs text-stone-500 hover:bg-stone-100">Flytta</button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+    {% if redigera and not rader %}
+    <li class="ej-flyttbar p-2 text-xs text-stone-300">(tom fas — släpp noder här)</li>
+    {% endif %}
+  </ol>
+  {% else %}
+  <p class="rounded-md border border-stone-200 bg-white p-4 text-sm text-stone-400">Kravträdet är tomt.</p>
+  {% endfor %}
+</div>

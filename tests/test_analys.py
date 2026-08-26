@@ -19,7 +19,7 @@ def _scenario(app_db):
     # 3 of 6 answer. Dubblettdetektering has status 'idé' and fas 'senare' → N2.
     satt_svar(app_db, m["uu"], ids["dubblett"], "golive_krav")
     satt_svar(app_db, m["uu"], ids["import"], "kan_vanta", workaround="Manuell dedupe.", workaround_delas=0)
-    satt_svar(app_db, m["uu"], ids["export"], "golive_krav")   # status befintlig → not a blocker
+    satt_svar(app_db, m["uu"], ids["export"], "golive_krav")   # status driftsatt → not a blocker
     satt_svar(app_db, m["kth"], ids["dubblett"], "golive_krav")
     satt_svar(app_db, m["kth"], ids["wos"], "golive_krav")     # status planerad → blocker
     satt_svar(app_db, m["hig"], ids["publicering"], "kan_vanta")
@@ -46,7 +46,22 @@ def test_n1_ordning_och_n2_villkor(app_db):
     assert rader[0]["id"] == ids["dubblett"] and rader[0]["golive"] == 2
     assert rader[0]["varning"] is True                     # idé + senare
     export_rad = next(r for r in rader if r["id"] == ids["export"])
-    assert export_rad["varning"] is False                  # befintlig, fas nu
+    assert export_rad["varning"] is False                  # driftsatt, fas nu
+
+
+def test_n2_varnar_aven_for_utreds(app_db):
+    """'utreds' behaves exactly like 'idé' in the N2 warning: identified in
+    Classic but undecided, so a go-live demand on it must be flagged."""
+    ids, m = _scenario(app_db)
+    from tests.conftest import skapa_funktion
+    classic = skapa_funktion(app_db, "Classic-avisering", typ="funktion", status="utreds")
+    satt_svar(app_db, m["uu"], classic, "golive_krav")
+    app_db.commit()
+    rader = {r["id"]: r for r in tjanst.rankning(app_db)}
+    assert rader[classic]["varning"] is True
+    # ... and it stays an outstanding blocker until driftsatt.
+    _, blockerare = tjanst.medlemsprofil(app_db, m["uu"])
+    assert classic in {b["id"] for b in blockerare}
 
 
 def test_a3_vaxel_direkta_mot_arvda(app_db):
@@ -67,7 +82,7 @@ def test_n5_utestaende_blockerare(app_db):
     _, blockerare = tjanst.medlemsprofil(app_db, m["kth"])
     assert {b["id"] for b in blockerare} == {ids["dubblett"], ids["wos"]}
     _, blockerare_uu = tjanst.medlemsprofil(app_db, m["uu"])
-    # Export & spridning is 'befintlig' — not an outstanding blocker.
+    # Export & spridning is 'driftsatt' — not an outstanding blocker.
     assert {b["id"] for b in blockerare_uu} == {ids["dubblett"]}
 
 

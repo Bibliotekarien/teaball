@@ -1,0 +1,29 @@
+{# Shared legend: what the types and statuses mean. Pure <details>, no JS.
+   Texts live in app/web.py (STATUS[*].beskrivning, TYP_BESKRIVNING). #}
+<details class="mb-3 rounded-md border border-stone-200 bg-white">
+  <summary class="cursor-pointer select-none px-3 py-2 text-xs text-stone-500 hover:text-stone-800">Vad betyder typerna och statusarna?</summary>
+  <div class="grid gap-4 border-t border-stone-100 px-3 py-2 sm:grid-cols-2">
+    <div>
+      <h3 class="mb-1.5 text-xs font-medium text-stone-700">Typer</h3>
+      <ul class="space-y-1.5">
+        {% for t, forklaring in TYP_BESKRIVNING.items() %}
+        <li class="flex items-baseline gap-2">
+          <span class="w-20 shrink-0 text-xs {{ TYP_CLS[t] }}">{{ t }}</span>
+          <span class="text-xs text-stone-500">{{ forklaring }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h3 class="mb-1.5 text-xs font-medium text-stone-700">Statusar</h3>
+      <ul class="space-y-1.5">
+        {% for s, meta in STATUS.items() %}
+        <li class="flex items-baseline gap-2">
+          <span class="w-20 shrink-0 rounded px-1.5 py-0.5 text-center text-xs {{ meta.cls }}">{{ meta.label }}</span>
+          <span class="text-xs text-stone-500">{{ meta.beskrivning }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</details>

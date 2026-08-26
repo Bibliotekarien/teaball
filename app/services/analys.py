@@ -29,8 +29,11 @@ def rankning(conn, arvda: bool = False):
     for r in rows:
         rad = dict(r)
         rad["totalt"] = r["golive"] + r["kan_vanta"] + r["behovs_ej"]
-        # N2: someone blocks go-live on this, but it is only an idea or lies in 'senare'.
-        rad["varning"] = r["golive"] > 0 and (r["status"] == "idé" or r["fas"] == "senare")
+        # N2: someone blocks go-live on this, but it is undecided (idé/utreds)
+        # or lies in 'senare'.
+        rad["varning"] = r["golive"] > 0 and (
+            r["status"] in ("idé", "utreds") or r["fas"] == "senare"
+        )
         rader.append(rad)
     max_totalt = max((r["totalt"] for r in rader), default=1)
     for rad in rader:
@@ -71,7 +74,7 @@ def tackning(conn):
 
 def medlemsprofil(conn, medlem_id: int, arvda: bool = False):
     """N5: all of the member's direct answers, plus outstanding blockers —
-    their golive_krav nodes whose status is not 'befintlig'."""
+    their golive_krav nodes whose status is not 'driftsatt'."""
     svar = conn.execute(
         """
         SELECT b.*, f.namn AS funktion_namn, f.status, f.fas
@@ -87,7 +90,7 @@ def medlemsprofil(conn, medlem_id: int, arvda: bool = False):
         SELECT f.id, f.namn, f.status, f.fas, b.arvd
         FROM {_kalla(arvda)} b
         JOIN funktion f ON f.id = b.funktion_id
-        WHERE b.medlem_id = ? AND b.svar = 'golive_krav' AND f.status != 'befintlig'
+        WHERE b.medlem_id = ? AND b.svar = 'golive_krav' AND f.status != 'driftsatt'
         ORDER BY f.namn
         """,
         (medlem_id,),
@@ -105,7 +108,7 @@ def migreringsoversikt(conn, arvda: bool = False):
                (SELECT COUNT(*) FROM {_kalla(arvda)} b
                 JOIN funktion f ON f.id = b.funktion_id
                 WHERE b.medlem_id = m.id AND b.svar = 'golive_krav'
-                  AND f.status != 'befintlig') AS blockerare,
+                  AND f.status != 'driftsatt') AS blockerare,
                EXISTS (SELECT 1 FROM bedomning WHERE medlem_id = m.id) AS har_svarat
         FROM medlem m
         ORDER BY har_svarat DESC, blockerare ASC, m.namn

@@ -8,7 +8,7 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 from app.services.importera import importera_medlemmar, importera_trad, las_rader
-from tests.conftest import logga_in, satt_svar, seed_trad, skapa_medlem
+from tests.conftest import csrf_fran, logga_in, satt_svar, seed_trad, skapa_medlem
 
 
 def test_roadmap_r1_typfilter(client, app_db):
@@ -39,6 +39,56 @@ def test_acceptance_9_4_roadmap_export(client, app_db):
     assert "<script" not in export.text
     # ... but admins still see the branch in the roadmap view.
     assert "Publicering" in client.get("/roadmap").text
+
+
+def test_roadmap_redigeringslage_och_flytt(client, app_db):
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+
+    # The read view is inert: no move endpoint anywhere near it.
+    las = client.get("/roadmap").text
+    assert "Redigera roadmap" in las
+    assert "/roadmap/flytta" not in las
+
+    # Edit mode: per-row forms plus empty named phases as drop targets.
+    sida = client.get("/roadmap", params={"redigera": "1"}).text
+    assert "/roadmap/flytta" in sida
+    assert "Klar — lås roadmapen" in sida
+    assert "utan fas" in sida
+
+    token = csrf_fran(sida)
+    svar = client.post(
+        "/roadmap/flytta",
+        data={"nod_id": ids["publicering"], "fas": "nästa", "csrf_token": token},
+        follow_redirects=False,
+    )
+    assert svar.status_code == 303 and "redigera=1" in svar.headers["location"]
+    assert app_db.execute("SELECT fas FROM funktion WHERE id = ?",
+                          (ids["publicering"],)).fetchone()[0] == "nästa"
+    # Only the node itself moves — children keep their own fas.
+    assert app_db.execute("SELECT fas FROM funktion WHERE id = ?",
+                          (ids["wos"],)).fetchone()[0] == "senare"
+
+    # htmx (drag-and-drop) gets the groups partial back; empty fas = "utan fas".
+    svar = client.post(
+        "/roadmap/flytta",
+        data={"nod_id": ids["publicering"], "fas": ""},
+        headers={"HX-Request": "true", "X-CSRF-Token": token},
+    )
+    assert svar.status_code == 200 and 'id="roadmap-grupper"' in svar.text
+    assert app_db.execute("SELECT fas FROM funktion WHERE id = ?",
+                          (ids["publicering"],)).fetchone()[0] is None
+
+
+def test_roadmap_flytta_kraver_csrf_och_nod(client, app_db):
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    svar = client.post("/roadmap/flytta", data={"nod_id": ids["publicering"], "fas": "nu"})
+    assert svar.status_code == 400
+    token = csrf_fran(client.get("/roadmap", params={"redigera": "1"}).text)
+    svar = client.post("/roadmap/flytta",
+                       data={"nod_id": 99999, "fas": "nu", "csrf_token": token})
+    assert svar.status_code == 404
 
 
 def test_json_export_utan_token(client, app_db):
@@ -101,10 +151,10 @@ def test_xlsx_export_alla_vyer(client, app_db):
 def test_import_fran_csv(conn):
     csv_text = (
         "namn,foralder,typ,status,fas\n"
-        "Publicering,,förmåga,befintlig,nu\n"
-        "Registrera avhandling,Publicering,funktion,befintlig,nu\n"
+        "Publicering,,förmåga,driftsatt,nu\n"
+        "Registrera avhandling,Publicering,funktion,driftsatt,nu\n"
         "Spikblad genereras,Registrera avhandling,krav,planerad,nästa\n"
-        "Import,Publicering,funktion,befintlig,nu\n"
+        "Import,Publicering,funktion,utreds,nu\n"
     )
     antal = importera_trad(conn, las_rader(csv_text, "underlag.csv"))
     conn.commit()
@@ -133,7 +183,7 @@ def test_import_fel_avvisas(conn):
 
 def test_import_fran_json(conn):
     data = json.dumps([
-        {"namn": "Publicering", "typ": "förmåga", "status": "befintlig"},
+        {"namn": "Publicering", "typ": "förmåga", "status": "driftsatt"},
         {"namn": "Import", "foralder": "Publicering", "typ": "funktion"},
     ])
     assert importera_trad(conn, las_rader(data, "underlag.json")) == 2

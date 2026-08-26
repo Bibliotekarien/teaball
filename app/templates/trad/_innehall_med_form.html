@@ -1,0 +1,7 @@
+{# Successful create over htmx: the re-rendered tree PLUS a fresh node form
+   swapped out-of-band into #ny-nod-plats (which lives outside #trad-rot).
+   Everything resets except the parent, for rapid sibling entry. #}
+{% include "trad/_innehall.html" %}
+<div id="ny-nod-plats" hx-swap-oob="innerHTML">
+  {% include "trad/_nod_form.html" %}
+</div>

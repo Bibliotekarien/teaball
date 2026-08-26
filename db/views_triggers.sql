@@ -89,7 +89,7 @@ WITH RECURSIVE trad(id, djup, vag, synlig_stig) AS (
 )
 SELECT t.id, t.djup, t.vag, t.synlig_stig,
        f.namn, f.beskrivning, f.foralder_id, f.typ, f.status, f.fas,
-       f.synlig_externt, f.sortering
+       f.synlig_externt, f.sortering, f.lank_dokumentation, f.lank_jira
 FROM trad t
 JOIN funktion f ON f.id = t.id;
 
