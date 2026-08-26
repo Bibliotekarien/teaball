@@ -1,16 +1,16 @@
 namn,foralder,typ,status,fas
-Publicering,,förmåga,befintlig,nu
-Registrera avhandling,Publicering,funktion,befintlig,nu
+Publicering,,förmåga,driftsatt,nu
+Registrera avhandling,Publicering,funktion,driftsatt,nu
 Spikblad genereras automatiskt,Registrera avhandling,krav,planerad,nästa
-ORCID valideras vid inmatning,Registrera avhandling,krav,befintlig,nu
+ORCID valideras vid inmatning,Registrera avhandling,krav,driftsatt,nu
 DOI tilldelas alla publikationstyper,Publicering,krav,planerad,nästa
-Import,Publicering,funktion,befintlig,nu
+Import,Publicering,funktion,driftsatt,nu
 Import från Web of Science,Import,funktion,planerad,senare
 Dubblettdetektering vid import,Import från Web of Science,krav,idé,senare
-BibTeX-import bevarar specialtecken,Import,krav,befintlig,nu
-Export & spridning,,förmåga,befintlig,nu
+BibTeX-import bevarar specialtecken,Import,krav,driftsatt,nu
+Export & spridning,,förmåga,driftsatt,nu
 OAI-PMH med borttagsspårning,Export & spridning,krav,planerad,nästa
-Export till SwePub,Export & spridning,funktion,befintlig,nu
+Export till SwePub,Export & spridning,funktion,driftsatt,nu
 MODS-export följer kanoniskt format,Export till SwePub,krav,planerad,nu
 Administration,,förmåga,planerad,nästa
 Behörighetsstyrning per organisationsenhet,Administration,krav,planerad,nästa

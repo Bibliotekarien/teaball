@@ -25,9 +25,10 @@ SVAR_STIL = {
     "behovs_ej": ("E7E5E4", "57534E"),
 }
 STATUS_STIL = {
-    "befintlig": ("D1FAE5", "065F46"),
+    "driftsatt": ("D1FAE5", "065F46"),
     "planerad": ("E0F2FE", "075985"),
     "idé": ("E7E5E4", "57534E"),
+    "utreds": ("FEF3C7", "92400E"),
     "utgår": ("F5F5F4", "A8A29E"),
 }
 
@@ -47,18 +48,20 @@ def trad_csv(conn) -> str:
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["id", "namn", "foralder_id", "foralder_namn", "typ", "status",
-                "fas", "synlig_externt", "djup"])
+                "fas", "synlig_externt", "djup", "lank_dokumentation", "lank_jira"])
     for r in conn.execute(
         """
         SELECT t.id, t.namn, t.foralder_id, f.namn AS foralder_namn,
-               t.typ, t.status, t.fas, t.synlig_externt, t.djup
+               t.typ, t.status, t.fas, t.synlig_externt, t.djup,
+               t.lank_dokumentation, t.lank_jira
         FROM funktion_trad t
         LEFT JOIN funktion f ON f.id = t.foralder_id
         ORDER BY t.vag
         """
     ):
         w.writerow([r["id"], r["namn"], r["foralder_id"], r["foralder_namn"],
-                    r["typ"], r["status"], r["fas"], r["synlig_externt"], r["djup"]])
+                    r["typ"], r["status"], r["fas"], r["synlig_externt"], r["djup"],
+                    r["lank_dokumentation"], r["lank_jira"]])
     return buf.getvalue()
 
 

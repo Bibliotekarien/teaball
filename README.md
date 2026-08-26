@@ -68,14 +68,23 @@ Lösenordet frågas efter interaktivt och lagras argon2-hashat. Logga sedan in p
 ### Initial datainläsning
 
 Läs in ett befintligt underlag som CSV eller JSON (kolumner/nycklar:
-`namn, foralder, typ, status, fas` — `foralder` är förälderns *namn*, tomt för
-rotnivå; filordningen blir syskonordningen):
+`namn, foralder, typ, status, fas` samt valfritt `lank_dokumentation` och
+`lank_jira` — `foralder` är förälderns *namn*, tomt för rotnivå; filordningen
+blir syskonordningen):
 
 ```bash
 docker compose exec app python scripts/importera_trad.py underlag.csv
 ```
 
 Hela importen är en transaktion — valideringsfel lämnar databasen orörd.
+
+Giltiga statusar är `driftsatt`, `planerad`, `idé`, `utreds` och `utgår`.
+`driftsatt` = finns och fungerar i nya plattformen (räknas inte som blockerare);
+`utreds` = finns i DiVA Classic, identifierad men ännu inte beslutad (behandlas
+som `idé` i analysens varningar). I kravspecen och prototypen heter `driftsatt`
+fortfarande *befintlig* — de dokumenten är bevarade oförändrade; migration
+`0002` döper om värdet i databasen automatiskt vid första uppstarten.
+Förklaringarna visas även i appen, under ”Vad betyder typerna och statusarna?”.
 
 Medlemslistan läses in på samma sätt (kolumner/nycklar: `namn, kategori`).
 Utan filargument används det incheckade underlaget med DiVA-konsortiets
@@ -149,9 +158,13 @@ tailwindcss -i static/css/tailwind.in.css -o static/css/app.css --minify
 - **htmx-mönstret:** varje osäker operation är ett riktigt formulär som
   fungerar utan JS (POST → redirect); htmx förbättrar samma endpoint med
   partiella svar (`HX-Request`-headern avgör).
-- **Migrationer:** numrerade filer i `db/migrations/` (bara tabeller/index),
-  spårade i `schema_migration`, körda vid uppstart. Vyer/triggers behöver
-  aldrig migration.
+- **Migrationer:** numrerade filer i `db/migrations/` (tabeller/index och
+  datafixar), spårade i `schema_migration`, körda vid uppstart. Vyer/triggers
+  behöver aldrig migration. Innan väntande migrationer körs mot en databas med
+  data tas automatiskt en säkerhetskopia bredvid databasfilen
+  (`<namn>.fore-<version>-<tidsstämpel>.db`, via SQLite:s backup-API) —
+  återställning är stoppa appen + kopiera tillbaka filen. Kopian roteras
+  inte: ta bort den när uppgraderingen är verifierad.
 
 ### Portanteckningar (D5)
 

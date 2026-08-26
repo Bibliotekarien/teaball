@@ -27,7 +27,12 @@ def undergren_ids(conn: sqlite3.Connection, nod_id: int) -> set[int]:
 def hamta_trad(conn, q=None, typ=None, status=None, fas=None, endast_synliga=False):
     """The whole tree in display order as nested dicts. With filters (T4),
     matching nodes are kept together with their ancestors for context.
+    typ and status accept several values — OR within a filter, AND between.
     endast_synliga=True gives the member view: only synlig_stig = 1 (B7/T5)."""
+    if isinstance(typ, str):
+        typ = [typ]
+    if isinstance(status, str):
+        status = [status]
     if endast_synliga:
         rows = conn.execute(
             "SELECT * FROM funktion_trad WHERE synlig_stig = 1 ORDER BY vag"
@@ -42,9 +47,9 @@ def hamta_trad(conn, q=None, typ=None, status=None, fas=None, endast_synliga=Fal
         for r in rows:
             if q and q.lower() not in r["namn"].lower():
                 continue
-            if typ and r["typ"] != typ:
+            if typ and r["typ"] not in typ:
                 continue
-            if status and r["status"] != status:
+            if status and r["status"] not in status:
                 continue
             if fas and (r["fas"] or "") != fas:
                 continue
@@ -109,22 +114,21 @@ def _normalisera(conn, ordning: list[int]):
         conn.execute("UPDATE funktion SET sortering = ? WHERE id = ?", ((i + 1) * 10, nod_id))
 
 
-def skapa_nod(conn, namn, foralder_id, typ, status, fas, beskrivning, synlig_externt) -> int:
-    if foralder_id is None:
-        sista = conn.execute(
-            "SELECT COALESCE(MAX(sortering), 0) + 10 FROM funktion WHERE foralder_id IS NULL"
-        ).fetchone()[0]
-    else:
-        sista = conn.execute(
-            "SELECT COALESCE(MAX(sortering), 0) + 10 FROM funktion WHERE foralder_id = ?",
-            (foralder_id,),
-        ).fetchone()[0]
+def skapa_nod(conn, namn, foralder_id, typ, status, fas, beskrivning, synlig_externt,
+              lank_dokumentation=None, lank_jira=None) -> int:
     cur = conn.execute(
         "INSERT INTO funktion (namn, foralder_id, typ, status, fas, beskrivning,"
-        " synlig_externt, sortering) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (namn, foralder_id, typ, status, fas, beskrivning, synlig_externt, sista),
+        " synlig_externt, sortering, lank_dokumentation, lank_jira)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)",
+        (namn, foralder_id, typ, status, fas, beskrivning, synlig_externt,
+         lank_dokumentation, lank_jira),
     )
-    return cur.lastrowid
+    nytt = cur.lastrowid
+    # New nodes land first among their siblings (top of the root list when
+    # parentless); sorting afterwards still wins — prepend and renormalize.
+    ordning = [nytt] + [i for i in _syskon_ordning(conn, foralder_id) if i != nytt]
+    _normalisera(conn, ordning)
+    return nytt
 
 
 def flytta_nod(conn, nod_id: int, ny_foralder_id: int | None, position: int | None = None):

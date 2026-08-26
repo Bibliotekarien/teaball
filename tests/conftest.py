@@ -130,12 +130,12 @@ def seed_trad(conn):
     Export & spridning (förmåga)
     """
     ids = {}
-    ids["publicering"] = skapa_funktion(conn, "Publicering", typ="förmåga", status="befintlig", sortering=10)
+    ids["publicering"] = skapa_funktion(conn, "Publicering", typ="förmåga", status="driftsatt", sortering=10)
     ids["registrera"] = skapa_funktion(conn, "Registrera avhandling", ids["publicering"], typ="funktion", sortering=10)
     ids["import"] = skapa_funktion(conn, "Import", ids["publicering"], typ="funktion", sortering=20)
     ids["wos"] = skapa_funktion(conn, "Import från Web of Science", ids["import"], typ="funktion", fas="senare", sortering=10)
     ids["dubblett"] = skapa_funktion(conn, "Dubblettdetektering", ids["wos"], typ="krav", status="idé", fas="senare", sortering=10)
-    ids["export"] = skapa_funktion(conn, "Export & spridning", typ="förmåga", status="befintlig", sortering=20)
+    ids["export"] = skapa_funktion(conn, "Export & spridning", typ="förmåga", status="driftsatt", sortering=20)
     conn.commit()
     return ids
 

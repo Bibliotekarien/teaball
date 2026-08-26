@@ -36,12 +36,19 @@ SVAR = {
     },
 }
 
+# The beskrivning texts feed the legend partial and the pill tooltips.
 STATUS = {
-    "befintlig": {"label": "Befintlig", "cls": "bg-emerald-100 text-emerald-800"},
-    "planerad": {"label": "Planerad", "cls": "bg-sky-100 text-sky-800"},
-    "idé": {"label": "Idé", "cls": "bg-stone-200 text-stone-600"},
+    "driftsatt": {"label": "Driftsatt", "cls": "bg-emerald-100 text-emerald-800",
+                  "beskrivning": "Finns och fungerar i nya plattformen — räknas inte som blockerare."},
+    "planerad": {"label": "Planerad", "cls": "bg-sky-100 text-sky-800",
+                 "beskrivning": "Beslutad att byggas; fasen i roadmapen anger när."},
+    "idé": {"label": "Idé", "cls": "bg-stone-200 text-stone-600",
+            "beskrivning": "Nytt förslag som ännu inte är beslutat."},
+    "utreds": {"label": "Utreds", "cls": "bg-amber-100 text-amber-800",
+               "beskrivning": "Finns i DiVA Classic; identifierad men ännu inte beslutad."},
     # 'utgår' exists in the schema but not in the prototype; muted strike-through badge.
-    "utgår": {"label": "Utgår", "cls": "bg-stone-100 text-stone-400 line-through"},
+    "utgår": {"label": "Utgår", "cls": "bg-stone-100 text-stone-400 line-through",
+              "beskrivning": "Byggs inte — tas inte vidare till nya plattformen."},
 }
 
 TYP_CLS = {
@@ -50,11 +57,18 @@ TYP_CLS = {
     "krav": "text-stone-700",
 }
 
+TYP_BESKRIVNING = {
+    "förmåga": "Ett sammanhållet område av vad systemet ska klara — rubriknivån i kartan.",
+    "funktion": "Något systemet gör: en avgränsad byggsten inom en förmåga.",
+    "krav": "Ett testbart villkor som ska vara uppfyllt — det medlemmarna bedömer.",
+}
+
 FASER = ["nu", "nästa", "senare"]
 
 templates.env.globals["SVAR"] = SVAR
 templates.env.globals["STATUS"] = STATUS
 templates.env.globals["TYP_CLS"] = TYP_CLS
+templates.env.globals["TYP_BESKRIVNING"] = TYP_BESKRIVNING
 templates.env.globals["FASER"] = FASER
 
 

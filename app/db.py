@@ -6,10 +6,14 @@ db/views_triggers.sql, which is DROP+CREATE-run on every startup so iterating on
 them never needs a migration.
 """
 
+import logging
 import sqlite3
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app import config
+
+logger = logging.getLogger("teaball.db")
 
 # CTEs inside trigger bodies (the D1 cycle guard) need SQLite >= 3.34.
 MIN_SQLITE_VERSION = (3, 34, 0)
@@ -36,6 +40,36 @@ def assert_sqlite_version() -> None:
         )
 
 
+def _kopia_fore_migration(conn: sqlite3.Connection, sista_version: int) -> Path | None:
+    """Snapshot the database file next to itself before pending migrations run.
+
+    Each migration is atomic, but atomicity does not cover "migrated
+    successfully to the wrong result" — this copy does. Taken via the backup
+    API (consistent even in WAL mode, same mechanism as scripts/backup.sh).
+    Skipped for in-memory databases and for fresh files that hold nothing but
+    schema_migration. Restore = stop the app, copy the file back. The copy is
+    never rotated: delete it once the upgrade is verified."""
+    rad = conn.execute("PRAGMA database_list").fetchone()
+    fil = rad["file"] if rad else None
+    if not fil:
+        return None
+    har_data = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table'"
+        " AND name != 'schema_migration' LIMIT 1"
+    ).fetchone()
+    if not har_data:
+        return None
+    kalla = Path(fil)
+    stampel = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    mal = kalla.with_name(f"{kalla.stem}.fore-{sista_version:04d}-{stampel}{kalla.suffix}")
+    kopia = sqlite3.connect(mal)
+    try:
+        conn.backup(kopia)
+    finally:
+        kopia.close()
+    return mal
+
+
 def migrate(conn: sqlite3.Connection) -> None:
     conn.execute(
         "CREATE TABLE IF NOT EXISTS schema_migration ("
@@ -43,10 +77,19 @@ def migrate(conn: sqlite3.Connection) -> None:
         " applied TEXT NOT NULL DEFAULT (datetime('now')))"
     )
     applied = {row["version"] for row in conn.execute("SELECT version FROM schema_migration")}
-    for path in sorted(config.MIGRATIONS_DIR.glob("[0-9]*.sql")):
-        version = int(path.name.split("_", 1)[0])
-        if version in applied:
-            continue
+    vantande = [
+        (int(path.name.split("_", 1)[0]), path)
+        for path in sorted(config.MIGRATIONS_DIR.glob("[0-9]*.sql"))
+        if int(path.name.split("_", 1)[0]) not in applied
+    ]
+    if not vantande:
+        return
+    # A failed snapshot aborts the whole startup: better to refuse migrating
+    # than to migrate a production database without the promised copy.
+    kopia = _kopia_fore_migration(conn, max(v for v, _ in vantande))
+    if kopia:
+        logger.info("Säkerhetskopia före migration: %s", kopia)
+    for version, path in vantande:
         # One atomic transaction per migration, version row included — a failed
         # migration leaves neither partial schema nor a missing version row.
         # Migration files must therefore not contain their own BEGIN/COMMIT.

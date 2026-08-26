@@ -7,9 +7,15 @@
 {% block innehall %}
 <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
   <p class="text-sm text-stone-500">Hela hierarkin. Typ är en etikett — krav kan ligga på vilken nivå som helst.</p>
-  <a href="/trad/nod/ny" hx-get="/trad/nod/ny" hx-target="#ny-nod-plats" hx-swap="innerHTML"
-     class="rounded-md bg-blue-900 px-3 py-1.5 text-sm text-white hover:bg-blue-800">+ Ny nod</a>
+  <span class="flex items-center gap-2">
+    <a href="/trad?vy={{ 'kompakt' if detaljerad else 'detaljerad' }}"
+       class="rounded-md border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100">{{ 'Kompakt vy' if detaljerad else 'Detaljerad vy' }}</a>
+    <a href="/trad/nod/ny" hx-get="/trad/nod/ny" hx-target="#ny-nod-plats" hx-swap="innerHTML"
+       class="rounded-md bg-blue-900 px-3 py-1.5 text-sm text-white hover:bg-blue-800">+ Ny nod</a>
+  </span>
 </div>
+
+{% include "_forklaringar.html" %}
 
 <form method="get" action="/trad" class="mb-3 flex flex-wrap items-end gap-2 text-sm"
       hx-get="/trad" hx-target="#trad-rot" hx-swap="outerHTML"
@@ -18,22 +24,24 @@
     <input name="q" value="{{ filter.q }}" placeholder="namn …"
            class="w-44 rounded-md border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700">
   </label>
-  <label class="grid gap-0.5 text-xs text-stone-500">Typ
-    <select name="typ" class="rounded-md border border-stone-300 px-2 py-1 text-sm">
-      <option value="">alla</option>
+  <fieldset class="grid gap-0.5 text-xs text-stone-500">
+    <legend>Typ</legend>
+    <span class="flex items-center gap-2 rounded-md border border-stone-300 bg-white px-2 py-1" title="Ingen ikryssad = alla. Flera kan väljas.">
       {% for t in ["förmåga", "funktion", "krav"] %}
-      <option value="{{ t }}" {% if filter.typ == t %}selected{% endif %}>{{ t }}</option>
+      <label class="flex cursor-pointer items-center gap-1">
+        <input type="checkbox" name="typ" value="{{ t }}" {% if t in filter.typ %}checked{% endif %}>{{ t }}</label>
       {% endfor %}
-    </select>
-  </label>
-  <label class="grid gap-0.5 text-xs text-stone-500">Status
-    <select name="status" class="rounded-md border border-stone-300 px-2 py-1 text-sm">
-      <option value="">alla</option>
+    </span>
+  </fieldset>
+  <fieldset class="grid gap-0.5 text-xs text-stone-500">
+    <legend>Status</legend>
+    <span class="flex items-center gap-2 rounded-md border border-stone-300 bg-white px-2 py-1" title="Ingen ikryssad = alla. Flera kan väljas.">
       {% for s, meta in STATUS.items() %}
-      <option value="{{ s }}" {% if filter.status == s %}selected{% endif %}>{{ meta.label }}</option>
+      <label class="flex cursor-pointer items-center gap-1">
+        <input type="checkbox" name="status" value="{{ s }}" {% if s in filter.status %}checked{% endif %}>{{ meta.label }}</label>
       {% endfor %}
-    </select>
-  </label>
+    </span>
+  </fieldset>
   <label class="grid gap-0.5 text-xs text-stone-500">Fas
     <input name="fas" value="{{ filter.fas }}" list="faser" placeholder="alla"
            class="w-24 rounded-md border border-stone-300 px-2 py-1 text-sm">

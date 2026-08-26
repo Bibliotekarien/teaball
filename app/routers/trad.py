@@ -6,7 +6,7 @@ partial swaps. Structural changes always respond with the whole tree container
 import logging
 import sqlite3
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 
 from app.auth.core import Principal, krav_forvaltare
@@ -19,11 +19,20 @@ router = APIRouter(prefix="/trad", dependencies=[Depends(krav_csrf)])
 audit = logging.getLogger("teaball.audit")
 
 TYPER = ["förmåga", "funktion", "krav"]
-STATUSAR = ["befintlig", "planerad", "idé", "utgår"]
+STATUSAR = ["driftsatt", "planerad", "idé", "utreds", "utgår"]
 
 
 def _till_int(varde: str | None) -> int | None:
     return int(varde) if varde not in (None, "") else None
+
+
+def _validera_lank(varde: str, falt: str) -> str | None:
+    """External links must be absolute http(s) URLs — anything else (javascript:,
+    relative paths, typos) is rejected before it reaches an href."""
+    lank = varde.strip()[:500]
+    if lank and not lank.startswith(("http://", "https://")):
+        raise ValueError(f"{falt} måste börja med http:// eller https://.")
+    return lank or None
 
 
 def _cykeltext(fel: sqlite3.IntegrityError) -> str:
@@ -33,9 +42,13 @@ def _cykeltext(fel: sqlite3.IntegrityError) -> str:
     return "Ändringen bröt mot en databasregel och avvisades."
 
 
-def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | None = None):
-    """Tree response: partial for htmx, full page (or redirect) otherwise."""
-    filter = filter or {"q": "", "typ": "", "status": "", "fas": ""}
+def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | None = None,
+              aterstall_formular: bool = False, foralder_id: int | None = None):
+    """Tree response: partial for htmx, full page (or redirect) otherwise.
+    With aterstall_formular (after a successful create over htmx) the partial
+    also carries a fresh, empty node form out-of-band — parent preserved — so
+    sibling after sibling can be entered without re-opening the form."""
+    filter = filter or {"q": "", "typ": [], "status": [], "fas": ""}
     if not is_htmx(request) and fel is None and request.method == "POST":
         return RedirectResponse("/trad", status_code=303)
     ctx = {
@@ -46,8 +59,14 @@ def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | N
         ),
         "fel": fel,
         "filter": filter,
+        # Compact/detailed toggle, sticky per session (set in visa_trad).
+        "detaljerad": request.session.get("trad_vy") == "detaljerad",
     }
     mall = "trad/_innehall.html" if is_htmx(request) else "trad/index.html"
+    if is_htmx(request) and aterstall_formular and fel is None:
+        mall = "trad/_innehall_med_form.html"
+        ctx |= {"nod": None, "foralder_id": foralder_id,
+                "val": tjanst.hamta_val(conn), "typer": TYPER, "statusar": STATUSAR}
     status_code = 400 if fel and not is_htmx(request) else 200
     return templates.TemplateResponse(request, mall, ctx, status_code=status_code)
 
@@ -55,10 +74,13 @@ def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | N
 @router.get("")
 def visa_trad(
     request: Request,
-    q: str = "", typ: str = "", status: str = "", fas: str = "",
+    q: str = "", fas: str = "", vy: str = "",
+    typ: list[str] = Query([]), status: list[str] = Query([]),
     principal: Principal = Depends(krav_forvaltare),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
+    if vy in ("kompakt", "detaljerad"):
+        request.session["trad_vy"] = vy
     return _tradsvar(request, conn, principal,
                      filter={"q": q, "typ": typ, "status": status, "fas": fas})
 
@@ -110,18 +132,26 @@ def skapa_nod(
     status: str = Form(...),
     fas: str = Form(""),
     beskrivning: str = Form(""),
+    lank_dokumentation: str = Form(""),
+    lank_jira: str = Form(""),
     synlig_externt: str = Form(""),
     principal: Principal = Depends(krav_forvaltare),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
+    try:
+        dok = _validera_lank(lank_dokumentation, "Dokumentationslänken")
+        jira = _validera_lank(lank_jira, "Jira-länken")
+    except ValueError as fel:
+        return _tradsvar(request, conn, principal, fel=str(fel))
     nod_id = tjanst.skapa_nod(
         conn, namn.strip()[:200], _till_int(foralder_id), typ, status,
         fas.strip()[:50] or None, beskrivning.strip()[:4000] or None,
-        1 if synlig_externt else 0,
+        1 if synlig_externt else 0, dok, jira,
     )
     conn.commit()
     audit.info("forvaltare=%s op=skapa nod=%s namn=%r", principal.namn, nod_id, namn)
-    return _tradsvar(request, conn, principal)
+    return _tradsvar(request, conn, principal,
+                     aterstall_formular=True, foralder_id=_till_int(foralder_id))
 
 
 @router.post("/nod/{nod_id}")
@@ -134,16 +164,25 @@ def uppdatera_nod(
     status: str = Form(...),
     fas: str = Form(""),
     beskrivning: str = Form(""),
+    lank_dokumentation: str = Form(""),
+    lank_jira: str = Form(""),
     synlig_externt: str = Form(""),
     principal: Principal = Depends(krav_forvaltare),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     try:
+        dok = _validera_lank(lank_dokumentation, "Dokumentationslänken")
+        jira = _validera_lank(lank_jira, "Jira-länken")
+    except ValueError as fel:
+        return _tradsvar(request, conn, principal, fel=str(fel))
+    try:
         conn.execute(
             "UPDATE funktion SET namn = ?, typ = ?, status = ?, fas = ?,"
-            " beskrivning = ?, synlig_externt = ? WHERE id = ?",
+            " beskrivning = ?, lank_dokumentation = ?, lank_jira = ?,"
+            " synlig_externt = ? WHERE id = ?",
             (namn.strip()[:200], typ, status, fas.strip()[:50] or None,
-             beskrivning.strip()[:4000] or None, 1 if synlig_externt else 0, nod_id),
+             beskrivning.strip()[:4000] or None, dok, jira,
+             1 if synlig_externt else 0, nod_id),
         )
         gammal = conn.execute(
             "SELECT foralder_id FROM funktion WHERE id = ?", (nod_id,)

@@ -33,7 +33,7 @@ def test_skapa_och_redigera_nod(client, app_db):
     token = _token(client)
     svar = client.post(
         "/trad/nod",
-        data={"namn": "Publicering", "typ": "förmåga", "status": "befintlig",
+        data={"namn": "Publicering", "typ": "förmåga", "status": "driftsatt",
               "synlig_externt": "1", "csrf_token": token},
         follow_redirects=False,
     )
@@ -142,6 +142,72 @@ def test_filter_visar_traffar_med_forfader(client, app_db):
     assert "Export &amp; spridning" not in sida
 
 
+def test_ny_nod_hamnar_forst_och_formularet_aterstalls(client, app_db):
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    token = _token(client)
+
+    # htmx create under Import: lands FIRST among the siblings ...
+    svar = client.post(
+        "/trad/nod",
+        data={"namn": "Ny under Import", "foralder_id": str(ids["import"]),
+              "typ": "funktion", "status": "utreds"},
+        headers={"HX-Request": "true", "X-CSRF-Token": token},
+    )
+    assert svar.status_code == 200
+    ordning = [r["namn"] for r in app_db.execute(
+        "SELECT namn FROM funktion WHERE foralder_id = ? ORDER BY sortering, id",
+        (ids["import"],))]
+    assert ordning[0] == "Ny under Import"
+    # ... and the response swaps in a fresh form out-of-band: same parent
+    # preselected, name field empty.
+    assert 'id="ny-nod-plats" hx-swap-oob="innerHTML"' in svar.text
+    assert f'<option value="{ids["import"]}" selected>' in svar.text
+    assert 'value="Ny under Import"' not in svar.text
+
+    # Parentless create lands at the top of the root level.
+    svar = client.post(
+        "/trad/nod",
+        data={"namn": "Ny rot", "typ": "förmåga", "status": "planerad",
+              "csrf_token": token},
+        follow_redirects=False,
+    )
+    assert svar.status_code == 303
+    rotter = [r["namn"] for r in app_db.execute(
+        "SELECT namn FROM funktion WHERE foralder_id IS NULL ORDER BY sortering, id")]
+    assert rotter[0] == "Ny rot"
+
+
+def test_utgar_stryks_over_i_tradet(client, app_db):
+    ids = seed_trad(app_db)
+    app_db.execute("UPDATE funktion SET status = 'utgår' WHERE id = ?", (ids["registrera"],))
+    app_db.commit()
+    logga_in(client, app_db)
+    sida = client.get("/trad").text
+    assert 'line-through text-stone-400" title="Registrera avhandling"' in sida
+    assert 'line-through text-stone-400" title="Publicering"' not in sida
+
+
+def test_filter_med_flera_val(client, app_db):
+    seed_trad(app_db)
+    logga_in(client, app_db)
+
+    # OR within a filter: driftsatt + idé at once.
+    sida = client.get("/trad", params={"status": ["driftsatt", "idé"]}).text
+    assert "Dubblettdetektering" in sida                 # idé
+    assert "Export &amp; spridning" in sida              # driftsatt
+    # Registrera avhandling is planerad and not an ancestor of any match.
+    assert "Registrera avhandling" not in sida
+    # Its checkboxes come back checked.
+    assert sida.count('name="status"') == 5
+    assert 'value="driftsatt" checked' in sida and 'value="idé" checked' in sida
+
+    # AND between filters: typ förmåga+krav, status idé → only Dubblett's chain.
+    sida = client.get("/trad", params={"typ": ["förmåga", "krav"], "status": ["idé"]}).text
+    assert "Dubblettdetektering" in sida
+    assert "Export &amp; spridning" not in sida
+
+
 def test_synlighet_ar_transitiv(client, app_db):
     ids = seed_trad(app_db)
     logga_in(client, app_db)
@@ -152,6 +218,61 @@ def test_synlighet_ar_transitiv(client, app_db):
     assert stig[ids["import"]] == 0
     assert stig[ids["wos"]] == 0 and stig[ids["dubblett"]] == 0  # whole subtree hidden
     assert stig[ids["publicering"]] == 1 and stig[ids["registrera"]] == 1
+
+
+def test_lankar_och_detaljerad_vy(client, app_db):
+    logga_in(client, app_db)
+    token = _token(client)
+    svar = client.post(
+        "/trad/nod",
+        data={"namn": "ORCID-validering", "typ": "krav", "status": "utreds",
+              "beskrivning": "Validering vid inmatning.",
+              "lank_dokumentation": "https://wiki.example/orcid",
+              "lank_jira": "https://jira.example/DIVA-123",
+              "csrf_token": token},
+        follow_redirects=False,
+    )
+    assert svar.status_code == 303
+
+    # Compact view (the default) hides links and description in the tree.
+    sida = client.get("/trad").text
+    assert "https://jira.example/DIVA-123" not in sida
+    assert "Detaljerad vy" in sida
+    assert "Vad betyder typerna och statusarna?" in sida     # legend
+    assert "Finns i DiVA Classic" in sida                    # utreds explained
+
+    # The detailed view shows both, and sticks in the session.
+    sida = client.get("/trad", params={"vy": "detaljerad"}).text
+    assert 'href="https://jira.example/DIVA-123"' in sida
+    assert "Jira&nbsp;↗" in sida and "Dokumentation&nbsp;↗" in sida
+    assert "Validering vid inmatning." in sida
+    assert "Kompakt vy" in sida
+    assert 'href="https://wiki.example/orcid"' in client.get("/trad").text
+
+
+def test_ny_nod_har_forval_funktion_utreds(client, app_db):
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    form = client.get("/trad/nod/ny").text
+    assert '<option value="funktion" selected>funktion</option>' in form
+    assert '<option value="utreds" selected>utreds</option>' in form
+    # Editing keeps the node's own values.
+    form = client.get(f"/trad/nod/{ids['publicering']}/redigera").text
+    assert '<option value="förmåga" selected>förmåga</option>' in form
+    assert '<option value="driftsatt" selected>driftsatt</option>' in form
+
+
+def test_ogiltig_lank_avvisas(client, app_db):
+    logga_in(client, app_db)
+    token = _token(client)
+    svar = client.post(
+        "/trad/nod",
+        data={"namn": "X", "typ": "krav", "status": "planerad",
+              "lank_jira": "javascript:alert(1)", "csrf_token": token},
+    )
+    assert svar.status_code == 400
+    assert "http://" in svar.text
+    assert app_db.execute("SELECT COUNT(*) FROM funktion").fetchone()[0] == 0
 
 
 def test_funktion_trad_visningsordning(app_db):
