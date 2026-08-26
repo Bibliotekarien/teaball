@@ -1,0 +1,12 @@
+# Keep the build context small and dev artifacts out of the image.
+# Guards the `COPY data ./data` in the Dockerfile: only the tracked CSV
+# underlag ships — never a local development database.
+.git
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.env
+data/*.db
+data/*.db-wal
+data/*.db-shm
