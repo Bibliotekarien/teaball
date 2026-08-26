@@ -22,6 +22,9 @@ COPY app ./app
 COPY db ./db
 COPY static ./static
 COPY scripts ./scripts
+# Bundled seed data (DiVA members etc.) so the import scripts work in the
+# container. .dockerignore keeps local dev databases in data/ out of the image.
+COPY data ./data
 
 # Service user per platform convention (SERVER_LAYOUT.md UID allocation).
 RUN mkdir -p /data \
