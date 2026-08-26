@@ -1,0 +1,14 @@
+{% import "trad/_nod_makro.html" as m %}
+<div id="trad-rot">
+  {% if fel %}
+  <div class="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{{ fel }}</div>
+  {% endif %}
+  <div class="rounded-lg border border-stone-200 bg-white">
+    <ul class="syskon" data-foralder="">
+      {% for n in rotter %}{{ m.nod(n, request) }}{% endfor %}
+    </ul>
+    {% if not rotter %}
+    <p class="p-4 text-sm text-stone-400">Inga noder ännu. Skapa den första med ”+ Ny nod”.</p>
+    {% endif %}
+  </div>
+</div>

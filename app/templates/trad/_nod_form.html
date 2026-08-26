@@ -1,0 +1,55 @@
+{# Create/edit form. Inline (htmx swaps it in place of the row) and as the body
+   of the full-page fallback (trad/nod_sida.html). #}
+<div id="{{ 'rad-' ~ nod.id if nod else 'ny-nod-form' }}" class="border-b border-stone-100 bg-blue-50 p-3">
+  <form method="post" action="{{ '/trad/nod/' ~ nod.id if nod else '/trad/nod' }}"
+        hx-post="{{ '/trad/nod/' ~ nod.id if nod else '/trad/nod' }}"
+        hx-target="#trad-rot" hx-swap="outerHTML"
+        class="grid gap-2 text-sm sm:grid-cols-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <label class="grid gap-0.5 text-xs text-stone-500">Namn
+      <input name="namn" required maxlength="200" value="{{ nod.namn if nod else '' }}"
+             class="rounded-md border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700">
+    </label>
+    <label class="grid gap-0.5 text-xs text-stone-500">Förälder
+      <select name="foralder_id" class="rounded-md border border-stone-300 px-2 py-1 text-sm">
+        <option value="">(rotnivå)</option>
+        {% for v in val %}
+        <option value="{{ v.id }}" {% if foralder_id == v.id %}selected{% endif %}>{{ v.etikett }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="grid gap-0.5 text-xs text-stone-500">Typ
+      <select name="typ" class="rounded-md border border-stone-300 px-2 py-1 text-sm">
+        {% for t in typer %}
+        <option value="{{ t }}" {% if nod and nod.typ == t %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="grid gap-0.5 text-xs text-stone-500">Status
+      <select name="status" class="rounded-md border border-stone-300 px-2 py-1 text-sm">
+        {% for s in statusar %}
+        <option value="{{ s }}" {% if nod and nod.status == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="grid gap-0.5 text-xs text-stone-500">Fas
+      <input name="fas" value="{{ nod.fas or '' if nod else '' }}" list="faser" placeholder="nu / nästa / senare / kvartal"
+             class="rounded-md border border-stone-300 px-2 py-1 text-sm">
+      <datalist id="faser">{% for f in FASER %}<option value="{{ f }}">{% endfor %}</datalist>
+    </label>
+    <label class="flex items-end gap-2 pb-1 text-sm">
+      <input type="checkbox" name="synlig_externt" value="1"
+             {% if not nod or nod.synlig_externt %}checked{% endif %}>
+      Synlig för medlemmar
+    </label>
+    <label class="grid gap-0.5 text-xs text-stone-500 sm:col-span-2">Beskrivning
+      <textarea name="beskrivning" rows="2" maxlength="4000"
+                class="rounded-md border border-stone-300 px-2 py-1 text-sm">{{ nod.beskrivning or '' if nod else '' }}</textarea>
+    </label>
+    <div class="flex gap-2 sm:col-span-2">
+      <button class="rounded-md bg-blue-900 px-3 py-1.5 text-white hover:bg-blue-800">Spara</button>
+      <a href="/trad" hx-get="/trad" hx-target="#trad-rot" hx-swap="outerHTML"
+         class="rounded-md border border-stone-300 px-3 py-1.5 hover:bg-stone-100">Avbryt</a>
+    </div>
+  </form>
+</div>

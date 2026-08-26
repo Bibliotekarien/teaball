@@ -1,0 +1,56 @@
+{# Recursive tree node. The row sits inside <summary> when the node has
+   children, so expand/collapse is pure <details> — no JavaScript (T1/I2). #}
+{% macro rad(n, request) %}
+<div id="rad-{{ n.id }}" class="group flex items-center gap-1.5 border-b border-stone-100 py-1.5 pr-2 hover:bg-stone-50">
+  <span class="greppyta cursor-grab select-none px-1 text-stone-300" title="Dra för att flytta">⋮⋮</span>
+  {% if n.barn %}
+  <svg class="chevron h-3.5 w-3.5 shrink-0 text-stone-400 transition-transform" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M6 3.5 11 8l-5 4.5v-9z"/></svg>
+  {% else %}
+  <span class="w-[14px] shrink-0"></span>
+  {% endif %}
+  <span class="min-w-0 flex-1 truncate text-sm {{ TYP_CLS[n.typ] }}" title="{{ n.beskrivning or n.namn }}">{{ n.namn }}</span>
+
+  <span class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+    <form method="post" action="/trad/nod/{{ n.id }}/ordna" hx-post="/trad/nod/{{ n.id }}/ordna" hx-target="#trad-rot" hx-swap="outerHTML" class="flex">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+      <button name="riktning" value="upp" title="Flytta upp" class="rounded px-1 text-xs text-stone-400 hover:bg-stone-200 hover:text-stone-700">↑</button>
+      <button name="riktning" value="ner" title="Flytta ner" class="rounded px-1 text-xs text-stone-400 hover:bg-stone-200 hover:text-stone-700">↓</button>
+    </form>
+    <form method="post" action="/trad/nod/{{ n.id }}/synlighet" hx-post="/trad/nod/{{ n.id }}/synlighet" hx-target="#trad-rot" hx-swap="outerHTML" class="flex">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+      <button title="{% if n.synlig_externt %}Dölj för medlemmar{% else %}Visa för medlemmar{% endif %}"
+              class="rounded px-1 text-xs text-stone-400 hover:bg-stone-200 hover:text-stone-700">{% if n.synlig_externt %}dölja{% else %}visa{% endif %}</button>
+    </form>
+    <a href="/trad/nod/ny?foralder_id={{ n.id }}" hx-get="/trad/nod/ny?foralder_id={{ n.id }}" hx-target="#rad-{{ n.id }}" hx-swap="afterend"
+       title="Ny nod under denna" class="rounded px-1 text-xs text-stone-400 hover:bg-stone-200 hover:text-stone-700">+&nbsp;ny</a>
+    <a href="/trad/nod/{{ n.id }}/redigera" hx-get="/trad/nod/{{ n.id }}/redigera" hx-target="#rad-{{ n.id }}" hx-swap="outerHTML"
+       class="rounded px-1 text-xs text-stone-400 hover:bg-stone-200 hover:text-stone-700">redigera</a>
+    <a href="/trad/nod/{{ n.id }}/ta-bort" hx-get="/trad/nod/{{ n.id }}/ta-bort" hx-target="#rad-{{ n.id }}" hx-swap="outerHTML"
+       class="rounded px-1 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-800">ta&nbsp;bort</a>
+  </span>
+
+  <span class="flex shrink-0 items-center gap-1.5">
+    {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">dold</span>{% endif %}
+    <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500">{{ n.typ }}</span>
+    <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}">{{ STATUS[n.status].label }}</span>
+    <span class="hidden w-14 text-right text-xs text-stone-400 sm:inline">{{ n.fas or "" }}</span>
+  </span>
+</div>
+{% endmacro %}
+
+{% macro nod(n, request) %}
+<li id="nod-{{ n.id }}" data-nod="{{ n.id }}">
+  {% if n.barn %}
+  <details open>
+    <summary class="list-none [&::-webkit-details-marker]:hidden">{{ rad(n, request) }}</summary>
+    <ul class="syskon ml-[22px]" data-foralder="{{ n.id }}">
+      {% for b in n.barn %}{{ nod(b, request) }}{% endfor %}
+    </ul>
+  </details>
+  {% else %}
+  {{ rad(n, request) }}
+  {# Empty drop target so drag-and-drop can nest under a leaf. #}
+  <ul class="syskon ml-[22px] min-h-[3px]" data-foralder="{{ n.id }}"></ul>
+  {% endif %}
+</li>
+{% endmacro %}

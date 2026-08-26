@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block titel %}Roadmap – Teaball{% endblock %}
+{% block innehall %}
+<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+  <form method="get" action="/roadmap" class="flex items-center gap-2 text-sm text-stone-500">
+    <label class="flex cursor-pointer items-center gap-1.5">
+      <input type="checkbox" name="visa_krav" value="1" {% if visa_krav %}checked{% endif %}
+             data-autosubmit>
+      Visa även krav
+    </label>
+    <noscript><button class="rounded border border-stone-300 px-2 py-0.5 hover:bg-stone-100">Uppdatera</button></noscript>
+  </form>
+  <a href="/roadmap/export{% if visa_krav %}?visa_krav=1{% endif %}"
+     class="rounded-md border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100">
+    Ladda ner som HTML (för utskick)
+  </a>
+</div>
+
+{% for fas, rader in grupper %}
+<h2 class="mb-1 mt-4 font-serif text-sm text-blue-900">{{ fas }}</h2>
+<div class="rounded-lg border border-stone-200 bg-white">
+  {% for n in rader %}
+  <div class="flex items-center gap-2 border-b border-stone-100 py-1.5 pr-2"
+       style="padding-left: {{ n.djup * 22 + 10 }}px">
+    <span class="min-w-0 flex-1 truncate text-sm {{ TYP_CLS[n.typ] }}">{{ n.namn }}</span>
+    {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400" title="Utelämnas ur exporten">dold</span>{% endif %}
+    <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500">{{ n.typ }}</span>
+    <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}">{{ STATUS[n.status].label }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="rounded-md border border-stone-200 bg-white p-4 text-sm text-stone-400">Kravträdet är tomt.</p>
+{% endfor %}
+{% endblock %}

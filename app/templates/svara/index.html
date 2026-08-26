@@ -1,0 +1,9 @@
+{% extends "base_medlem.html" %}
+{% block titel %}Er bedömning – Teaball{% endblock %}
+{% block innehall %}
+<p class="mb-3 text-sm text-stone-600">
+  Ni svarar som <strong>{{ principal.namn }}</strong>. För varje funktion:
+  behöver ni den till go-live, kan den vänta 6–12 månader, eller behövs den inte?
+</p>
+{% include "bedomning/_innehall.html" %}
+{% endblock %}

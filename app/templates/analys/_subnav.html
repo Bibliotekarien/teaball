@@ -1,0 +1,23 @@
+{# Analysis sub-nav + the A3 toggle. The toggle form re-submits the current
+   page with all other query parameters preserved. #}
+<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+  <div class="flex gap-1 text-sm">
+    {% for adress, etikett in [("/analys", "Blockerar-rankning"),
+                               ("/analys/medlemmar", "Medlemmar & migrering"),
+                               ("/analys/gemensamt", "Gemensamma nämnare")] %}
+    <a href="{{ adress }}{% if arvda %}?arvda=1{% endif %}"
+       class="rounded-md px-2.5 py-1 {% if request.url.path == adress %}bg-blue-900 text-white{% else %}text-stone-500 hover:bg-stone-100 hover:text-stone-800{% endif %}">{{ etikett }}</a>
+    {% endfor %}
+  </div>
+  <form method="get" action="{{ request.url.path }}" class="flex items-center gap-2 text-xs text-stone-500">
+    {% for k, v in request.query_params.multi_items() if k != "arvda" %}
+    <input type="hidden" name="{{ k }}" value="{{ v }}">
+    {% endfor %}
+    <label class="flex cursor-pointer items-center gap-1.5">
+      <input type="checkbox" name="arvda" value="1" {% if arvda %}checked{% endif %}
+             data-autosubmit>
+      Räkna med ärvda svar
+    </label>
+    <noscript><button class="rounded border border-stone-300 px-2 py-0.5 hover:bg-stone-100">Uppdatera</button></noscript>
+  </form>
+</div>

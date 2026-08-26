@@ -1,0 +1,23 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+# data/ innehåller incheckade underlag (CSV) — bara databasfiler ignoreras.
+*.db
+*.db-wal
+*.db-shm
+.pytest_cache/
+
+# Artefakter från körsandlådan / harnesset — inte del av projektet
+.claude/
+.bash_profile
+.bashrc
+.gitconfig
+.gitmodules
+.idea
+.mcp.json
+.profile
+.ripgreprc
+.vscode
+.zprofile
+.zshrc

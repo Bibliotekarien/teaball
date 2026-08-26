@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block titel %}Bedömning – Teaball{% endblock %}
+{% block innehall %}
+<form method="get" action="/bedomning" class="mb-4 flex flex-wrap items-center gap-3 text-sm">
+  <label for="medlem" class="text-stone-600">Svarar som (proxy):</label>
+  <select id="medlem" name="medlem_id" data-autosubmit
+          class="rounded-md border border-stone-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700">
+    {% for m in medlemmar %}
+    <option value="{{ m.id }}" {% if m.id == vald %}selected{% endif %}>{{ m.namn }}</option>
+    {% endfor %}
+  </select>
+  <noscript><button class="rounded-md border border-stone-300 px-3 py-1 hover:bg-stone-100">Välj</button></noscript>
+</form>
+
+{% if not medlemmar %}
+<p class="rounded-md border border-stone-200 bg-white p-4 text-sm text-stone-500">
+  Inga medlemmar ännu — lägg till dem under <a href="/medlemmar" class="text-blue-800 underline">Medlemmar</a>.
+</p>
+{% else %}
+{% include "bedomning/_innehall.html" %}
+{% endif %}
+{% endblock %}

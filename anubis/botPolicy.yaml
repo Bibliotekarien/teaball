@@ -1,0 +1,12 @@
+# Anubis-policy för Teaball. All trafik är browsertrafik (serverrenderad
+# HTML + htmx-XHR som bär clearance-cookien), så webbläsare challengas på
+# HTML-trafiken och det finns ingen /api att släppa förbi. .well-known släpps
+# igenom orört (ACME-liknande klienter kan inte lösa en browser-PoW).
+# Speglar markrounding/tOPAC-policyn.
+bots:
+  - name: well-known
+    path_regex: ^/\.well-known/.*$
+    action: ALLOW
+  - name: generic-browser
+    user_agent_regex: Mozilla
+    action: CHALLENGE

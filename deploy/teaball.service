@@ -1,0 +1,22 @@
+# Autostart av Teaball-stacken vid boot.
+# Installera: sudo cp deploy/teaball.service /etc/systemd/system/
+#             sudo systemctl daemon-reload && sudo systemctl enable --now teaball.service
+# Kraschrestart sköts av compose (restart: unless-stopped); uniten finns
+# bara för boot — därav oneshot + RemainAfterExit.
+
+[Unit]
+Description=teaball app stack
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=teaball
+WorkingDirectory=/opt/teaball/app
+ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml up -d
+ExecStop=/usr/bin/docker compose -f docker-compose.prod.yml down
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target
