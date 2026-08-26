@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block titel %}Medlemmar – Teaball{% endblock %}
+{% block innehall %}
+{% if ny_lank %}
+<div class="mb-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm">
+  <p class="mb-1 text-emerald-900"><strong>Ny svarslänk för {{ ny_lank.namn }}</strong> —
+    kopiera och skicka den nu; den visas bara den här gången.</p>
+  <input readonly value="{{ ny_lank.lank }}" data-markera
+         class="w-full rounded border border-emerald-200 bg-white px-2 py-1 font-mono text-xs">
+</div>
+{% endif %}
+
+<form method="post" action="/medlemmar" class="mb-4 flex flex-wrap items-end gap-2 text-sm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+  <label class="grid gap-0.5 text-xs text-stone-500">Namn
+    <input name="namn" required placeholder="Ny medlemsorganisation"
+           class="w-64 rounded-md border border-stone-300 px-2 py-1.5 text-sm">
+  </label>
+  <label class="grid gap-0.5 text-xs text-stone-500">Kategori
+    <input name="kategori" list="kategorier" placeholder="universitet …"
+           class="w-40 rounded-md border border-stone-300 px-2 py-1.5 text-sm">
+    <datalist id="kategorier">
+      {% for k in ["universitet", "högskola", "myndighet", "museum"] %}<option value="{{ k }}">{% endfor %}
+    </datalist>
+  </label>
+  <button class="rounded-md bg-blue-900 px-3 py-1.5 text-sm text-white hover:bg-blue-800">Lägg till</button>
+</form>
+
+<div class="rounded-lg border border-stone-200 bg-white">
+  {% for m in medlemmar %}
+  <div class="flex flex-wrap items-center gap-2 border-b border-stone-100 p-2 text-sm hover:bg-stone-50">
+    <form method="post" action="/medlemmar/{{ m.id }}" class="flex flex-1 flex-wrap items-center gap-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+      <input name="namn" value="{{ m.namn }}" required maxlength="200"
+             class="w-64 rounded border border-stone-200 px-2 py-1 text-sm focus:border-stone-400 focus:outline-none">
+      <input name="kategori" value="{{ m.kategori or '' }}" placeholder="kategori" maxlength="100"
+             class="w-32 rounded border border-stone-200 px-2 py-1 text-xs text-stone-600 focus:border-stone-400 focus:outline-none">
+      <button class="rounded px-1.5 py-0.5 text-xs text-stone-500 hover:bg-stone-200 hover:text-stone-800">spara</button>
+    </form>
+    <span class="text-xs text-stone-400">{{ m.antal_svar }} svar</span>
+    {% if m.har_token %}
+    <span class="rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-800">länk aktiv</span>
+    {% else %}
+    <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400">ingen länk</span>
+    {% endif %}
+    <form method="post" action="/medlemmar/{{ m.id }}/token" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+      <button class="rounded border border-stone-200 px-1.5 py-0.5 text-xs text-stone-500 hover:bg-stone-100">
+        {{ "ny länk" if m.har_token else "skapa länk" }}</button>
+    </form>
+    {% if m.har_token %}
+    <form method="post" action="/medlemmar/{{ m.id }}/token/ta-bort" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+      <button class="rounded border border-stone-200 px-1.5 py-0.5 text-xs text-stone-500 hover:bg-stone-100">återkalla</button>
+    </form>
+    {% endif %}
+    <a href="/medlemmar/{{ m.id }}/ta-bort"
+       class="rounded px-1.5 py-0.5 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-800">ta bort</a>
+  </div>
+  {% else %}
+  <p class="p-4 text-sm text-stone-400">Inga medlemmar ännu.</p>
+  {% endfor %}
+</div>
+<p class="mt-3 text-xs text-stone-400">
+  Svarslänken är personlig per medlem och lagras bara hashad — den kan inte visas igen,
+  bara ersättas. ”Ny länk” gör den gamla ogiltig direkt, även för pågående sessioner.
+</p>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block titel %}Kravträd – Teaball{% endblock %}
+{% block huvudskript %}
+<script src="/static/vendor/Sortable.min.js" defer></script>
+<script src="/static/js/trad.js" defer></script>
+{% endblock %}
+{% block innehall %}
+<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+  <p class="text-sm text-stone-500">Hela hierarkin. Typ är en etikett — krav kan ligga på vilken nivå som helst.</p>
+  <a href="/trad/nod/ny" hx-get="/trad/nod/ny" hx-target="#ny-nod-plats" hx-swap="innerHTML"
+     class="rounded-md bg-blue-900 px-3 py-1.5 text-sm text-white hover:bg-blue-800">+ Ny nod</a>
+</div>
+
+<form method="get" action="/trad" class="mb-3 flex flex-wrap items-end gap-2 text-sm"
+      hx-get="/trad" hx-target="#trad-rot" hx-swap="outerHTML"
+      hx-trigger="input delay:300ms, change" hx-push-url="true">
+  <label class="grid gap-0.5 text-xs text-stone-500">Sök
+    <input name="q" value="{{ filter.q }}" placeholder="namn …"
+           class="w-44 rounded-md border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700">
+  </label>
+  <label class="grid gap-0.5 text-xs text-stone-500">Typ
+    <select name="typ" class="rounded-md border border-stone-300 px-2 py-1 text-sm">
+      <option value="">alla</option>
+      {% for t in ["förmåga", "funktion", "krav"] %}
+      <option value="{{ t }}" {% if filter.typ == t %}selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="grid gap-0.5 text-xs text-stone-500">Status
+    <select name="status" class="rounded-md border border-stone-300 px-2 py-1 text-sm">
+      <option value="">alla</option>
+      {% for s, meta in STATUS.items() %}
+      <option value="{{ s }}" {% if filter.status == s %}selected{% endif %}>{{ meta.label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="grid gap-0.5 text-xs text-stone-500">Fas
+    <input name="fas" value="{{ filter.fas }}" list="faser" placeholder="alla"
+           class="w-24 rounded-md border border-stone-300 px-2 py-1 text-sm">
+  </label>
+  <datalist id="faser">{% for f in FASER %}<option value="{{ f }}">{% endfor %}</datalist>
+  <button class="rounded-md border border-stone-300 px-3 py-1 hover:bg-stone-100">Filtrera</button>
+</form>
+
+<div id="ny-nod-plats"></div>
+{% include "trad/_innehall.html" %}
+{% endblock %}

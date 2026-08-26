@@ -1,0 +1,8 @@
+{# N3: coverage, always visible — silence is never a 'no'. #}
+<p class="mb-3 text-sm text-stone-500">
+  <strong>{{ tackning.svarande }} av {{ tackning.totalt }}</strong> medlemmar har lämnat minst ett svar
+  — obesvarat är inte ”behövs ej”.
+  {% if tackning.utan_svar %}
+  <span class="text-stone-400">Utan svar: {{ tackning.utan_svar | join(", ") }}.</span>
+  {% endif %}
+</p>

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block titel %}Analys: medlemmar – Teaball{% endblock %}
+{% block innehall %}
+{% include "analys/_subnav.html" %}
+{% include "analys/_tackning.html" %}
+
+<h2 class="mb-2 text-sm font-medium text-stone-700">Migreringsöversikt</h2>
+<p class="mb-2 text-xs text-stone-400">Sorterad på utestående blockerare (stigande) — medlemmarna överst kan migreras först. Medlemmar utan svar ligger sist.</p>
+<table class="mb-6 w-full rounded-lg border border-stone-200 bg-white text-sm">
+  <thead>
+    <tr class="border-b border-stone-200 text-left text-xs text-stone-400">
+      <th class="px-3 py-2 font-normal">Medlem</th>
+      <th class="px-3 py-2 font-normal">Kategori</th>
+      <th class="px-3 py-2 text-right font-normal">Utestående blockerare</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in oversikt %}
+    <tr class="border-b border-stone-100 hover:bg-stone-50">
+      <td class="px-3 py-1.5">
+        <a href="/analys/medlemmar?medlem_id={{ m.id }}{% if arvda %}&arvda=1{% endif %}" class="text-blue-800 hover:underline">{{ m.namn }}</a>
+      </td>
+      <td class="px-3 py-1.5 text-stone-500">{{ m.kategori or "–" }}</td>
+      <td class="px-3 py-1.5 text-right">
+        {% if m.har_svarat %}{{ m.blockerare }}
+        {% else %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400">har inte svarat</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2 class="mb-2 text-sm font-medium text-stone-700">Medlemsprofil</h2>
+<form method="get" action="/analys/medlemmar" class="mb-3 flex items-center gap-2 text-sm">
+  {% if arvda %}<input type="hidden" name="arvda" value="1">{% endif %}
+  <select name="medlem_id" data-autosubmit
+          class="rounded-md border border-stone-300 bg-white px-2 py-1.5 text-sm">
+    <option value="">Välj medlem …</option>
+    {% for m in medlemmar %}
+    <option value="{{ m.id }}" {% if m.id == vald %}selected{% endif %}>{{ m.namn }}</option>
+    {% endfor %}
+  </select>
+  <noscript><button class="rounded-md border border-stone-300 px-3 py-1 hover:bg-stone-100">Visa</button></noscript>
+</form>
+
+{% if vald %}
+<div class="mb-4 rounded-lg border border-stone-200 bg-white p-3">
+  <h3 class="mb-1 text-sm font-medium text-stone-800">Go-live-beredskap: {{ vald_namn }}</h3>
+  {% if blockerare %}
+  <p class="mb-1 text-xs text-stone-500">{{ blockerare | length }} utestående blockerare (go-live-krav vars status inte är ”befintlig”):</p>
+  <ul class="ml-4 list-disc text-sm">
+    {% for b in blockerare %}
+    <li>{{ b.namn }}
+      <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[b.status].cls }}">{{ STATUS[b.status].label }}</span>
+      <span class="text-xs text-stone-400">fas: {{ b.fas or "–" }}</span>
+      {% if b.arvd %}<span class="text-xs italic text-stone-400">(ärvt)</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-sm text-emerald-700">Inga utestående blockerare{% if not svar %} — men medlemmen har inte svarat än{% endif %}.</p>
+  {% endif %}
+</div>
+
+<div class="rounded-lg border border-stone-200 bg-white p-3">
+  <h3 class="mb-2 text-sm font-medium text-stone-800">Alla svar ({{ svar | length }})</h3>
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="border-b border-stone-200 text-left text-xs text-stone-400">
+        <th class="py-1 pr-2 font-normal">Nod</th>
+        <th class="py-1 pr-2 font-normal">Svar</th>
+        <th class="py-1 pr-2 font-normal">Workaround</th>
+        <th class="py-1 pr-2 font-normal">Kommentar</th>
+        <th class="py-1 font-normal">Besvarat</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in svar %}
+      <tr class="border-b border-stone-100 align-top">
+        <td class="py-1.5 pr-2">{{ s.funktion_namn }}</td>
+        <td class="py-1.5 pr-2 whitespace-nowrap"><span class="mr-1 inline-block h-2 w-2 rounded-full {{ SVAR[s.svar].dot }}"></span>{{ SVAR[s.svar].kort }}</td>
+        <td class="py-1.5 pr-2 text-xs text-stone-500">{{ s.workaround or "" }}{% if s.workaround and not s.workaround_delas %} <span class="text-stone-400">(ej delad)</span>{% endif %}</td>
+        <td class="py-1.5 pr-2 text-xs text-stone-500">{{ s.kommentar or "" }}</td>
+        <td class="py-1.5 text-xs text-stone-400 whitespace-nowrap">{{ s.besvarat[:10] }}{% if s.besvarat_av %} · {{ s.besvarat_av }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

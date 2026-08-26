@@ -1,0 +1,97 @@
+{# Assessment tree node (B3–B6, B8). Imported WITH CONTEXT: reads direkta,
+   effektiva, delade, bas, visa_dold and request from the render context.
+   bas = URL prefix for saves: /bedomning/<medlem_id> (proxy) or /svara (member). #}
+
+{% macro gren(n) %}
+<li id="gren-{{ n.id }}" data-nod="{{ n.id }}">
+  {% if n.barn %}
+  <details open>
+    <summary class="list-none [&::-webkit-details-marker]:hidden">{{ rad(n) }}</summary>
+    <ul class="ml-[22px]">
+      {% for b in n.barn %}{{ gren(b) }}{% endfor %}
+    </ul>
+  </details>
+  {% else %}
+  {{ rad(n) }}
+  {% endif %}
+</li>
+{% endmacro %}
+
+{% macro rad(n) %}
+{% set eget = direkta.get(n.id) %}
+{% set eff = effektiva.get(n.id) %}
+{% set delade_har = delade.get(n.id, []) %}
+<div class="flex flex-col gap-2 border-b border-stone-100 py-2 pr-2 hover:bg-stone-50 sm:flex-row sm:items-start">
+  <div class="flex min-w-0 flex-1 items-start gap-2">
+    {% if n.barn %}
+    <svg class="chevron mt-1 h-3.5 w-3.5 shrink-0 text-stone-400 transition-transform" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M6 3.5 11 8l-5 4.5v-9z"/></svg>
+    {% else %}
+    <span class="w-[14px] shrink-0"></span>
+    {% endif %}
+    <div class="min-w-0 flex-1 pt-0.5">
+      <span class="text-sm {{ TYP_CLS[n.typ] }}">{{ n.namn }}</span>
+      {% if visa_dold and not n.synlig_stig %}
+      <span class="ml-1 rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400" title="Visas inte för medlemmar">dold för medlemmar</span>
+      {% endif %}
+      {% if n.beskrivning %}<p class="mt-0.5 text-xs text-stone-400">{{ n.beskrivning }}</p>{% endif %}
+      {% if delade_har %}
+      <details class="mt-1">
+        <summary class="cursor-pointer text-xs text-amber-700">💡 Workarounds från andra medlemmar ({{ delade_har|length }})</summary>
+        <ul class="ml-4 mt-1 list-disc text-xs text-amber-900">
+          {% for w in delade_har %}<li>{{ w }}</li>{% endfor %}
+        </ul>
+      </details>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="flex shrink-0 flex-col items-end gap-1 pl-[22px] sm:pl-0">
+    <form method="post" action="{{ bas }}/{{ n.id }}/svar"
+          hx-post="{{ bas }}/{{ n.id }}/svar" hx-target="#gren-{{ n.id }}" hx-swap="outerHTML"
+          class="flex items-center gap-1">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+      {% for nyckel, s in SVAR.items() %}
+      <button name="svar" value="{{ nyckel }}" title="{{ s.label }}{{ ' — klicka igen för att ångra' if eget and eget.svar == nyckel else '' }}"
+              aria-pressed="{{ 'true' if eget and eget.svar == nyckel else 'false' }}"
+              class="rounded-full border px-2 py-1.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-blue-700 sm:py-0.5 {{ s.pill if eget and eget.svar == nyckel else s.ghost }}">{{ s.kort }}</button>
+      {% endfor %}
+    </form>
+
+    {% if not eget and eff %}
+    <span class="text-[11px] italic text-stone-500">ärvt: {{ SVAR[eff.svar].kort }} (från {{ eff.kalla_namn }})</span>
+    {% endif %}
+
+    {% if eget and eget.svar == "kan_vanta" %}
+    <form method="post" action="{{ bas }}/{{ n.id }}/workaround"
+          hx-post="{{ bas }}/{{ n.id }}/workaround" hx-swap="none"
+          hx-trigger="submit, change delay:500ms"
+          class="flex w-72 max-w-full flex-col items-end gap-1">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+      <input name="workaround" value="{{ eget.workaround or '' }}" maxlength="4000"
+             placeholder="Workaround: hur klarar ni er under tiden?"
+             class="w-full rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs placeholder-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400">
+      <label class="flex items-center gap-1 text-[11px] text-stone-500">
+        <input type="checkbox" name="workaround_delas" value="1" {% if eget.workaround_delas %}checked{% endif %}>
+        Dela med andra medlemmar
+        <button class="ml-1 rounded border border-stone-200 px-1.5 text-[11px] text-stone-500 hover:bg-stone-100">Spara</button>
+      </label>
+    </form>
+    {% endif %}
+
+    {% if eget %}
+    <details class="w-72 max-w-full">
+      <summary class="cursor-pointer text-right text-[11px] {{ 'text-blue-800' if eget.kommentar else 'text-stone-400' }}">💬 Kommentar{{ ' ✓' if eget.kommentar else '' }}</summary>
+      <form method="post" action="{{ bas }}/{{ n.id }}/kommentar"
+            hx-post="{{ bas }}/{{ n.id }}/kommentar" hx-swap="none"
+            hx-trigger="submit, change delay:500ms"
+            class="mt-1 flex flex-col items-end gap-1">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+        <textarea name="kommentar" rows="2" maxlength="4000" placeholder="Kommentar till ert svar (privat)"
+                  class="w-full rounded border border-stone-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700">{{ eget.kommentar or '' }}</textarea>
+        <button class="rounded border border-stone-200 px-1.5 text-[11px] text-stone-500 hover:bg-stone-100">Spara</button>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}

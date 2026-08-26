@@ -1,0 +1,87 @@
+# Produktion på bibliotekarien-vps (standalone, room40/markrounding-mönstret):
+#
+#   internet ──▶ edge-Caddy (/opt/bibliotekarien-platform/edge)
+#                    │  joinar teaball_proxy som external network
+#                    │
+#        allt ──────▶ teaball-anubis:8923 ──▶ teaball-web:8000
+#                          (PoW-gate — all trafik är browsertrafik,
+#                           htmx-anropen bär clearance-cookien)
+#                                   │
+#                                   ▼
+#                       teaball-data (named volume, SQLite)
+#
+# Inga host-portar publiceras — edge når containrarna via nätverket.
+# Lokal utveckling använder docker-compose.yml i stället.
+# Bring-up: sudo /opt/teaball/app/scripts/deploy.sh
+name: teaball
+
+services:
+  web:
+    build: .
+    image: teaball:latest
+    container_name: teaball-web
+    networks: [proxy]
+    volumes:
+      - teaball-data:/data
+    environment:
+      DB_PATH: /data/teaball.db
+      SECRET_KEY: ${SECRET_KEY:?Sätt SECRET_KEY i .env}
+      COOKIE_SECURE: "1"
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Sätt PUBLIC_BASE_URL i .env}
+      # Server-side Matomo (Tracking HTTP API) — tomma värden stänger av.
+      MATOMO_URL: ${MATOMO_URL:-}
+      MATOMO_SITE_ID: ${MATOMO_SITE_ID:-}
+      MATOMO_TOKEN: ${MATOMO_TOKEN:-}
+    healthcheck:
+      # python i stället för curl — curl finns inte i python:3.12-slim.
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    restart: unless-stopped
+
+  anubis:
+    # Pinnad på digest (v1.26.2, samma som room40/markrounding) — med :latest
+    # kan Anubis-versionen bytas oannonserat vid pull. Edge-Caddyfilens CSP för
+    # teaball.bibliotekarien.se är kopplad till hur den här versionen
+    # laddar sin PoW-worker (blob:); bumpa version och CSP ihop.
+    image: ghcr.io/techarohq/anubis@sha256:f7af22049b33ce1cdefa903f0920f8306aaf61c10e85c03dda708f264e163d51
+    container_name: teaball-anubis
+    depends_on: [web]
+    networks: [proxy]
+    environment:
+      BIND: ":8923"
+      TARGET: "http://web:8000"
+      DIFFICULTY: "${ANUBIS_DIFFICULTY:-4}"
+      SERVE_ROBOTS_TXT: "true"
+      POLICY_FNAME: /data/cfg/botPolicy.yaml
+      OG_PASSTHROUGH: "true"
+      OG_EXPIRY_TIME: 24h
+      # Måste matcha det publika hostnamnet, annars accepteras inte
+      # clearance-cookien (samma fallgrop som i tOPAC/markrounding).
+      COOKIE_DOMAIN: ${ANUBIS_COOKIE_DOMAIN:?Sätt ANUBIS_COOKIE_DOMAIN i .env}
+      METRICS_BIND: ":9090"
+      CHALLENGE_TITLE: "Teaball"
+    volumes:
+      - ./anubis/botPolicy.yaml:/data/cfg/botPolicy.yaml:ro
+    healthcheck:
+      test: ["CMD", "anubis", "--healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+networks:
+  # Docker döper detta till `teaball_proxy` (projekt `teaball` +
+  # nyckel `proxy`). Edge-Caddy joinar det som external network.
+  proxy:
+    driver: bridge
+
+volumes:
+  teaball-data:

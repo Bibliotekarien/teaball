@@ -1,0 +1,18 @@
+# Engångsjobb som körs av teaball-backup.timer.
+# Installera: sudo cp deploy/teaball-backup.{service,timer} /etc/systemd/system/
+#             sudo systemctl daemon-reload && sudo systemctl enable --now teaball-backup.timer
+#
+# Tar en konsistent kopia av SQLite-filen i named-volymen (spec I4:
+# .backup-API, integritetskontroll, utrymmeskoll, rotation 30 dagliga +
+# 12 månatliga). Körs som root — volymsökvägen ligger under /var/lib/docker.
+
+[Unit]
+Description=teaball SQLite backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/teaball/app/scripts/backup.sh \
+    /var/lib/docker/volumes/teaball_teaball-data/_data/teaball.db \
+    /opt/teaball/backups

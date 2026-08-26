@@ -1,0 +1,16 @@
+/* Input for the standalone Tailwind CLI (dev-time only — the committed
+   static/css/app.css is what the app serves; no build chain at runtime).
+   Regenerate after template changes:
+     tailwindcss -i static/css/tailwind.in.css -o static/css/app.css --minify */
+@import "tailwindcss";
+
+/* Rotate the chevron when a branch is open (pure <details>, no JS). */
+details[open] > summary .chevron {
+  transform: rotate(90deg);
+}
+
+/* SortableJS drag feedback. */
+.sortable-ghost {
+  opacity: 0.4;
+  background-color: #eff6ff;
+}

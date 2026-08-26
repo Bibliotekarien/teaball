@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block titel %}Ta bort medlem – Teaball{% endblock %}
+{% block innehall %}
+<div class="mx-auto max-w-md rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm">
+  <p class="mb-3 text-rose-900">
+    <strong>Ta bort ”{{ namn }}”?</strong>
+    {% if antal_svar %}
+    Detta tar även bort medlemmens {{ antal_svar }} {{ "svar" }} —
+    de bevaras i historiken.
+    {% endif %}
+    Medlemmens svarslänk slutar fungera direkt.
+  </p>
+  <form method="post" action="/medlemmar/{{ medlem_id }}/ta-bort" class="flex gap-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <button class="rounded-md bg-rose-700 px-3 py-1.5 text-white hover:bg-rose-800">Ta bort</button>
+    <a href="/medlemmar" class="rounded-md border border-stone-300 px-3 py-1.5 hover:bg-stone-100">Avbryt</a>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,20 @@
+{# T2: deleting a node with children or assessments requires a confirmation
+   that states the impact. #}
+<div id="rad-{{ nod.id }}" class="border-b border-stone-100 bg-rose-50 p-3 text-sm">
+  <p class="mb-2 text-rose-900">
+    <strong>Ta bort ”{{ nod.namn }}”?</strong>
+    {% if antal_barn or antal_bedomningar %}
+    Detta tar även bort {{ antal_barn }} underliggande {{ "nod" if antal_barn == 1 else "noder" }}
+    och {{ antal_bedomningar }} {{ "bedömning" if antal_bedomningar == 1 else "bedömningar" }}
+    (bedömningarna bevaras i historiken).
+    {% endif %}
+  </p>
+  <form method="post" action="/trad/nod/{{ nod.id }}/ta-bort"
+        hx-post="/trad/nod/{{ nod.id }}/ta-bort" hx-target="#trad-rot" hx-swap="outerHTML"
+        class="flex gap-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <button class="rounded-md bg-rose-700 px-3 py-1 text-white hover:bg-rose-800">Ta bort</button>
+    <a href="/trad" hx-get="/trad" hx-target="#trad-rot" hx-swap="outerHTML"
+       class="rounded-md border border-stone-300 px-3 py-1 hover:bg-stone-100">Avbryt</a>
+  </form>
+</div>

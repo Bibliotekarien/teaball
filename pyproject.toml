@@ -1,0 +1,29 @@
+[project]
+name = "teaball"
+version = "0.1.0"
+description = "Kravdatabas och förmågekarta (see requirements.md)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+    "argon2-cffi>=23.1",
+    "itsdangerous>=2.2",
+    "openpyxl>=3.1.5",
+    "httpx>=0.27",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = ["slow: performance tests against the seeded large dataset"]

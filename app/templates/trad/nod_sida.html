@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block titel %}{{ "Redigera nod" if nod else "Ny nod" }} – Teaball{% endblock %}
+{% block innehall %}
+<h2 class="mb-3 text-sm text-stone-500">{{ "Redigera ”" ~ nod.namn ~ "”" if nod else "Ny nod" }}</h2>
+{% include "trad/_nod_form.html" %}
+{% endblock %}

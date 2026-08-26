@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titel %}Teaball{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/vendor/htmx.min.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
+</head>
+<body class="min-h-screen bg-stone-50 font-sans text-stone-900"
+      hx-headers='{"X-CSRF-Token": "{{ csrf_token(request) }}"}'>
+  <header class="border-b-2 border-blue-900 bg-white px-4 py-3 sm:px-6">
+    <h1 class="font-serif text-lg text-blue-900">Teaball</h1>
+    <p class="text-xs text-stone-500">{% block undertitel %}Er bedömning{% endblock %}</p>
+  </header>
+  <main class="mx-auto max-w-4xl px-3 py-4 sm:px-6 sm:py-5">
+    {% block innehall %}{% endblock %}
+  </main>
+</body>
+</html>

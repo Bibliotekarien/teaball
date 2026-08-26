@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block titel %}Analys – Teaball{% endblock %}
+{% block innehall %}
+{% include "analys/_subnav.html" %}
+{% include "analys/_tackning.html" %}
+
+<div class="space-y-2">
+  {% for r in rader %}
+  <div class="rounded-lg border border-stone-200 bg-white p-3">
+    <div class="mb-1.5 flex flex-wrap items-center gap-2">
+      <span class="text-sm font-medium text-stone-800">{{ r.namn }}</span>
+      <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[r.status].cls }}">{{ STATUS[r.status].label }}</span>
+      <span class="text-xs text-stone-400">fas: {{ r.fas or "–" }}</span>
+      {% if r.varning %}
+      <span class="rounded bg-rose-100 px-1.5 py-0.5 text-xs text-rose-800">⚠ blockerar go-live men ligger i ”{{ r.fas if r.fas == 'senare' else 'idé' }}”</span>
+      {% endif %}
+    </div>
+    <div class="flex h-3 w-full overflow-hidden rounded-full bg-stone-100" role="img"
+         aria-label="{{ r.golive }} go-live, {{ r.kan_vanta }} kan vänta, {{ r.behovs_ej }} behövs ej">
+      {% if r.golive %}<div class="bg-rose-600" style="width: {{ r.golive_pct }}%"></div>{% endif %}
+      {% if r.kan_vanta %}<div class="bg-amber-500" style="width: {{ r.kan_vanta_pct }}%"></div>{% endif %}
+      {% if r.behovs_ej %}<div class="bg-stone-400" style="width: {{ r.behovs_ej_pct }}%"></div>{% endif %}
+    </div>
+    <div class="mt-1 flex flex-wrap gap-4 text-xs text-stone-500">
+      <span><span class="mr-1 inline-block h-2 w-2 rounded-full bg-rose-600"></span>{{ r.golive }} go-live</span>
+      <span><span class="mr-1 inline-block h-2 w-2 rounded-full bg-amber-500"></span>{{ r.kan_vanta }} kan vänta</span>
+      <span><span class="mr-1 inline-block h-2 w-2 rounded-full bg-stone-400"></span>{{ r.behovs_ej }} behövs ej</span>
+      <span class="text-stone-400">({{ r.totalt }} svar{% if arvda %} inkl. ärvda{% endif %})</span>
+    </div>
+    {% set bank = workarounds.get(r.id, []) %}
+    {% if bank %}
+    <div class="mt-2 rounded bg-amber-50 p-2 text-xs text-amber-900">
+      <strong>Workaround-bank:</strong>
+      <ul class="ml-4 list-disc">
+        {% for w in bank %}
+        <li>{{ w.workaround }}
+          <span class="text-amber-700/70">— {{ w.medlem_namn }}{% if not w.workaround_delas %} (ej delad){% endif %}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="rounded-md border border-stone-200 bg-white p-4 text-sm text-stone-400">Inga svar ännu.</p>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,18 @@
+# LOKAL UTVECKLING. Produktion på bibliotekarien-vps använder
+# docker-compose.prod.yml (Anubis, named volume, inga host-portar).
+# Databasfilen ligger på lokal disk via ./data-bind-mounten — aldrig på CIFS.
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file: .env
+    # Kör som den anropande användaren så bind-mounten ./data förblir skrivbar
+    # (imagen har en egen 1505-användare för prod:ens named volume).
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      DB_PATH: /data/teaball.db
+      COOKIE_SECURE: "1"
+    volumes:
+      - ./data:/data

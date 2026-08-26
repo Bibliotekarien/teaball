@@ -1,0 +1,198 @@
+"""Exports (spec E1 + the all-views Excel workbook).
+
+E1: whole database as JSON, tree + assessments as CSV.
+XLSX: one workbook, one sheet per view (Kravträd, Bedömningar, Analys,
+Migrering, Roadmap) with readable formatting — colored answer/status cells,
+frozen header rows, tree indentation. Member token hashes never leave the
+database in any export."""
+
+import csv
+import io
+import json
+
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill
+from openpyxl.utils import get_column_letter
+
+from app.services import analys as analys_tjanst
+from app.services import roadmap as roadmap_tjanst
+
+SVAR_ETIKETT = {"golive_krav": "Go-live", "kan_vanta": "Kan vänta", "behovs_ej": "Behövs ej"}
+# Light fill + dark text keeps the cells readable in Excel.
+SVAR_STIL = {
+    "golive_krav": ("FFE4E6", "9F1239"),
+    "kan_vanta": ("FEF3C7", "92400E"),
+    "behovs_ej": ("E7E5E4", "57534E"),
+}
+STATUS_STIL = {
+    "befintlig": ("D1FAE5", "065F46"),
+    "planerad": ("E0F2FE", "075985"),
+    "idé": ("E7E5E4", "57534E"),
+    "utgår": ("F5F5F4", "A8A29E"),
+}
+
+
+def json_export(conn) -> str:
+    ut = {}
+    for tabell in ("funktion", "medlem", "bedomning", "bedomning_historik"):
+        rows = [dict(r) for r in conn.execute(f"SELECT * FROM {tabell}")]  # fixed table list
+        if tabell == "medlem":
+            for rad in rows:
+                rad.pop("token", None)
+        ut[tabell] = rows
+    return json.dumps(ut, ensure_ascii=False, indent=2)
+
+
+def trad_csv(conn) -> str:
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["id", "namn", "foralder_id", "foralder_namn", "typ", "status",
+                "fas", "synlig_externt", "djup"])
+    for r in conn.execute(
+        """
+        SELECT t.id, t.namn, t.foralder_id, f.namn AS foralder_namn,
+               t.typ, t.status, t.fas, t.synlig_externt, t.djup
+        FROM funktion_trad t
+        LEFT JOIN funktion f ON f.id = t.foralder_id
+        ORDER BY t.vag
+        """
+    ):
+        w.writerow([r["id"], r["namn"], r["foralder_id"], r["foralder_namn"],
+                    r["typ"], r["status"], r["fas"], r["synlig_externt"], r["djup"]])
+    return buf.getvalue()
+
+
+def bedomningar_csv(conn) -> str:
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["medlem", "kategori", "funktion_id", "funktion", "svar",
+                "workaround", "workaround_delas", "kommentar", "besvarat_av", "besvarat"])
+    for r in conn.execute(
+        """
+        SELECT m.namn AS medlem, m.kategori, b.funktion_id, f.namn AS funktion,
+               b.svar, b.workaround, b.workaround_delas, b.kommentar,
+               b.besvarat_av, b.besvarat
+        FROM bedomning b
+        JOIN medlem m ON m.id = b.medlem_id
+        JOIN funktion f ON f.id = b.funktion_id
+        ORDER BY m.namn, f.namn
+        """
+    ):
+        w.writerow([r["medlem"], r["kategori"], r["funktion_id"], r["funktion"],
+                    r["svar"], r["workaround"], r["workaround_delas"], r["kommentar"],
+                    r["besvarat_av"], r["besvarat"]])
+    return buf.getvalue()
+
+
+# --- Excel workbook ---------------------------------------------------------
+
+_RUBRIK = Font(bold=True, size=10)
+_VANLIG = Font(size=10)
+_FET = Font(size=10, bold=True)
+
+# Style objects are shared across cells — openpyxl copies them into the
+# stylesheet on assignment, and reuse keeps large exports fast.
+_STILCACHE: dict[tuple[str, str], tuple[PatternFill, Font]] = {}
+
+
+def _fyll(cell, stil):
+    if stil not in _STILCACHE:
+        fyllning, text = stil
+        _STILCACHE[stil] = (
+            PatternFill("solid", fgColor=fyllning),
+            Font(size=10, color=text),
+        )
+    cell.fill, cell.font = _STILCACHE[stil]
+
+
+def _rubrikrad(blad, rubriker, bredder, rad=1):
+    for i, (rubrik, bredd) in enumerate(zip(rubriker, bredder), start=1):
+        cell = blad.cell(row=rad, column=i, value=rubrik)
+        cell.font = _RUBRIK
+        blad.column_dimensions[get_column_letter(i)].width = bredd
+    blad.freeze_panes = f"A{rad + 1}"
+
+
+def _blad_trad(blad, conn):
+    blad.title = "Kravträd"
+    _rubrikrad(blad, ["Namn", "Typ", "Status", "Fas", "Synlig för medlemmar", "Beskrivning"],
+               [55, 10, 11, 10, 19, 50])
+    # blad.max_row is O(rows) in openpyxl — track the row number ourselves.
+    for radnr, r in enumerate(conn.execute("SELECT * FROM funktion_trad ORDER BY vag"), start=2):
+        blad.append(["    " * r["djup"] + r["namn"], r["typ"], r["status"], r["fas"],
+                     "ja" if r["synlig_stig"] else "nej", r["beskrivning"]])
+        blad.cell(row=radnr, column=1).font = _FET if r["typ"] == "förmåga" else _VANLIG
+        _fyll(blad.cell(row=radnr, column=3), STATUS_STIL[r["status"]])
+
+
+def _blad_bedomningar(blad, conn):
+    _rubrikrad(blad, ["Medlem", "Kategori", "Nod", "Svar", "Workaround", "Delas",
+                      "Kommentar (privat)", "Besvarat av", "Besvarat"],
+               [28, 13, 40, 11, 40, 7, 40, 20, 18])
+    rows = conn.execute(
+        """
+        SELECT m.namn AS medlem, m.kategori, f.namn AS funktion, b.*
+        FROM bedomning b
+        JOIN medlem m ON m.id = b.medlem_id
+        JOIN funktion f ON f.id = b.funktion_id
+        ORDER BY m.namn, f.namn
+        """
+    )
+    for radnr, r in enumerate(rows, start=2):
+        blad.append([r["medlem"], r["kategori"], r["funktion"], SVAR_ETIKETT[r["svar"]],
+                     r["workaround"], "ja" if r["workaround_delas"] else "nej",
+                     r["kommentar"], r["besvarat_av"], r["besvarat"]])
+        _fyll(blad.cell(row=radnr, column=4), SVAR_STIL[r["svar"]])
+
+
+def _blad_analys(blad, conn):
+    tackning = analys_tjanst.tackning(conn)
+    info = blad.cell(row=1, column=1,
+                     value=f"{tackning['svarande']} av {tackning['totalt']} medlemmar har "
+                           "lämnat minst ett svar — obesvarat är inte ”behövs ej”. "
+                           "Endast direkta svar räknas.")
+    info.font = Font(size=10, italic=True)
+    _rubrikrad(blad, ["Nod", "Status", "Fas", "Go-live", "Kan vänta", "Behövs ej",
+                      "Totalt", "Varning"], [45, 11, 10, 9, 10, 10, 8, 42], rad=2)
+    for radnr, r in enumerate(analys_tjanst.rankning(conn, arvda=False), start=3):
+        blad.append([r["namn"], r["status"], r["fas"], r["golive"], r["kan_vanta"],
+                     r["behovs_ej"], r["totalt"],
+                     "⚠ blockerar go-live men är idé/senare" if r["varning"] else None])
+        _fyll(blad.cell(row=radnr, column=2), STATUS_STIL[r["status"]])
+        if r["golive"]:
+            _fyll(blad.cell(row=radnr, column=4), SVAR_STIL["golive_krav"])
+
+
+def _blad_migrering(blad, conn):
+    _rubrikrad(blad, ["Medlem", "Kategori", "Utestående blockerare", "Har svarat"],
+               [28, 14, 21, 11])
+    for radnr, r in enumerate(analys_tjanst.migreringsoversikt(conn), start=2):
+        blad.append([r["namn"], r["kategori"],
+                     r["blockerare"] if r["har_svarat"] else None,
+                     "ja" if r["har_svarat"] else "nej"])
+        if not r["har_svarat"]:
+            _fyll(blad.cell(row=radnr, column=4), STATUS_STIL["utgår"])
+
+
+def _blad_roadmap(blad, conn):
+    _rubrikrad(blad, ["Fas", "Namn", "Typ", "Status"], [12, 55, 10, 11])
+    radnr = 1
+    for fas, rader in roadmap_tjanst.roadmap_data(conn, visa_krav=True):
+        for n in rader:
+            radnr += 1
+            blad.append([fas, "    " * n["djup"] + n["namn"], n["typ"], n["status"]])
+            blad.cell(row=radnr, column=2).font = (
+                _FET if n["typ"] == "förmåga" else _VANLIG)
+            _fyll(blad.cell(row=radnr, column=4), STATUS_STIL[n["status"]])
+
+
+def xlsx_export(conn) -> bytes:
+    wb = Workbook()
+    _blad_trad(wb.active, conn)
+    _blad_bedomningar(wb.create_sheet("Bedömningar"), conn)
+    _blad_analys(wb.create_sheet("Analys"), conn)
+    _blad_migrering(wb.create_sheet("Migrering"), conn)
+    _blad_roadmap(wb.create_sheet("Roadmap"), conn)
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
