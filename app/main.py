@@ -3,12 +3,13 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app import config, db, matomo
+from app.web import templates
 from app.routers import (
     analys, bedomning, exportera, inloggning, medlemmar, roadmap, svara, trad,
 )
@@ -64,6 +65,12 @@ def create_app() -> FastAPI:
     def health():
         """Container healthcheck + external uptime probe target. No auth."""
         return {"status": "ok"}
+
+    @app.get("/integritet")
+    def integritet(request: Request):
+        """Public privacy notice, linked from the footer. Standalone template
+        (no CSRF/htmx) so an anonymous reader is not handed a session cookie."""
+        return templates.TemplateResponse(request, "integritet.html", {"principal": None})
 
     @app.middleware("http")
     async def sakerhetsheaders(request, call_next):

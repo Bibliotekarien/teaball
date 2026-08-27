@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Personuppgifter &amp; integritet – Teaball</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<!-- Deliberately standalone (no base.html): this page needs no htmx/CSRF, so an
+     anonymous reader can read the privacy notice without being handed a session
+     cookie — which is exactly what the text below promises. -->
+<body class="min-h-screen bg-stone-50 font-sans text-stone-900">
+  <header class="border-b-2 border-blue-900 bg-white px-4 py-3 sm:px-6">
+    <h1 class="font-serif text-lg text-blue-900">Teaball</h1>
+    <p class="text-xs text-stone-500">Personuppgifter &amp; integritet</p>
+  </header>
+
+  <main class="mx-auto max-w-2xl px-4 py-6 sm:px-6">
+    <article class="space-y-6 text-sm leading-relaxed text-stone-700">
+      <div>
+        <h2 class="font-serif text-2xl text-stone-900">Personuppgifter &amp; integritet</h2>
+        <p class="mt-1 text-xs text-stone-500">Senast uppdaterad 27 augusti 2026.</p>
+      </div>
+
+      <p>
+        Teaball är ett internt arbetsverktyg för DiVA-konsortiets gemensamma
+        kravarbete inför plattformsbytet. Verktyget håller en krav- och
+        förmågekarta samt medlemsorganisationernas bedömningar av varje krav.
+        Den här informationen beskriver hur personuppgifter behandlas i tjänsten
+        och gäller både förvaltare (inloggade administratörer) och de
+        kontaktpersoner hos medlemsorganisationerna som lämnar bedömningar.
+      </p>
+
+      <section>
+        <h3 class="font-semibold text-stone-900">Personuppgiftsansvarig</h3>
+        <p class="mt-1">
+          Personuppgiftsansvarig är den organisation inom DiVA-konsortiet som
+          driver Teaball. <span class="rounded bg-amber-50 px-1 text-amber-800">Formell
+          ansvarig och kontaktväg för dataskyddsfrågor fastställs och fylls i här
+          innan tjänsten tas i skarp drift.</span>
+        </p>
+      </section>
+
+      <section>
+        <h3 class="font-semibold text-stone-900">Vilka uppgifter behandlas</h3>
+        <ul class="mt-1 list-disc space-y-1 pl-5">
+          <li><strong>Förvaltarkonton:</strong> användarnamn och ett kryptografiskt
+            skyddat (hashat) lösenord.</li>
+          <li><strong>Bedömningar:</strong> för varje krav den bedömning som lämnats,
+            vem som svarat (namn eller roll, i fritext) och tidpunkt.</li>
+          <li><strong>Fritext:</strong> workarounds och kommentarer som skrivs in.
+            Dessa kan innehålla personuppgifter beroende på vad som skrivs.</li>
+          <li><strong>Svarslänkar:</strong> varje medlemsorganisation får en personlig
+            länk. Endast en oåterkallelig avtrycksform (hash) av länken lagras — aldrig
+            länken i klartext.</li>
+          <li><strong>Teknisk statistik:</strong> vid sidvisningar registreras IP-adress,
+            webbläsartyp och språk för anonym besöksstatistik (se nedan).</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3 class="font-semibold text-stone-900">Ändamål och rättslig grund</h3>
+        <p class="mt-1">
+          Uppgifterna behandlas för att genomföra konsortiets gemensamma kravarbete:
+          samla in och jämföra medlemmarnas behov, identifiera blockerare för
+          driftsättning och planera migreringsordning. Den rättsliga grunden är
+          uppgift av allmänt intresse respektive berättigat intresse (artikel 6.1 e
+          och f i dataskyddsförordningen). Inga automatiserade beslut eller
+          profilering förekommer.
+        </p>
+      </section>
+
+      <section>
+        <h3 class="font-semibold text-stone-900">Vilka som ser uppgifterna</h3>
+        <p class="mt-1">
+          Förvaltare ser alla uppgifter. En medlem ser bara sina egna svar; delade
+          workarounds från andra medlemmar visas anonymt. Kommentarer är privata och
+          syns endast för medlemmen själv och för förvaltare. Uppgifterna lämnas inte
+          ut till tredje part utanför konsortiets arbete.
+        </p>
+      </section>
+
+      <section>
+        <h3 class="font-semibold text-stone-900">Lagring och gallring</h3>
+        <p class="mt-1">
+          När en bedömning ändras eller tas bort bevaras den tidigare versionen i en
+          historik, så att arbetets utveckling går att följa. Det innebär att uppgifter
+          kan finnas kvar i historiken även efter att en medlem har tagits bort ur
+          tjänsten. Rutiner för hur länge historiken sparas är under utformning.
+          Säkerhetskopior lagras med rullande gallring.
+        </p>
+      </section>
+
+      <section>
+        <h3 class="font-semibold text-stone-900">Besöksstatistik</h3>
+        <p class="mt-1">
+          Anonym besöksstatistik samlas in med en egen, självhostad
+          Matomo-installation. Ingen tredjeparts skript laddas och inga
+          spårningskakor sätts. Signalerna <em>Do Not Track</em> och
+          <em>Global Privacy Control</em> respekteras — skickar din webbläsare någon
+          av dem registreras inget. Personliga svarslänkar maskas innan de når
+          statistiken.
+        </p>
+      </section>
+
+      <section>
+        <h3 class="font-semibold text-stone-900">Kakor</h3>
+        <p class="mt-1">
+          Tjänsten använder endast tekniskt nödvändiga kakor: en inloggnings-/sessionskaka,
+          en kaka för skydd mot förfalskade formulär och en kaka för det automatiska
+          robotskyddet. De krävs för att tjänsten ska fungera och lagrar inga
+          spårningsuppgifter — därför visas ingen samtyckesruta. Den här sidan sätter
+          inga kakor alls.
+        </p>
+      </section>
+
+      <section>
+        <h3 class="font-semibold text-stone-900">Var uppgifterna lagras</h3>
+        <p class="mt-1">
+          Tjänsten och dess säkerhetskopior driftas på servrar inom EU. Ingen
+          överföring av personuppgifter sker till land utanför EU/EES.
+        </p>
+      </section>
+
+      <section>
+        <h3 class="font-semibold text-stone-900">Offentlighetsprincipen</h3>
+        <p class="mt-1">
+          Flera medlemsorganisationer är myndigheter. Uppgifter som lämnas av en
+          myndighet kan utgöra allmänna handlingar hos den myndigheten och kan behöva
+          lämnas ut enligt offentlighetsprincipen — oberoende av att de visas anonymt
+          för andra medlemmar i Teaball.
+        </p>
+      </section>
+
+      <section>
+        <h3 class="font-semibold text-stone-900">Dina rättigheter</h3>
+        <p class="mt-1">
+          Du har rätt att begära tillgång till, rättelse av eller radering av dina
+          personuppgifter, att invända mot behandlingen och att begära begränsning.
+          Kontakta personuppgiftsansvarig (ovan) för att utöva dina rättigheter. Du
+          har också rätt att lämna klagomål till Integritetsskyddsmyndigheten (IMY).
+        </p>
+      </section>
+
+      <p class="border-t border-stone-200 pt-4">
+        <a href="/" class="text-blue-800 underline underline-offset-2 hover:text-blue-900">Till tjänsten</a>
+      </p>
+    </article>
+  </main>
+</body>
+</html>
