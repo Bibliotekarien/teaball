@@ -1,0 +1,5 @@
+{# Rådgivande dubblettvarning från /trad/nod/namnkoll — tom när namnet är
+   ledigt. Sparande blockeras inte: samma namn kan vara rätt i olika grenar. #}
+{% if antal == 1 %}<span class="text-amber-700">En nod med det här namnet finns redan.</span>
+{% elif antal %}<span class="text-amber-700">{{ antal }} noder med det här namnet finns redan.</span>
+{% endif %}

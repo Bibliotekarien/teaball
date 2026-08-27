@@ -54,6 +54,25 @@ def test_skapa_och_redigera_nod(client, app_db):
     assert rad["synlig_externt"] == 0  # unchecked checkbox
 
 
+def test_namnkoll_varnar_for_dubblett(client, app_db):
+    logga_in(client, app_db)
+    token = _token(client)
+    client.post("/trad/nod", data={"namn": "Återläsning", "typ": "funktion",
+                                   "status": "utreds", "csrf_token": token})
+
+    # Träff oavsett skiftläge och kringliggande blanksteg — även Å/Ä/Ö, som
+    # SQLite:s NOCASE inte viker (därför casefold i Python).
+    svar = client.get("/trad/nod/namnkoll", params={"namn": "  återläsning "})
+    assert "finns redan" in svar.text
+
+    svar = client.get("/trad/nod/namnkoll", params={"namn": "Öppen data"})
+    assert "finns redan" not in svar.text
+
+    # Tomt namn ska inte larma.
+    svar = client.get("/trad/nod/namnkoll", params={"namn": "   "})
+    assert "finns redan" not in svar.text
+
+
 def test_acceptance_9_1_via_ui(client, app_db):
     ids = seed_trad(app_db)
     logga_in(client, app_db)
