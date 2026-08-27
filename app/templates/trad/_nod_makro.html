@@ -2,7 +2,9 @@
    children, so expand/collapse is pure <details> — no JavaScript (T1/I2). #}
 {% macro rad(n, request, detaljerad=false) %}
 <div id="rad-{{ n.id }}" class="group flex flex-wrap items-center gap-1.5 border-b border-stone-100 py-1.5 pr-2 hover:bg-stone-50">
-  <span class="greppyta cursor-grab select-none px-1 text-stone-300" title="Dra för att flytta">⋮⋮</span>
+  {# Fast bredd (w-5) så namn och detaljblock kan indragsalignas med kända mått,
+     oberoende av glyfbredden på ⋮⋮. #}
+  <span class="greppyta w-5 shrink-0 cursor-grab select-none text-center text-stone-300" title="Dra för att flytta">⋮⋮</span>
   {% if n.barn %}
   <svg class="chevron h-3.5 w-3.5 shrink-0 text-stone-400 transition-transform" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M6 3.5 11 8l-5 4.5v-9z"/></svg>
   {% else %}
@@ -38,12 +40,20 @@
     <span class="hidden w-14 text-right text-xs text-stone-400 sm:inline">{{ n.fas or "" }}</span>
   </span>
 
+  {# Detaljblocket är ETT w-full-block (inte lösa flex-items): beskrivning och
+     länkrad staplas alltid, även när beskrivningen är kort nog att dela rad.
+     46px = greppyta (20) + chevron (14) + två gap (2×6) — samma x som namnet.
+     max-w-prose hindrar beskrivningen från att löpa in under pillren till höger. #}
   {% if detaljerad and (n.beskrivning or n.lank_dokumentation or n.lank_jira) %}
-  <span class="w-full pb-1 pl-[26px] text-xs text-stone-400">
-    {% if n.beskrivning %}<span class="mr-2">{{ n.beskrivning }}</span>{% endif %}
-    {% if n.lank_dokumentation %}<a href="{{ n.lank_dokumentation }}" target="_blank" rel="noopener noreferrer" class="mr-2 whitespace-nowrap text-blue-800 underline hover:text-blue-900">Dokumentation&nbsp;↗</a>{% endif %}
-    {% if n.lank_jira %}<a href="{{ n.lank_jira }}" target="_blank" rel="noopener noreferrer" class="whitespace-nowrap text-blue-800 underline hover:text-blue-900">Jira&nbsp;↗</a>{% endif %}
-  </span>
+  <div class="w-full pb-1 pl-[46px] text-xs">
+    {% if n.beskrivning %}<p class="max-w-prose text-stone-400">{{ n.beskrivning }}</p>{% endif %}
+    {% if n.lank_dokumentation or n.lank_jira %}
+    <p class="mt-0.5 flex gap-4">
+      <span class="w-36 shrink-0">{% if n.lank_dokumentation %}<a href="{{ n.lank_dokumentation }}" target="_blank" rel="noopener noreferrer" class="whitespace-nowrap text-blue-800 underline hover:text-blue-900">Dokumentation&nbsp;↗</a>{% endif %}</span>
+      <span>{% if n.lank_jira %}<a href="{{ n.lank_jira }}" target="_blank" rel="noopener noreferrer" class="whitespace-nowrap text-blue-800 underline hover:text-blue-900">Jira&nbsp;↗</a>{% endif %}</span>
+    </p>
+    {% endif %}
+  </div>
   {% endif %}
 </div>
 {% endmacro %}
