@@ -110,6 +110,26 @@ def ny_nod_form(
     return _formsvar(request, conn, principal, foralder_id=_till_int(foralder_id))
 
 
+@router.get("/nod/namnkoll")
+def namnkoll_nodnamn(
+    request: Request,
+    namn: str = "",
+    principal: Principal = Depends(krav_forvaltare),
+    conn: sqlite3.Connection = Depends(get_conn),
+):
+    """Rådgivande dubblettkoll medan namnet på en ny nod skrivs (htmx).
+    Jämförelsen görs i Python med casefold() — SQLite:s NOCASE viker bara
+    ASCII, så Å/Ä/Ö skulle annars missas. Trädet är litet (hundratals noder),
+    så att läsa alla namn är billigt. Blockerar inget: samma namn kan vara
+    legitimt i olika grenar, varningen är bara en knuff."""
+    sokt = namn.strip().casefold()
+    antal = 0
+    if sokt:
+        rader = conn.execute("SELECT namn FROM funktion").fetchall()
+        antal = sum(1 for rad in rader if rad["namn"].strip().casefold() == sokt)
+    return templates.TemplateResponse(request, "trad/_namnkoll.html", {"antal": antal})
+
+
 @router.get("/nod/{nod_id}/redigera")
 def redigera_form(
     request: Request,

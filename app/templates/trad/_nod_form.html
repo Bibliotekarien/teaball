@@ -7,8 +7,13 @@
         class="grid gap-2 text-sm sm:grid-cols-2">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <label class="grid gap-0.5 text-xs text-stone-500">Namn
+      {# Dubblettkoll bara för nya noder. Målet är "next .namnkoll" (inte ett
+         id) eftersom flera skapa-formulär kan vara öppna samtidigt. #}
       <input name="namn" required maxlength="200" value="{{ nod.namn if nod else '' }}" autofocus
+             {% if not nod %}hx-get="/trad/nod/namnkoll" hx-trigger="input changed delay:300ms"
+             hx-target="next .namnkoll" hx-swap="innerHTML"{% endif %}
              class="rounded-md border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700">
+      {% if not nod %}<span class="namnkoll" aria-live="polite"></span>{% endif %}
     </label>
     <label class="grid gap-0.5 text-xs text-stone-500">Förälder
       <select name="foralder_id" class="rounded-md border border-stone-300 px-2 py-1 text-sm">
