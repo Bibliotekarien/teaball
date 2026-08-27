@@ -24,6 +24,11 @@ _log = logging.getLogger("teaball.matomo")
 
 _client: httpx.AsyncClient | None = None
 
+# Strong references to in-flight fire-and-forget tasks. asyncio only keeps a
+# weak reference to a bare create_task() result, so without this set the hit
+# can be garbage-collected before it is ever sent — silently dropping tracking.
+_tasks: set[asyncio.Task] = set()
+
 # GET /svara/<token> is a 303 (never tracked), but mask defensively so the
 # secret can never reach analytics via any status/path combination.
 _TOKEN_RE = re.compile(r"^(/svara/)[^/]+$")
@@ -89,9 +94,14 @@ async def _send(params: dict) -> None:
     try:
         if _client is None:
             _client = httpx.AsyncClient(timeout=5.0)
-        await _client.post(f"{config.MATOMO_URL}/matomo.php", data=params)
-    except Exception as exc:  # analytics must never break the app
-        _log.debug("Matomo tracking failed: %s", exc)
+        resp = await _client.post(f"{config.MATOMO_URL}/matomo.php", data=params)
+        # A successful tracking hit is 204 (send_image=0) or 200. Anything else
+        # means Matomo rejected it — surface why instead of dropping it silently.
+        if resp.status_code >= 400:
+            _log.warning("Matomo avvisade träffen: HTTP %s %s",
+                         resp.status_code, resp.text[:200])
+    except Exception as exc:  # analytics must never break the app, but must be visible
+        _log.warning("Matomo-tracking misslyckades: %s", exc)
 
 
 def track_request(request, status_code: int) -> None:
@@ -117,4 +127,8 @@ def track_request(request, status_code: int) -> None:
         referrer=sanitize_referrer(request.headers.get("referer", "")),
         client_ip=request.client.host if request.client else "",
     )
-    asyncio.get_running_loop().create_task(_send(params))
+    # Keep a strong reference until the task finishes; otherwise the event loop
+    # may garbage-collect the fire-and-forget hit before it is sent.
+    task = asyncio.get_running_loop().create_task(_send(params))
+    _tasks.add(task)
+    task.add_done_callback(_tasks.discard)
