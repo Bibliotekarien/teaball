@@ -1,0 +1,117 @@
+"""Confluence wiki-markup exports of the read views (first sweep).
+
+Each view renders to raw Confluence wiki markup as plain text. The förvaltare
+opens the link, selects all, copies, and pastes into Confluence via
+"Insert → Markup → Confluence Wiki" — tables, headings and status become a real
+Confluence page. Covered so far: Kravträd, Analys (blockerar-rankning),
+Roadmap, Medlemmar. Bedömning and the member view are not yet covered.
+
+Functions take the export date as an argument so the markup is deterministic
+(easy to test); the router passes today's date."""
+
+from app.services.analys import rankning, tackning
+from app.services.roadmap import roadmap_data
+
+# Kept local rather than importing app.web so the export layer stays decoupled
+# from the template engine; mirrors the labels in app/web.py STATUS.
+STATUS_ETIKETT = {
+    "driftsatt": "Driftsatt", "planerad": "Planerad", "idé": "Idé",
+    "utreds": "Utreds", "utgår": "Utgår",
+}
+
+
+def _cell(varde) -> str:
+    """Escape a value for a wiki-markup table cell. Pipes end a column and
+    newlines end a row; braces/brackets can start a macro or link. An empty
+    cell must hold at least a space or the table collapses it."""
+    if varde is None or varde == "":
+        return " "
+    s = str(varde).replace("\\", "\\\\")
+    for tecken in ("|", "{", "}", "[", "]"):
+        s = s.replace(tecken, "\\" + tecken)
+    return s.replace("\r", " ").replace("\n", " ")
+
+
+def _bold(s: str) -> str:
+    return f"*{s}*"
+
+
+def _rad(celler, header: bool = False) -> str:
+    """A wiki-markup table row. Cells must already be escaped (via _cell) or be
+    intentional markup (indent, bold)."""
+    d = "||" if header else "|"
+    return d + " " + f" {d} ".join(celler) + " " + d
+
+
+def _namncell(namn, djup: int, typ: str) -> str:
+    """Tree name cell: middot indent per level, förmåga names bolded."""
+    text = _cell(namn)
+    return "· " * djup + (_bold(text) if typ == "förmåga" else text)
+
+
+def _dokument(rader) -> str:
+    return "\n".join(rader)
+
+
+def kravtrad(conn, genererad: str) -> str:
+    rader = ["h1. Kravträd — Teaball", f"_Exporterad {genererad}._", "",
+             _rad(["Namn", "Typ", "Status", "Fas", "Synlig för medlemmar"], header=True)]
+    for r in conn.execute("SELECT * FROM funktion_trad ORDER BY vag"):
+        rader.append(_rad([
+            _namncell(r["namn"], r["djup"], r["typ"]),
+            _cell(r["typ"]),
+            _cell(STATUS_ETIKETT.get(r["status"], r["status"])),
+            _cell(r["fas"]),
+            "ja" if r["synlig_stig"] else "nej",
+        ]))
+    return _dokument(rader)
+
+
+def analys(conn, arvda: bool, genererad: str) -> str:
+    tck = tackning(conn)
+    titel = "Analys — blockerar-rankning" + (" (med ärvda svar)" if arvda else "")
+    rader = [
+        f"h1. {titel}", f"_Exporterad {genererad}._", "",
+        "{info}" + (f"{tck['svarande']} av {tck['totalt']} medlemmar har lämnat minst "
+                    "ett svar. Obesvarat räknas inte som ”behövs ej” — endast direkta "
+                    "svar räknas för täckningen.") + "{info}", "",
+        _rad(["Nod", "Status", "Fas", "Go-live", "Kan vänta", "Behövs ej", "Totalt",
+              "Varning"], header=True),
+    ]
+    for r in rankning(conn, arvda):
+        varning = "(!) blockerar go-live men är idé/utreds/senare" if r["varning"] else " "
+        rader.append(_rad([
+            _cell(r["namn"]),
+            _cell(STATUS_ETIKETT.get(r["status"], r["status"])),
+            _cell(r["fas"]),
+            _cell(r["golive"]), _cell(r["kan_vanta"]), _cell(r["behovs_ej"]),
+            _cell(r["totalt"]), varning,
+        ]))
+    return _dokument(rader)
+
+
+def roadmap(conn, visa_krav: bool, genererad: str) -> str:
+    rader = ["h1. Roadmap — Teaball", f"_Exporterad {genererad}._"]
+    for fas, noder in roadmap_data(conn, visa_krav=visa_krav):
+        rader += ["", f"h2. {fas.capitalize()}",
+                  _rad(["Namn", "Typ", "Status"], header=True)]
+        for n in noder:
+            rader.append(_rad([
+                _namncell(n["namn"], n["djup"], n["typ"]),
+                _cell(n["typ"]),
+                _cell(STATUS_ETIKETT.get(n["status"], n["status"])),
+            ]))
+    return _dokument(rader)
+
+
+def medlemmar(conn, genererad: str) -> str:
+    rader = ["h1. Medlemmar — Teaball", f"_Exporterad {genererad}._", "",
+             _rad(["Namn", "Kategori", "Har lämnat svar"], header=True)]
+    for r in conn.execute(
+        "SELECT m.namn, m.kategori,"
+        " EXISTS(SELECT 1 FROM bedomning WHERE medlem_id = m.id) AS svarat"
+        " FROM medlem m ORDER BY m.namn"
+    ):
+        rader.append(_rad([_cell(r["namn"]), _cell(r["kategori"]),
+                           "ja" if r["svarat"] else "nej"]))
+    return _dokument(rader)
