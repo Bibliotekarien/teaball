@@ -50,10 +50,15 @@ def logga_in_med_token(
     # (logging an admin out, or capturing the victim's answers in the link
     # owner's account). Ask for a POST-confirmed switch instead.
     if aktuell_principal(request, conn) is not None:
+        # This is the only page served with a 200 on the token URL, so it is
+        # the one place a click could leak the raw token in the Referer header.
+        # no-referrer stops that at the source (Matomo masking is defence in
+        # depth); the site-wide same-origin policy is deliberately overridden.
         return templates.TemplateResponse(
             request,
             "svara/vaxla.html",
             {"principal": None, "medlem_namn": rad["namn"], "token": token},
+            headers={"Referrer-Policy": "no-referrer"},
         )
     return _starta_medlemssession(request, rad)
 

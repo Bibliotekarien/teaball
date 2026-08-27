@@ -17,6 +17,24 @@ from openpyxl.utils import get_column_letter
 from app.services import analys as analys_tjanst
 from app.services import roadmap as roadmap_tjanst
 
+# Spreadsheet formula injection: Excel/LibreOffice execute a cell whose text
+# starts with one of these. Member free-text (workaround, kommentar) and
+# admin-set names reach both the CSV and XLSX exports, so a leading apostrophe
+# neutralizes them — the tools then render the value as literal text. This is
+# the only member→förvaltare escalation path in the system.
+_FARLIGA_INLEDNINGAR = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _sakra(varde):
+    if isinstance(varde, str) and varde[:1] in _FARLIGA_INLEDNINGAR:
+        return "'" + varde
+    return varde
+
+
+def _sakra_rad(rad):
+    return [_sakra(v) for v in rad]
+
+
 SVAR_ETIKETT = {"golive_krav": "Go-live", "kan_vanta": "Kan vänta", "behovs_ej": "Behövs ej"}
 # Light fill + dark text keeps the cells readable in Excel.
 SVAR_STIL = {
@@ -59,9 +77,9 @@ def trad_csv(conn) -> str:
         ORDER BY t.vag
         """
     ):
-        w.writerow([r["id"], r["namn"], r["foralder_id"], r["foralder_namn"],
+        w.writerow(_sakra_rad([r["id"], r["namn"], r["foralder_id"], r["foralder_namn"],
                     r["typ"], r["status"], r["fas"], r["synlig_externt"], r["djup"],
-                    r["lank_dokumentation"], r["lank_jira"]])
+                    r["lank_dokumentation"], r["lank_jira"]]))
     return buf.getvalue()
 
 
@@ -81,9 +99,9 @@ def bedomningar_csv(conn) -> str:
         ORDER BY m.namn, f.namn
         """
     ):
-        w.writerow([r["medlem"], r["kategori"], r["funktion_id"], r["funktion"],
+        w.writerow(_sakra_rad([r["medlem"], r["kategori"], r["funktion_id"], r["funktion"],
                     r["svar"], r["workaround"], r["workaround_delas"], r["kommentar"],
-                    r["besvarat_av"], r["besvarat"]])
+                    r["besvarat_av"], r["besvarat"]]))
     return buf.getvalue()
 
 
@@ -122,8 +140,8 @@ def _blad_trad(blad, conn):
                [55, 10, 11, 10, 19, 50])
     # blad.max_row is O(rows) in openpyxl — track the row number ourselves.
     for radnr, r in enumerate(conn.execute("SELECT * FROM funktion_trad ORDER BY vag"), start=2):
-        blad.append(["    " * r["djup"] + r["namn"], r["typ"], r["status"], r["fas"],
-                     "ja" if r["synlig_stig"] else "nej", r["beskrivning"]])
+        blad.append(_sakra_rad(["    " * r["djup"] + r["namn"], r["typ"], r["status"], r["fas"],
+                     "ja" if r["synlig_stig"] else "nej", r["beskrivning"]]))
         blad.cell(row=radnr, column=1).font = _FET if r["typ"] == "förmåga" else _VANLIG
         _fyll(blad.cell(row=radnr, column=3), STATUS_STIL[r["status"]])
 
@@ -142,9 +160,9 @@ def _blad_bedomningar(blad, conn):
         """
     )
     for radnr, r in enumerate(rows, start=2):
-        blad.append([r["medlem"], r["kategori"], r["funktion"], SVAR_ETIKETT[r["svar"]],
+        blad.append(_sakra_rad([r["medlem"], r["kategori"], r["funktion"], SVAR_ETIKETT[r["svar"]],
                      r["workaround"], "ja" if r["workaround_delas"] else "nej",
-                     r["kommentar"], r["besvarat_av"], r["besvarat"]])
+                     r["kommentar"], r["besvarat_av"], r["besvarat"]]))
         _fyll(blad.cell(row=radnr, column=4), SVAR_STIL[r["svar"]])
 
 
@@ -158,9 +176,9 @@ def _blad_analys(blad, conn):
     _rubrikrad(blad, ["Nod", "Status", "Fas", "Go-live", "Kan vänta", "Behövs ej",
                       "Totalt", "Varning"], [45, 11, 10, 9, 10, 10, 8, 42], rad=2)
     for radnr, r in enumerate(analys_tjanst.rankning(conn, arvda=False), start=3):
-        blad.append([r["namn"], r["status"], r["fas"], r["golive"], r["kan_vanta"],
+        blad.append(_sakra_rad([r["namn"], r["status"], r["fas"], r["golive"], r["kan_vanta"],
                      r["behovs_ej"], r["totalt"],
-                     "⚠ blockerar go-live men är idé/senare" if r["varning"] else None])
+                     "⚠ blockerar go-live men är idé/senare" if r["varning"] else None]))
         _fyll(blad.cell(row=radnr, column=2), STATUS_STIL[r["status"]])
         if r["golive"]:
             _fyll(blad.cell(row=radnr, column=4), SVAR_STIL["golive_krav"])
@@ -170,9 +188,9 @@ def _blad_migrering(blad, conn):
     _rubrikrad(blad, ["Medlem", "Kategori", "Utestående blockerare", "Har svarat"],
                [28, 14, 21, 11])
     for radnr, r in enumerate(analys_tjanst.migreringsoversikt(conn), start=2):
-        blad.append([r["namn"], r["kategori"],
+        blad.append(_sakra_rad([r["namn"], r["kategori"],
                      r["blockerare"] if r["har_svarat"] else None,
-                     "ja" if r["har_svarat"] else "nej"])
+                     "ja" if r["har_svarat"] else "nej"]))
         if not r["har_svarat"]:
             _fyll(blad.cell(row=radnr, column=4), STATUS_STIL["utgår"])
 
@@ -183,7 +201,7 @@ def _blad_roadmap(blad, conn):
     for fas, rader in roadmap_tjanst.roadmap_data(conn, visa_krav=True):
         for n in rader:
             radnr += 1
-            blad.append([fas, "    " * n["djup"] + n["namn"], n["typ"], n["status"]])
+            blad.append(_sakra_rad([fas, "    " * n["djup"] + n["namn"], n["typ"], n["status"]]))
             blad.cell(row=radnr, column=2).font = (
                 _FET if n["typ"] == "förmåga" else _VANLIG)
             _fyll(blad.cell(row=radnr, column=4), STATUS_STIL[n["status"]])

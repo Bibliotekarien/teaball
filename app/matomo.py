@@ -14,6 +14,7 @@ import asyncio
 import logging
 import re
 import secrets
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
@@ -30,6 +31,20 @@ _TOKEN_RE = re.compile(r"^(/svara/)[^/]+$")
 
 def sanitize_path(path: str) -> str:
     return _TOKEN_RE.sub(r"\1_token_", path)
+
+
+def sanitize_referrer(referrer: str) -> str:
+    """Mask the member token a same-origin referrer would otherwise carry into
+    analytics as urlref. The /svara/<token> confirmation page renders with a
+    200 (unlike the normal 303), so a click from it sends the raw token in the
+    Referer header; sanitize_path masks only our own path, never the referrer.
+    Only the path component is rewritten — scheme, host and query are kept."""
+    if not referrer:
+        return referrer
+    delar = urlsplit(referrer)
+    if not delar.path:
+        return referrer
+    return urlunsplit(delar._replace(path=sanitize_path(delar.path)))
 
 
 def should_track(method: str, path: str, status_code: int, hx_request: bool) -> bool:
@@ -99,7 +114,7 @@ def track_request(request, status_code: int) -> None:
         url=url,
         user_agent=request.headers.get("user-agent", ""),
         lang=request.headers.get("accept-language", ""),
-        referrer=request.headers.get("referer", ""),
+        referrer=sanitize_referrer(request.headers.get("referer", "")),
         client_ip=request.client.host if request.client else "",
     )
     asyncio.get_running_loop().create_task(_send(params))

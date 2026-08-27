@@ -74,6 +74,30 @@ def test_tokenlank_med_aktiv_session_kraver_bekraftelse(client, app_db):
     assert client.get("/svara").status_code == 200
 
 
+def test_sanitize_referrer_maskar_token():
+    from app.matomo import sanitize_referrer
+
+    # The raw token in a same-origin referrer is masked, host/query kept.
+    assert sanitize_referrer("https://teaball.bibliotekarien.se/svara/HEMLIG?x=1") == (
+        "https://teaball.bibliotekarien.se/svara/_token_?x=1")
+    # Other paths and empty referrers pass through untouched.
+    assert sanitize_referrer("https://teaball.bibliotekarien.se/trad") == (
+        "https://teaball.bibliotekarien.se/trad")
+    assert sanitize_referrer("") == ""
+
+
+def test_vaxla_sidan_laker_inte_token_i_referer(client, app_db):
+    """The token URL's only 200-page must not let the raw token leave via the
+    Referer header on a later click."""
+    medlem = skapa_medlem(app_db, "Uppsala universitet")
+    ratoken = ge_token(app_db, medlem)
+    logga_in(client, app_db)
+
+    svar = client.get(f"/svara/{ratoken}", follow_redirects=False)
+    assert svar.status_code == 200
+    assert svar.headers["referrer-policy"] == "no-referrer"
+
+
 def test_404_i_stallet_for_500(client, app_db):
     seed_trad(app_db)
     logga_in(client, app_db)
