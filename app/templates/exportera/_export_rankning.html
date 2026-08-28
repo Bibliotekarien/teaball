@@ -1,0 +1,30 @@
+{# The blockerar-rankning section of the PDF report. Context: rankning (rows
+   from analys.rankning), tackning. Mirrors the analys view: status badge,
+   N2 warning and the stacked go-live/kan vänta/behövs ej bar. #}
+<p class="meta">{{ tackning.svarande }} av {{ tackning.totalt }} medlemmar har lämnat minst
+  ett svar — obesvarat är inte ”behövs ej”. Endast direkta svar räknas.</p>
+{% for r in rankning %}
+<div class="kort">
+  <div class="huvud">
+    <span class="namn">{{ r.namn }}</span>
+    <span class="badge status-{{ r.status }}">{{ STATUS[r.status].label }}</span>
+    {% if r.fas %}<span class="fas">fas: {{ r.fas }}</span>{% endif %}
+    {% if r.varning %}
+    <span class="badge varning">⚠ blockerar go-live men ligger i ”{{ r.fas if r.fas == 'senare' else r.status }}”</span>
+    {% endif %}
+  </div>
+  <div class="stapel">
+    {%- if r.golive %}<span class="golive" style="width: {{ r.golive_pct }}%"></span>{% endif -%}
+    {%- if r.kan_vanta %}<span class="kan-vanta" style="width: {{ r.kan_vanta_pct }}%"></span>{% endif -%}
+    {%- if r.behovs_ej %}<span class="behovs-ej" style="width: {{ r.behovs_ej_pct }}%"></span>{% endif -%}
+  </div>
+  <div class="siffror">
+    <span class="del"><span class="punkt" style="background:#e11d48"></span>{{ r.golive }} go-live</span>
+    <span class="del"><span class="punkt" style="background:#f59e0b"></span>{{ r.kan_vanta }} kan vänta</span>
+    <span class="del"><span class="punkt" style="background:#a8a29e"></span>{{ r.behovs_ej }} behövs ej</span>
+    <span class="del">({{ r.totalt }} svar)</span>
+  </div>
+</div>
+{% else %}
+<p class="tom">Inga svar ännu.</p>
+{% endfor %}

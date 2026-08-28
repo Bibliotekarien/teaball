@@ -7,6 +7,13 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /srv/teaball
 
+# WeasyPrint (PDF-exporten) renderar text via Pango; slim-imagen saknar både
+# biblioteken och typsnitt. Liberation Sans ger rapporterna Arial-metrik.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+
 # Runtime dependencies mirror [project.dependencies] in pyproject.toml.
 RUN pip install --no-cache-dir \
     "fastapi>=0.115" \
@@ -16,7 +23,8 @@ RUN pip install --no-cache-dir \
     "argon2-cffi>=23.1" \
     "itsdangerous>=2.2" \
     "openpyxl>=3.1.5" \
-    "httpx>=0.27"
+    "httpx>=0.27" \
+    "weasyprint>=63"
 
 COPY app ./app
 COPY db ./db

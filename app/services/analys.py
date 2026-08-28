@@ -10,9 +10,14 @@ def _kalla(arvda: bool) -> str:
     return "bedomning_effektiv" if arvda else "bedomning_direkt"
 
 
-def rankning(conn, arvda: bool = False):
+def rankning(conn, arvda: bool = False, endast_synliga: bool = False):
     """N1: per node golive/kan_vanta/behovs_ej counts, sorted by blockers,
-    with the N2 warning flag precomputed."""
+    with the N2 warning flag precomputed. endast_synliga keeps only nodes whose
+    whole path is externally visible (T5) — for exports leaving the förvaltning;
+    the percentages are then relative to the visible max, so the bars stay full
+    width in a filtered export."""
+    synlighet = ("WHERE f.id IN (SELECT id FROM funktion_trad WHERE synlig_stig = 1)"
+                 if endast_synliga else "")
     rows = conn.execute(
         f"""
         SELECT f.id, f.namn, f.status, f.fas,
@@ -21,6 +26,7 @@ def rankning(conn, arvda: bool = False):
                SUM(CASE WHEN b.svar = 'behovs_ej' THEN 1 ELSE 0 END) AS behovs_ej
         FROM {_kalla(arvda)} b
         JOIN funktion f ON f.id = b.funktion_id
+        {synlighet}
         GROUP BY f.id
         ORDER BY golive DESC, kan_vanta DESC, f.namn
         """

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kravträd – Teaball</title>
+<style>
+{% include "exportera/_export_stil.html" %}
+</style>
+</head>
+<body>
+<main>
+  <h1>Teaball – kravträd</h1>
+  <p class="meta">Genererad {{ genererad }}.
+    {%- if endast_synliga %} Endast noder som är synliga externt — dolda grenar är utelämnade.
+    {%- else %} Fullständigt träd — noder som inte visas för medlemmar är markerade <em>intern</em>.
+    {%- endif %}</p>
+  {% include "exportera/_export_trad.html" %}
+</main>
+</body>
+</html>

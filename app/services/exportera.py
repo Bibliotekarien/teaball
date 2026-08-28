@@ -1,6 +1,7 @@
-"""Exports (spec E1 + the all-views Excel workbook).
+"""Exports (spec E1 + the all-views Excel workbook + standalone-export data).
 
 E1: whole database as JSON, tree + assessments as CSV.
+kravtrad_rader feeds the standalone HTML/PDF exports rendered by the router.
 XLSX: one workbook, one sheet per view (Kravträd, Bedömningar, Analys,
 Migrering, Roadmap) with readable formatting — colored answer/status cells,
 frozen header rows, tree indentation. Member token hashes never leave the
@@ -49,6 +50,16 @@ STATUS_STIL = {
     "utreds": ("FEF3C7", "92400E"),
     "utgår": ("F5F5F4", "A8A29E"),
 }
+
+
+def kravtrad_rader(conn, endast_synliga: bool = False) -> list[dict]:
+    """Tree rows for the standalone HTML and PDF exports. endast_synliga drops
+    every node whose path is hidden (synlig_stig, T5), so the export matches
+    exactly what members are allowed to see. Jinja autoescaping handles the
+    free text — the formula guard is only for spreadsheet formats."""
+    urval = "WHERE synlig_stig = 1" if endast_synliga else ""
+    return [dict(r) for r in
+            conn.execute(f"SELECT * FROM funktion_trad {urval} ORDER BY vag")]
 
 
 def json_export(conn) -> str:
