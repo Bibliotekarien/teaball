@@ -1,0 +1,29 @@
+{# The tree section of the standalone exports. Context: noder (funktion_trad
+   rows in vag order), endast_synliga. In the unfiltered variant, nodes hidden
+   from members are tagged "intern" so the reader sees what an external export
+   would leave out. #}
+{% if noder %}
+<div class="grupp">
+  {% for n in noder %}
+  <div class="rad" style="padding-left: {{ n.djup * 18 + 8 }}px">
+    <div class="huvud">
+      <span class="namn {{ {'förmåga': 'formaga', 'funktion': 'funktion', 'krav': 'krav'}[n.typ] }}">{{ n.namn }}</span>
+      <span class="badge typ">{{ n.typ }}</span>
+      <span class="badge status-{{ n.status }}">{{ STATUS[n.status].label }}</span>
+      {% if n.fas %}<span class="fas">fas: {{ n.fas }}</span>{% endif %}
+      {% if not endast_synliga and not n.synlig_stig %}<span class="badge intern">intern</span>{% endif %}
+      {% if n.lank_jira or n.lank_dokumentation %}
+      <span class="lankar">
+        {%- if n.lank_jira %}<a href="{{ n.lank_jira }}">Jira</a>{% endif -%}
+        {%- if n.lank_jira and n.lank_dokumentation %} · {% endif -%}
+        {%- if n.lank_dokumentation %}<a href="{{ n.lank_dokumentation }}">Dokumentation</a>{% endif -%}
+      </span>
+      {% endif %}
+    </div>
+    {% if n.beskrivning %}<div class="beskrivning">{{ n.beskrivning }}</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="tom">Inga noder att visa.</p>
+{% endif %}

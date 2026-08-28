@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<title>Teaball – kravträd &amp; ranking</title>
+<style>
+{% include "exportera/_export_stil.html" %}
+/* PDF specifics: A4 with page numbers; the @page margin carries the footer,
+   so body padding goes. Paper stays white — the screen-grey background would
+   print as a tinted sheet. */
+@page {
+  size: A4;
+  margin: 16mm 14mm 18mm;
+  @bottom-left { content: "Teaball – exporterad {{ genererad }}";
+                 color: #a8a29e; font-size: 8px;
+                 font-family: "Liberation Sans", sans-serif; }
+  @bottom-right { content: "Sida " counter(page) " av " counter(pages);
+                  color: #a8a29e; font-size: 8px;
+                  font-family: "Liberation Sans", sans-serif; }
+}
+body { background: #fff; padding: 0; }
+main { max-width: none; }
+h1 { font-size: 1.4rem; }
+.sektion-rankning { page-break-before: always; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Teaball – kravträd &amp; blockerar-rankning</h1>
+  <p class="meta">Genererad {{ genererad }}.
+    {%- if endast_synliga %} Endast noder som är synliga externt — dolda grenar är utelämnade.
+    {%- else %} Fullständigt underlag — noder som inte visas för medlemmar är markerade <em>intern</em>.
+    {%- endif %}</p>
+
+  <h2>Kravträd</h2>
+  {% include "exportera/_export_trad.html" %}
+
+  <div class="sektion-rankning">
+    <h2>Blockerar-rankning</h2>
+    {% include "exportera/_export_rankning.html" %}
+  </div>
+</main>
+</body>
+</html>

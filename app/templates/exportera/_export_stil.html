@@ -1,0 +1,50 @@
+/* Shared look for the standalone exports (kravtrad.html + rapport.pdf).
+   Self-contained like the R2 roadmap export: inline CSS only, no scripts.
+   Palette mirrors roadmap/export.html and the STATUS colors in app/web.py. */
+body { font-family: "Liberation Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+       color: #1c1917; background: #fafaf9; margin: 0; padding: 2rem 1rem; }
+main { max-width: 52rem; margin: 0 auto; }
+h1 { font-family: Georgia, serif; color: #1e3a8a; font-size: 1.25rem;
+     border-bottom: 2px solid #1e3a8a; padding-bottom: .5rem; }
+h2 { font-family: Georgia, serif; color: #1e3a8a; font-size: 1rem; margin: 1.5rem 0 .5rem; }
+.meta { color: #78716c; font-size: .75rem; margin-bottom: 1.5rem; }
+.grupp { background: #fff; border: 1px solid #e7e5e4; border-radius: .5rem; }
+.rad { padding: .35rem .5rem; border-bottom: 1px solid #f5f5f4; font-size: .85rem;
+       page-break-inside: avoid; }
+.rad:last-child { border-bottom: none; }
+.huvud { display: flex; align-items: baseline; flex-wrap: wrap; gap: .5rem; }
+.namn { flex: 1; }
+.formaga { color: #1e3a8a; font-weight: 600; }
+.funktion { color: #292524; font-weight: 500; }
+.krav { color: #44403c; }
+.badge { border-radius: .25rem; padding: .1rem .4rem; font-size: .7rem; white-space: nowrap; }
+.typ { background: #f5f5f4; color: #78716c; }
+.fas { color: #a8a29e; font-size: .7rem; white-space: nowrap; }
+.intern { background: #ede9fe; color: #5b21b6; }
+.status-driftsatt { background: #d1fae5; color: #065f46; }
+.status-planerad { background: #e0f2fe; color: #075985; }
+.status-idé { background: #e7e5e4; color: #57534e; }
+.status-utreds { background: #fef3c7; color: #92400e; }
+.status-utgår { background: #f5f5f4; color: #a8a29e; text-decoration: line-through; }
+.lankar { font-size: .7rem; white-space: nowrap; }
+.lankar a { color: #1d4ed8; }
+.beskrivning { color: #78716c; font-size: .75rem; margin-top: .1rem; }
+/* Ranking cards: stacked bar built from inline-blocks (font-size 0 kills the
+   whitespace gaps) — sturdier than flex across print renderers. */
+.kort { background: #fff; border: 1px solid #e7e5e4; border-radius: .5rem;
+        padding: .5rem .6rem; margin-bottom: .5rem; page-break-inside: avoid; }
+.kort .huvud { margin-bottom: .3rem; }
+.kort .namn { font-size: .85rem; font-weight: 500; color: #292524; }
+.varning { background: #ffe4e6; color: #9f1239; }
+.stapel { font-size: 0; background: #f5f5f4; border-radius: 9999px; overflow: hidden;
+          height: .55rem; }
+.stapel span { display: inline-block; height: .55rem; }
+.stapel .golive { background: #e11d48; }
+.stapel .kan-vanta { background: #f59e0b; }
+.stapel .behovs-ej { background: #a8a29e; }
+.siffror { margin-top: .25rem; font-size: .7rem; color: #78716c; }
+.siffror .punkt { display: inline-block; width: .45rem; height: .45rem;
+                  border-radius: 9999px; margin-right: .25rem; }
+.siffror span.del { margin-right: 1rem; white-space: nowrap; }
+.tom { border: 1px solid #e7e5e4; border-radius: .5rem; background: #fff;
+       padding: 1rem; font-size: .85rem; color: #a8a29e; }
