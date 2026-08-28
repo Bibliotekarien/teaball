@@ -54,8 +54,12 @@ if [ "$(date +%d)" = "01" ]; then
   cp "$fil" "$MAL/manatliga/teaball-$(date +%Y-%m).db"
 fi
 
-# Rotation: behåll 30 dagliga och 12 månatliga.
-ls -1t "$MAL/dagliga"/teaball-*.db 2>/dev/null | tail -n +31 | xargs -r rm --
-ls -1t "$MAL/manatliga"/teaball-*.db 2>/dev/null | tail -n +13 | xargs -r rm --
+# Rotation: behåll 30 dagliga och 12 månatliga. find, inte ls + glob: i en tom
+# katalog (manatliga/ ända till första månadsskiftet) förblir globben oexpanderad
+# och ls dör med exit 2, som pipefail gör till hela skriptets — tyst, eftersom
+# stderr var bortdirigerad. Filnamnen bär ISO-datum, så omvänd namnsortering
+# är nyast-först.
+find "$MAL/dagliga" -maxdepth 1 -name 'teaball-*.db' | sort -r | tail -n +31 | xargs -r rm --
+find "$MAL/manatliga" -maxdepth 1 -name 'teaball-*.db' | sort -r | tail -n +13 | xargs -r rm --
 
 echo "Backup klar: $fil"
