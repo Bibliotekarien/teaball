@@ -17,10 +17,30 @@ def test_kravtrad_markup(conn):
     ut = confluence.kravtrad(conn, DATUM)
     assert ut.startswith("h1. Kravträd — Teaball")
     assert f"_Exporterad {DATUM}._" in ut
-    assert "|| Namn || Typ || Status || Fas || Synlig för medlemmar ||" in ut
+    assert ("|| Namn || Typ || Status || Fas || Synlig för medlemmar"
+            " || Jira || Dokumentation ||") in ut
     # förmåga is bolded; a child is indented one middot level.
     assert "| *Publicering* | förmåga | Driftsatt |" in ut
     assert "| · Registrera avhandling | funktion |" in ut
+
+
+def test_kravtrad_lankar_och_beskrivning(conn):
+    skapa_funktion(conn, "Inloggning via SSO", typ="funktion",
+                   beskrivning="Stöd för SAML mot lärosätenas IdP:er.",
+                   lank_jira="https://jira.example/DIVA-1|x]y",
+                   lank_dokumentation="https://wiki.example/sso")
+    skapa_funktion(conn, "Utan länkar", typ="krav")
+    conn.commit()
+    ut = confluence.kravtrad(conn, DATUM)
+    # The description folds into an {expand} in the name cell.
+    assert ("| Inloggning via SSO \\\\ {expand:Beskrivning}"
+            "Stöd för SAML mot lärosätenas IdP:er.{expand} |") in ut
+    # Link cells; '|' and ']' in a URL are percent-encoded, not escaped.
+    assert "| [Jira|https://jira.example/DIVA-1%7Cx%5Dy] |" in ut
+    assert "| [Dokumentation|https://wiki.example/sso] |" in ut
+    # Nodes without links get empty cells, and no empty expand appears.
+    assert "| Utan länkar |" in ut
+    assert "{expand:Beskrivning}{expand}" not in ut
 
 
 def test_cell_escaping_av_pipe(conn):

@@ -36,6 +36,16 @@ def _bold(s: str) -> str:
     return f"*{s}*"
 
 
+def _lank(text: str, url) -> str:
+    """A wiki-markup link cell. URLs are validated as http(s) on input, but a
+    '|' or ']' inside one would still end the link markup early — percent-encode
+    those instead of backslash-escaping, so the link target stays a valid URL."""
+    if not url:
+        return " "
+    saker = str(url).replace(" ", "%20").replace("|", "%7C").replace("]", "%5D")
+    return f"[{text}|{saker}]"
+
+
 def _rad(celler, header: bool = False) -> str:
     """A wiki-markup table row. Cells must already be escaped (via _cell) or be
     intentional markup (indent, bold)."""
@@ -43,10 +53,17 @@ def _rad(celler, header: bool = False) -> str:
     return d + " " + f" {d} ".join(celler) + " " + d
 
 
-def _namncell(namn, djup: int, typ: str) -> str:
-    """Tree name cell: middot indent per level, förmåga names bolded."""
+def _namncell(namn, djup: int, typ: str, beskrivning=None) -> str:
+    """Tree name cell: middot indent per level, förmåga names bolded. A
+    beskrivning goes under the name in the same cell, folded away in an
+    {expand} macro so the table stays compact until the reader clicks."""
     text = _cell(namn)
-    return "· " * djup + (_bold(text) if typ == "förmåga" else text)
+    cell = "· " * djup + (_bold(text) if typ == "förmåga" else text)
+    if beskrivning:
+        # \\ is a line break inside the cell; _cell has already escaped braces,
+        # so the description cannot terminate the macro.
+        cell += " \\\\ {expand:Beskrivning}" + _cell(beskrivning) + "{expand}"
+    return cell
 
 
 def _dokument(rader) -> str:
@@ -55,14 +72,17 @@ def _dokument(rader) -> str:
 
 def kravtrad(conn, genererad: str) -> str:
     rader = ["h1. Kravträd — Teaball", f"_Exporterad {genererad}._", "",
-             _rad(["Namn", "Typ", "Status", "Fas", "Synlig för medlemmar"], header=True)]
+             _rad(["Namn", "Typ", "Status", "Fas", "Synlig för medlemmar",
+                   "Jira", "Dokumentation"], header=True)]
     for r in conn.execute("SELECT * FROM funktion_trad ORDER BY vag"):
         rader.append(_rad([
-            _namncell(r["namn"], r["djup"], r["typ"]),
+            _namncell(r["namn"], r["djup"], r["typ"], r["beskrivning"]),
             _cell(r["typ"]),
             _cell(STATUS_ETIKETT.get(r["status"], r["status"])),
             _cell(r["fas"]),
             "ja" if r["synlig_stig"] else "nej",
+            _lank("Jira", r["lank_jira"]),
+            _lank("Dokumentation", r["lank_dokumentation"]),
         ]))
     return _dokument(rader)
 

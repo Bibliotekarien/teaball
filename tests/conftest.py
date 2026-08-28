@@ -92,11 +92,14 @@ def logga_in(client, conn, namn="anna", losenord="hemligt-losen"):
 
 
 def skapa_funktion(conn, namn, foralder_id=None, typ="krav", status="planerad",
-                   fas=None, synlig_externt=1, sortering=0):
+                   fas=None, synlig_externt=1, sortering=0, beskrivning=None,
+                   lank_dokumentation=None, lank_jira=None):
     cur = conn.execute(
-        "INSERT INTO funktion (namn, foralder_id, typ, status, fas, synlig_externt, sortering)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (namn, foralder_id, typ, status, fas, synlig_externt, sortering),
+        "INSERT INTO funktion (namn, foralder_id, typ, status, fas, synlig_externt,"
+        " sortering, beskrivning, lank_dokumentation, lank_jira)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (namn, foralder_id, typ, status, fas, synlig_externt, sortering,
+         beskrivning, lank_dokumentation, lank_jira),
     )
     return cur.lastrowid
 
