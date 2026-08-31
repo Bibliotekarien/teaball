@@ -47,8 +47,14 @@ def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | N
     """Tree response: partial for htmx, full page (or redirect) otherwise.
     With aterstall_formular (after a successful create over htmx) the partial
     also carries a fresh, empty node form out-of-band — parent preserved — so
-    sibling after sibling can be entered without re-opening the form."""
-    filter = filter or {"q": "", "typ": [], "status": [], "fas": ""}
+    sibling after sibling can be entered without re-opening the form.
+
+    POST callers pass no filter; the last GET's filter (session) is reused so
+    the swapped tree keeps matching the filter form, which lives outside
+    #trad-rot and survives the swap. Without it an edit while filtering swaps
+    in the whole unfiltered tree under an untouched filter form."""
+    filter = filter or request.session.get("trad_filter") \
+        or {"q": "", "typ": [], "status": [], "fas": ""}
     if not is_htmx(request) and fel is None and request.method == "POST":
         return RedirectResponse("/trad", status_code=303)
     ctx = {
@@ -81,8 +87,11 @@ def visa_trad(
 ):
     if vy in ("kompakt", "detaljerad"):
         request.session["trad_vy"] = vy
-    return _tradsvar(request, conn, principal,
-                     filter={"q": q, "typ": typ, "status": status, "fas": fas})
+    filter = {"q": q, "typ": typ, "status": status, "fas": fas}
+    # Remembered for POST responses (see _tradsvar). A bare GET /trad clears
+    # it — exactly what the then-empty filter form shows.
+    request.session["trad_filter"] = filter
+    return _tradsvar(request, conn, principal, filter=filter)
 
 
 # --- create/edit forms ------------------------------------------------------

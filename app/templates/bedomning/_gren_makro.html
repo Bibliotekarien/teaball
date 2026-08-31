@@ -29,7 +29,9 @@
     <span class="w-[14px] shrink-0"></span>
     {% endif %}
     <div class="min-w-0 flex-1 pt-0.5">
-      <span class="text-sm {{ TYP_CLS[n.typ] }}">{{ n.namn }}</span>
+      {# utgår replaces the type styling outright — two text-color utilities on
+         one element would leave the winner to stylesheet order. #}
+      <span class="text-sm {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}">{{ n.namn }}</span>
       {% if visa_dold and not n.synlig_stig %}
       <span class="ml-1 rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400" title="Visas inte för medlemmar">dold för medlemmar</span>
       {% endif %}
@@ -46,6 +48,15 @@
   </div>
 
   <div class="flex shrink-0 flex-col items-end gap-1 pl-[22px] sm:pl-0">
+    {% if n.status in ("driftsatt", "utgår") %}
+    {# Not assessable (service-enforced too): driftsatt is already delivered,
+       utgår will never be built. The badge says why the buttons are gone. #}
+    <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}"
+          title="{{ STATUS[n.status].beskrivning }}">{{ STATUS[n.status].label }}</span>
+    {% if eget %}
+    <span class="text-[11px] italic text-stone-400" title="Svaret gavs innan noden blev {{ STATUS[n.status].label|lower }}.">tidigare svar: {{ SVAR[eget.svar].kort }}</span>
+    {% endif %}
+    {% else %}
     <form method="post" action="{{ bas }}/{{ n.id }}/svar"
           hx-post="{{ bas }}/{{ n.id }}/svar" hx-target="#gren-{{ n.id }}" hx-swap="outerHTML"
           class="flex items-center gap-1">
@@ -91,6 +102,7 @@
         <button class="rounded border border-stone-200 px-1.5 text-[11px] text-stone-500 hover:bg-stone-100">Spara</button>
       </form>
     </details>
+    {% endif %}
     {% endif %}
   </div>
 </div>

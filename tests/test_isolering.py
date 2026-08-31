@@ -21,8 +21,12 @@ def _medlemsklient(fabrik, token):
 
 
 def _csrf(klient) -> str:
+    # Faller tillbaka på <body hx-headers=…>: sidan kan sakna svarsformulär
+    # helt när alla synliga noder är driftsatta/utgångna.
     sida = klient.get("/svara").text
-    return re.search(r'name="csrf_token" value="([^"]+)"', sida).group(1)
+    traff = re.search(r'name="csrf_token" value="([^"]+)"', sida) \
+        or re.search(r'"X-CSRF-Token": "([^"]+)"', sida)
+    return traff.group(1)
 
 
 def test_acceptance_9_2_medlemsflode(app_db, klient_fabrik):

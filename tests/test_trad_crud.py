@@ -197,6 +197,36 @@ def test_ny_nod_hamnar_forst_och_formularet_aterstalls(client, app_db):
     assert rotter[0] == "Ny rot"
 
 
+def test_filter_overlever_htmx_uppdatering(client, app_db):
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    token = _token(client)
+
+    # Aktivera ett filter (samma htmx-GET som filterformuläret gör) ...
+    client.get("/trad", params={"q": "dubblett"}, headers={"HX-Request": "true"})
+
+    # ... och redigera en nod. Swappen ska fortfarande vara filtrerad —
+    # filterformuläret står kvar utanför #trad-rot och måste matcha trädet.
+    svar = client.post(
+        f"/trad/nod/{ids['dubblett']}",
+        data={"namn": "Dubblettdetektering", "typ": "krav", "status": "utreds",
+              "synlig_externt": "1"},
+        headers={"HX-Request": "true", "X-CSRF-Token": token},
+    )
+    assert svar.status_code == 200
+    assert "Dubblettdetektering" in svar.text
+    assert "Registrera avhandling" not in svar.text
+
+    # En ren sidladdning utan query nollställer det sparade filtret.
+    client.get("/trad")
+    svar = client.post(
+        f"/trad/nod/{ids['dubblett']}/ordna",
+        data={"riktning": "upp", "csrf_token": token},
+        headers={"HX-Request": "true", "X-CSRF-Token": token},
+    )
+    assert "Registrera avhandling" in svar.text
+
+
 def test_utgar_stryks_over_i_tradet(client, app_db):
     ids = seed_trad(app_db)
     app_db.execute("UPDATE funktion SET status = 'utgår' WHERE id = ?", (ids["registrera"],))
