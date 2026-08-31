@@ -37,6 +37,10 @@ def _gren_eller_redirect(request, conn, medlem_id: int, funktion_id: int):
     if nod is None:
         return Response(status_code=204)
     direkta, effektiva = tjanst.svarskarta(conn, medlem_id)
+    # The subtree is deliberately rendered without the 'dölj bedömda' filter:
+    # a just-answered node must stay visible so the answer can be undone. The
+    # counter follows along out-of-band instead.
+    bedomda, kvar = tjanst.rakna_bedomt(rotter, effektiva)
     return templates.TemplateResponse(
         request,
         "bedomning/_gren.html",
@@ -47,6 +51,8 @@ def _gren_eller_redirect(request, conn, medlem_id: int, funktion_id: int):
             "delade": tjanst.delade_workarounds(conn, medlem_id),
             "bas": f"/bedomning/{medlem_id}",
             "visa_dold": True,
+            "bedomda": bedomda,
+            "kvar": kvar,
         },
     )
 
@@ -55,6 +61,7 @@ def _gren_eller_redirect(request, conn, medlem_id: int, funktion_id: int):
 def visa(
     request: Request,
     medlem_id: str = "",
+    dolj_bedomda: str = "",
     principal: Principal = Depends(krav_forvaltare),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
@@ -74,9 +81,16 @@ def visa(
         "bas": f"/bedomning/{vald}",
         "visa_dold": True,
     }
+    ctx["dolj_bedomda"] = bool(dolj_bedomda)
+    ctx["bedomda"], ctx["kvar"] = 0, 0
     if vald:
         ctx["direkta"], ctx["effektiva"] = tjanst.svarskarta(conn, vald)
         ctx["delade"] = tjanst.delade_workarounds(conn, vald)
+        # Counted on the full tree, before the filter — the counter must not
+        # shrink along with what it measures.
+        ctx["bedomda"], ctx["kvar"] = tjanst.rakna_bedomt(ctx["rotter"], ctx["effektiva"])
+        if dolj_bedomda:
+            ctx["rotter"] = tjanst.utan_bedomda(ctx["rotter"], ctx["effektiva"])
     else:
         ctx["direkta"], ctx["effektiva"], ctx["delade"] = {}, {}, {}
     return templates.TemplateResponse(request, "bedomning/index.html", ctx)

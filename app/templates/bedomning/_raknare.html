@@ -1,0 +1,12 @@
+{# Progress counter for the member being assessed. Included in the full page
+   (_innehall) and appended to the htmx subtree response (_gren) with oob set,
+   so every saved answer updates it out-of-band without a page reload. #}
+<p id="bedomning-raknare" {% if oob %}hx-swap-oob="outerHTML"{% endif %} class="mb-2 text-sm text-stone-600">
+  {% if bedomda + kvar == 0 %}
+  Inget att bedöma ännu.
+  {% elif kvar == 0 %}
+  <span class="font-medium text-emerald-700">Allt bedömt</span> — {{ bedomda }} av {{ bedomda }}.
+  {% else %}
+  <strong>{{ bedomda }}</strong> av {{ bedomda + kvar }} bedömda — <strong>{{ kvar }}</strong> kvar.
+  {% endif %}
+</p>

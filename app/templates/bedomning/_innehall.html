@@ -1,11 +1,14 @@
 {% from "bedomning/_gren_makro.html" import gren with context %}
 <div id="bedomning-rot" data-kompaktminne="teaball.bedomning.kompakterade">
+  {% include "bedomning/_raknare.html" %}
   <div class="rounded-lg border border-stone-200 bg-white">
     <ul>
       {% for n in rotter %}{{ gren(n) }}{% endfor %}
     </ul>
     {% if not rotter %}
-    <p class="p-4 text-sm text-stone-400">Kravträdet är tomt.</p>
+    <p class="p-4 text-sm text-stone-400">
+      {% if dolj_bedomda %}Allt som går att bedöma är bedömt — inget kvar att visa.{% else %}Kravträdet är tomt.{% endif %}
+    </p>
     {% endif %}
   </div>
   <p class="mt-3 text-xs text-stone-500">
