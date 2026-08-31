@@ -94,8 +94,8 @@ def spara_svar(
     _kontrollera_finns(conn, medlem_id, funktion_id)
     try:
         tjanst.satt_svar(conn, medlem_id, funktion_id, svar, f"proxy: {principal.namn}")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Ogiltigt svarsalternativ.")
+    except ValueError as fel:
+        raise HTTPException(status_code=400, detail=str(fel))
     conn.commit()
     return _gren_eller_redirect(request, conn, medlem_id, funktion_id)
 

@@ -1,5 +1,5 @@
 {% from "bedomning/_gren_makro.html" import gren with context %}
-<div id="bedomning-rot">
+<div id="bedomning-rot" data-kompaktminne="teaball.bedomning.kompakterade">
   <div class="rounded-lg border border-stone-200 bg-white">
     <ul>
       {% for n in rotter %}{{ gren(n) }}{% endfor %}

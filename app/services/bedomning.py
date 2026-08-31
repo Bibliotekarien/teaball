@@ -5,6 +5,12 @@ import sqlite3
 
 GILTIGA_SVAR = {"golive_krav", "kan_vanta", "behovs_ej"}
 
+# Statuses that take a node out of the assessment: driftsatt is already
+# delivered and utgår will never be built — an answer on either says nothing
+# about go-live. The UI hides the buttons; this is the backstop for direct
+# POSTs (and for stale forms rendered before a status change).
+EJ_RANKBARA_STATUSAR = {"driftsatt", "utgår"}
+
 
 def svarskarta(conn, medlem_id: int):
     """(direct answers by funktion_id, effective answers by funktion_id) for one
@@ -49,7 +55,14 @@ def satt_svar(conn, medlem_id: int, funktion_id: int, svar: str, besvarat_av: st
     Changing the answer keeps workaround/comment (the old row goes to history
     via the D2 trigger). Returns the resulting answer, or None if removed."""
     if svar not in GILTIGA_SVAR:
-        raise ValueError(f"Ogiltigt svar: {svar!r}")
+        raise ValueError("Ogiltigt svarsalternativ.")
+    status = conn.execute(
+        "SELECT status FROM funktion WHERE id = ?", (funktion_id,)
+    ).fetchone()
+    if status and status["status"] in EJ_RANKBARA_STATUSAR:
+        raise ValueError(
+            f"Noden är {status['status']} och kan inte bedömas."
+        )
     rad = conn.execute(
         "SELECT svar FROM bedomning WHERE medlem_id = ? AND funktion_id = ?",
         (medlem_id, funktion_id),

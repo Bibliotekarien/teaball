@@ -1,5 +1,6 @@
-// Progressive enhancement för kravträdet: dra-och-släpp (T3+) samt
-// expand/kompakt-minne med vypanelens alla-knappar. No-JS-fallbacken
+// Progressive enhancement för trädvyerna (kravträdet och bedömningen):
+// dra-och-släpp (T3+, bara kravträdet — Sortable laddas inte annorstädes)
+// samt expand/kompakt-minne med vypanelens alla-knappar. No-JS-fallbacken
 // (förälder-<select> + upp/ner-knappar, alltid öppna <details>) använder
 // samma endpoints; en släppning postar syskongruppens nya ordning till
 // /trad/sortera, som omföräldrar inkommande noder och normaliserar om
@@ -36,14 +37,18 @@
 })();
 
 // Expand/kompakt-minne + vypanelens alla-knappar. <details open> är ren
-// DOM-status och nollställs varje gång htmx byter ut #trad-rot (sortering,
-// redigering, synlighet, filtrering …). Därför speglas kompakterade nod-id:n
-// i sessionStorage — per flik, överlever omladdning — och återappliceras
-// efter varje swap. Utan JS är alla-knapparna dolda och trädet som förut:
-// allt öppet.
+// DOM-status och nollställs varje gång htmx byter ut innehåll — hela trädet
+// (sortering, redigering, synlighet, filtrering …) eller en enskild gren
+// (bedömningens svar-spar). Därför speglas kompakterade nod-id:n i
+// sessionStorage — per flik, överlever omladdning — och återappliceras efter
+// varje swap. Behållaren pekas ut med data-kompaktminne, vars värde är
+// lagringsnyckeln, så kravträdet och bedömningsvyn får varsitt minne av samma
+// skript. Utan JS är alla-knapparna dolda och trädet som förut: allt öppet.
 (function () {
   "use strict";
-  var NYCKEL = "teaball.trad.kompakterade";
+  var start = document.querySelector("[data-kompaktminne]");
+  if (!start) return;
+  var NYCKEL = start.dataset.kompaktminne;
 
   function lasKompakterade() {
     try { return new Set(JSON.parse(sessionStorage.getItem(NYCKEL)) || []); }
@@ -58,14 +63,16 @@
     return li ? li.dataset.nod : null;
   }
   function detaljer() {
-    return document.querySelectorAll("#trad-rot li[data-nod] > details");
+    // Behållaren swappas ut — fråga alltid DOM:en, spara aldrig referensen.
+    return document.querySelectorAll("[data-kompaktminne] li[data-nod] > details");
   }
 
   // Med aktivt filter visas allt öppet och minnet lämnas orört — annars kan
   // en sökträff gömmas inne i en kompakterad gren. Den filtrerade vyn är
-  // alltså efemär: varken läser eller skriver minnet.
+  // alltså efemär: varken läser eller skriver minnet. Bedömningsvyn saknar
+  // filterform (medlemsväljaren är ingen), så där är detta alltid falskt.
   function filterAktivt() {
-    var form = document.querySelector('form[action="/trad"]');
+    var form = document.querySelector("form[data-tradfilter]");
     return !!form && Array.prototype.some.call(form.elements, function (falt) {
       return falt.type === "checkbox" ? falt.checked : !!(falt.value || "").trim();
     });

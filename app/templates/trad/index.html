@@ -18,7 +18,7 @@
 
 {% include "_forklaringar.html" %}
 
-<form method="get" action="/trad" class="mb-3 flex flex-wrap items-end gap-2 text-sm"
+<form method="get" action="/trad" data-tradfilter class="mb-3 flex flex-wrap items-end gap-2 text-sm"
       hx-get="/trad" hx-target="#trad-rot" hx-swap="outerHTML"
       hx-trigger="input delay:300ms, change" hx-push-url="true">
   <label class="grid gap-0.5 text-xs text-stone-500">Sök

@@ -1,7 +1,7 @@
 """Tests for the assessment view in admin proxy mode (B1, B3–B6) and the
 UI half of acceptance test §9.3."""
 
-from tests.conftest import csrf_fran, logga_in, seed_trad, skapa_medlem
+from tests.conftest import csrf_fran, logga_in, seed_trad, skapa_funktion, skapa_medlem
 
 
 def _förbered(client, app_db):
@@ -80,6 +80,30 @@ def test_acceptance_9_3_historik_intakt(client, app_db):
     rad = app_db.execute("SELECT * FROM bedomning WHERE funktion_id = ?", (ids["wos"],)).fetchone()
     assert rad["svar"] == "golive_krav"
     assert rad["workaround"] == "Cron-skript som diffar mot gårdagens skörd."
+
+
+def test_driftsatt_och_utgar_kan_inte_rankas(client, app_db):
+    ids, medlem, token = _förbered(client, app_db)
+    utgatt = skapa_funktion(app_db, "Gammal exportmodul", ids["export"],
+                            typ="funktion", status="utgår")
+    app_db.commit()
+
+    # UI: svarsknapparna ersätts av statusbrickan; utgår-namnet stryks dessutom.
+    sida = client.get(f"/bedomning?medlem_id={medlem}").text
+    assert f'action="/bedomning/{medlem}/{ids["import"]}/svar"' in sida
+    assert f'action="/bedomning/{medlem}/{ids["publicering"]}/svar"' not in sida
+    assert f'action="/bedomning/{medlem}/{utgatt}/svar"' not in sida
+    assert 'line-through text-stone-400">Gammal exportmodul' in sida
+    assert 'line-through text-stone-400">Publicering' not in sida
+
+    # Servern är sista spärren: en direkt POST (t.ex. från ett formulär som
+    # renderades före ett statusbyte) avvisas.
+    for nod in (ids["publicering"], utgatt):
+        svar = client.post(f"/bedomning/{medlem}/{nod}/svar",
+                           data={"svar": "golive_krav", "csrf_token": token},
+                           follow_redirects=False)
+        assert svar.status_code == 400
+    assert app_db.execute("SELECT COUNT(*) FROM bedomning").fetchone()[0] == 0
 
 
 def test_delade_workarounds_visas_anonymt(client, app_db):
