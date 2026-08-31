@@ -14,3 +14,12 @@ details[open] > summary .chevron {
   opacity: 0.4;
   background-color: #eff6ff;
 }
+
+/* Kort blink på raden trad.js scrollat till efter sparad redigering,
+   så ögat hittar den. Klassen tas bort på animationend. */
+@keyframes nyss-sparad-blink {
+  from { background-color: #dbeafe; }
+}
+.nyss-sparad {
+  animation: nyss-sparad-blink 1.2s ease-out;
+}
