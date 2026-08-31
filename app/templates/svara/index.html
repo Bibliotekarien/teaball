@@ -8,5 +8,12 @@
   Ni svarar som <strong>{{ principal.namn }}</strong>. För varje funktion:
   behöver ni den till go-live, kan den vänta 6–12 månader, eller behövs den inte?
 </p>
+<form method="get" action="/svara" class="mb-3 text-sm">
+  <label class="flex cursor-pointer items-center gap-1.5 text-stone-600">
+    <input type="checkbox" name="dolj_bedomda" value="1" data-autosubmit {% if dolj_bedomda %}checked{% endif %}>
+    Dölj bedömda — visa bara det som är kvar
+  </label>
+  <noscript><button class="mt-1 rounded-md border border-stone-300 px-3 py-1 hover:bg-stone-100">Visa</button></noscript>
+</form>
 {% include "bedomning/_innehall.html" %}
 {% endblock %}

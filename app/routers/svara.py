@@ -93,6 +93,9 @@ def _gren_eller_redirect(request, conn, principal: Principal, funktion_id: int):
     if nod is None:
         return Response(status_code=204)
     direkta, effektiva = tjanst.svarskarta(conn, principal.medlem_id)
+    # Unfiltered on purpose — see the proxy view: the answered node must stay
+    # visible for undo; the counter updates out-of-band.
+    bedomda, kvar = tjanst.rakna_bedomt(rotter, effektiva)
     return templates.TemplateResponse(
         request,
         "bedomning/_gren.html",
@@ -103,6 +106,8 @@ def _gren_eller_redirect(request, conn, principal: Principal, funktion_id: int):
             "delade": tjanst.delade_workarounds(conn, principal.medlem_id),
             "bas": "/svara",
             "visa_dold": False,
+            "bedomda": bedomda,
+            "kvar": kvar,
         },
     )
 
@@ -110,21 +115,31 @@ def _gren_eller_redirect(request, conn, principal: Principal, funktion_id: int):
 @router.get("")
 def visa(
     request: Request,
+    dolj_bedomda: str = "",
     principal: Principal = Depends(krav_medlem),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     direkta, effektiva = tjanst.svarskarta(conn, principal.medlem_id)
+    rotter = trad_tjanst.hamta_trad(conn, endast_synliga=True)
+    # Counted before the filter — the counter must not shrink along with
+    # what it measures.
+    bedomda, kvar = tjanst.rakna_bedomt(rotter, effektiva)
+    if dolj_bedomda:
+        rotter = tjanst.utan_bedomda(rotter, effektiva)
     return templates.TemplateResponse(
         request,
         "svara/index.html",
         {
             "principal": principal,
-            "rotter": trad_tjanst.hamta_trad(conn, endast_synliga=True),
+            "rotter": rotter,
             "direkta": direkta,
             "effektiva": effektiva,
             "delade": tjanst.delade_workarounds(conn, principal.medlem_id),
             "bas": "/svara",
             "visa_dold": False,
+            "bedomda": bedomda,
+            "kvar": kvar,
+            "dolj_bedomda": bool(dolj_bedomda),
         },
     )
 

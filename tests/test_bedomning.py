@@ -1,7 +1,15 @@
 """Tests for the assessment view in admin proxy mode (B1, B3–B6) and the
 UI half of acceptance test §9.3."""
 
-from tests.conftest import csrf_fran, logga_in, seed_trad, skapa_funktion, skapa_medlem
+from tests.conftest import (
+    csrf_fran,
+    ge_token,
+    klient_fabrik,  # noqa: F401  (fixture)
+    logga_in,
+    seed_trad,
+    skapa_funktion,
+    skapa_medlem,
+)
 
 
 def _förbered(client, app_db):
@@ -104,6 +112,54 @@ def test_driftsatt_och_utgar_kan_inte_rankas(client, app_db):
                            follow_redirects=False)
         assert svar.status_code == 400
     assert app_db.execute("SELECT COUNT(*) FROM bedomning").fetchone()[0] == 0
+
+
+def test_raknare_och_dolj_bedomda(client, app_db):
+    ids, medlem, token = _förbered(client, app_db)
+
+    # Rankbara i seedträdet: registrera, import, wos, dubblett — de driftsatta
+    # förmågorna hör inte hemma i någon av kolumnerna.
+    sida = client.get(f"/bedomning?medlem_id={medlem}").text
+    assert "<strong>0</strong> av 4 bedömda" in sida
+    assert "<strong>4</strong> kvar" in sida
+
+    # Ett svar på Import täcker via arvet även wos och dubblett; räknaren
+    # följer med out-of-band i htmx-svaret.
+    partial = client.post(f"/bedomning/{medlem}/{ids['import']}/svar",
+                          data={"svar": "kan_vanta"},
+                          headers={"HX-Request": "true", "X-CSRF-Token": token}).text
+    assert 'id="bedomning-raknare" hx-swap-oob="outerHTML"' in partial
+    assert "<strong>3</strong> av 4 bedömda" in partial
+
+    # Filtret döljer den bedömda grenen (även det ärvda) men behåller det
+    # obedömda — och driftsatta förfäder som kontext.
+    sida = client.get(f"/bedomning?medlem_id={medlem}&dolj_bedomda=1").text
+    assert ">Registrera avhandling</span>" in sida
+    assert ">Publicering</span>" in sida             # driftsatt förfader, kontext
+    assert ">Import</span>" not in sida
+    assert "Import från Web of Science" not in sida  # ärvt bedömd
+    assert "Export &amp; spridning" not in sida      # driftsatt utan något kvar
+
+    # När allt är bedömt: grön räknare och ett eget tomt-läge i stället för
+    # "Kravträdet är tomt".
+    client.post(f"/bedomning/{medlem}/{ids['registrera']}/svar",
+                data={"svar": "behovs_ej", "csrf_token": token})
+    sida = client.get(f"/bedomning?medlem_id={medlem}&dolj_bedomda=1").text
+    assert "Allt bedömt" in sida
+    assert "Allt som går att bedöma är bedömt" in sida
+
+
+def test_raknare_och_filter_i_medlemsvyn(app_db, klient_fabrik):
+    seed_trad(app_db)
+    medlem = skapa_medlem(app_db, "Uppsala universitet")
+    token = ge_token(app_db, medlem)
+    klient = klient_fabrik()
+    klient.get(f"/svara/{token}", follow_redirects=False)
+
+    assert "<strong>0</strong> av 4 bedömda" in klient.get("/svara").text
+    sida = klient.get("/svara?dolj_bedomda=1").text
+    assert ">Registrera avhandling</span>" in sida
+    assert 'name="dolj_bedomda" value="1" data-autosubmit checked' in sida
 
 
 def test_delade_workarounds_visas_anonymt(client, app_db):

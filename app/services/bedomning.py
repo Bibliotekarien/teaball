@@ -50,6 +50,40 @@ def delade_workarounds(conn, medlem_id: int):
     return ut
 
 
+def rakna_bedomt(rotter, effektiva):
+    """(bedömda, kvar) over the rendered tree's assessable nodes —
+    driftsatt/utgår can never be answered and belong in neither column.
+    An inherited answer counts as bedömd: the parent's answer holds until
+    something more specific is given (A1/B6)."""
+    bedomda = kvar = 0
+    stack = list(rotter)
+    while stack:
+        n = stack.pop()
+        stack.extend(n["barn"])
+        if n["status"] in EJ_RANKBARA_STATUSAR:
+            continue
+        if n["id"] in effektiva:
+            bedomda += 1
+        else:
+            kvar += 1
+    return bedomda, kvar
+
+
+def utan_bedomda(rotter, effektiva):
+    """The 'dölj bedömda' filter: keep branches holding at least one assessable
+    node without an effective answer; ancestors stay as context. An effective
+    answer covers its whole subtree, so pruning an answered node never hides
+    unanswered descendants — but a non-assessable node can have unanswered
+    children, hence children are examined before the node's own state."""
+    ut = []
+    for n in rotter:
+        barn = utan_bedomda(n["barn"], effektiva)
+        kvar_har = n["status"] not in EJ_RANKBARA_STATUSAR and n["id"] not in effektiva
+        if barn or kvar_har:
+            ut.append({**n, "barn": barn})
+    return ut
+
+
 def satt_svar(conn, medlem_id: int, funktion_id: int, svar: str, besvarat_av: str):
     """B3: clicking the already-selected answer removes it; otherwise upsert.
     Changing the answer keeps workaround/comment (the old row goes to history
