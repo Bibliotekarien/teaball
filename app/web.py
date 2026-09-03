@@ -41,7 +41,7 @@ STATUS = {
     "driftsatt": {"label": "Driftsatt", "cls": "bg-emerald-100 text-emerald-800",
                   "beskrivning": "Finns och fungerar i nya plattformen — räknas inte som blockerare."},
     "planerad": {"label": "Planerad", "cls": "bg-sky-100 text-sky-800",
-                 "beskrivning": "Beslutad att byggas; fasen i roadmapen anger när."},
+                 "beskrivning": "Beslutad att byggas; avgången i roadmapen anger när."},
     "idé": {"label": "Idé", "cls": "bg-stone-200 text-stone-600",
             "beskrivning": "Nytt förslag som ännu inte är beslutat."},
     "utreds": {"label": "Utreds", "cls": "bg-amber-100 text-amber-800",
@@ -63,7 +63,8 @@ TYP_BESKRIVNING = {
     "krav": "Ett testbart villkor som ska vara uppfyllt — det medlemmarna bedömer.",
 }
 
-FASER = ["nu", "nästa", "senare"]
+# UI-termen är "avgång"; kolumnen och koden heter fortfarande fas.
+FASER = ["Medlem 1", "senare"]
 
 templates.env.globals["SVAR"] = SVAR
 templates.env.globals["STATUS"] = STATUS

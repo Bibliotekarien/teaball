@@ -1,9 +1,11 @@
-"""Roadmap grouping (spec 5.4): nodes grouped by fas, ordered by the tree
-within each fas. The named phases come first, then free-text phases
-(quarters etc.) alphabetically, then nodes without a fas."""
+"""Roadmap grouping (spec 5.4, terminology since renamed fas → "avgång" in the
+UI): nodes grouped by fas, ordered by the tree within each fas. "Medlem 1"
+comes first, then the other avgångar alphabetically, then "senare", and last
+the nodes without an avgång."""
 
-FASTA_FASER = ["nu", "nästa", "senare"]
-UTAN_FAS = "utan fas"
+FASTA_FASER = ["Medlem 1"]
+SISTA_FASER = ["senare"]
+UTAN_FAS = "utan avgång"
 
 
 def roadmap_data(conn, visa_krav: bool = False, endast_synliga: bool = False):
@@ -24,7 +26,9 @@ def roadmap_data(conn, visa_krav: bool = False, endast_synliga: bool = False):
         grupper.setdefault(r["fas"] or UTAN_FAS, []).append(dict(r))
 
     ordning = [f for f in FASTA_FASER if f in grupper]
-    ordning += sorted(k for k in grupper if k not in FASTA_FASER and k != UTAN_FAS)
+    ordning += sorted(k for k in grupper
+                      if k not in FASTA_FASER and k not in SISTA_FASER and k != UTAN_FAS)
+    ordning += [f for f in SISTA_FASER if f in grupper]
     if UTAN_FAS in grupper:
         ordning.append(UTAN_FAS)
     return [(fas, grupper[fas]) for fas in ordning]

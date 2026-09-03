@@ -4,11 +4,11 @@
   {% for fas, rader in grupper %}
   <h2 class="mb-1 mt-4 font-serif text-sm text-blue-900">{{ fas }}</h2>
   <ol class="fas-lista list-none rounded-lg border border-stone-200 bg-white{% if redigera %} min-h-[14px]{% endif %}"
-      data-fas="{{ '' if fas == 'utan fas' else fas }}">
+      data-fas="{{ '' if fas == 'utan avgång' else fas }}">
     {% for n in rader %}
     <li class="flex items-center gap-2 border-b border-stone-100 py-1.5 pr-2"
         style="padding-left: {{ n.djup * 22 + 10 }}px" data-nod="{{ n.id }}">
-      {% if redigera %}<span class="greppyta cursor-grab select-none px-1 text-stone-300" title="Dra till en annan fas">⋮⋮</span>{% endif %}
+      {% if redigera %}<span class="greppyta cursor-grab select-none px-1 text-stone-300" title="Dra till en annan avgång">⋮⋮</span>{% endif %}
       <span class="min-w-0 flex-1 truncate text-sm {{ TYP_CLS[n.typ] }}">{{ n.namn }}</span>
       {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400" title="Utelämnas ur exporten">dold</span>{% endif %}
       <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ n.typ }}</span>
@@ -24,7 +24,7 @@
           {% for f in fas_alternativ %}
           <option value="{{ f }}" {% if (n.fas or '') == f %}selected{% endif %}>{{ f }}</option>
           {% endfor %}
-          <option value="" {% if not n.fas %}selected{% endif %}>utan fas</option>
+          <option value="" {% if not n.fas %}selected{% endif %}>utan avgång</option>
         </select>
         <button class="rounded border border-stone-200 px-1.5 py-0.5 text-xs text-stone-500 hover:bg-stone-100">Flytta</button>
       </form>
@@ -32,7 +32,7 @@
     </li>
     {% endfor %}
     {% if redigera and not rader %}
-    <li class="ej-flyttbar p-2 text-xs text-stone-300">(tom fas — släpp noder här)</li>
+    <li class="ej-flyttbar p-2 text-xs text-stone-300">(tom avgång — släpp noder här)</li>
     {% endif %}
   </ol>
   {% else %}

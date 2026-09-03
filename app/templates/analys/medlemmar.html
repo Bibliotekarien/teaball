@@ -52,7 +52,7 @@
     {% for b in blockerare %}
     <li>{{ b.namn }}
       <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[b.status].cls }}" title="{{ STATUS[b.status].beskrivning }}">{{ STATUS[b.status].label }}</span>
-      <span class="text-xs text-stone-400">fas: {{ b.fas or "–" }}</span>
+      <span class="text-xs text-stone-400">avgång: {{ b.fas or "–" }}</span>
       {% if b.arvd %}<span class="text-xs italic text-stone-400">(ärvt)</span>{% endif %}
     </li>
     {% endfor %}

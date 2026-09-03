@@ -147,7 +147,7 @@ def _rubrikrad(blad, rubriker, bredder, rad=1):
 
 def _blad_trad(blad, conn):
     blad.title = "Kravträd"
-    _rubrikrad(blad, ["Namn", "Typ", "Status", "Fas", "Synlig för medlemmar", "Beskrivning"],
+    _rubrikrad(blad, ["Namn", "Typ", "Status", "Avgång", "Synlig för medlemmar", "Beskrivning"],
                [55, 10, 11, 10, 19, 50])
     # blad.max_row is O(rows) in openpyxl — track the row number ourselves.
     for radnr, r in enumerate(conn.execute("SELECT * FROM funktion_trad ORDER BY vag"), start=2):
@@ -184,7 +184,7 @@ def _blad_analys(blad, conn):
                            "lämnat minst ett svar — obesvarat är inte ”behövs ej”. "
                            "Endast direkta svar räknas.")
     info.font = Font(size=10, italic=True)
-    _rubrikrad(blad, ["Nod", "Status", "Fas", "Go-live", "Kan vänta", "Behövs ej",
+    _rubrikrad(blad, ["Nod", "Status", "Avgång", "Go-live", "Kan vänta", "Behövs ej",
                       "Totalt", "Varning"], [45, 11, 10, 9, 10, 10, 8, 42], rad=2)
     for radnr, r in enumerate(analys_tjanst.rankning(conn, arvda=False), start=3):
         blad.append(_sakra_rad([r["namn"], r["status"], r["fas"], r["golive"], r["kan_vanta"],
@@ -207,7 +207,7 @@ def _blad_migrering(blad, conn):
 
 
 def _blad_roadmap(blad, conn):
-    _rubrikrad(blad, ["Fas", "Namn", "Typ", "Status"], [12, 55, 10, 11])
+    _rubrikrad(blad, ["Avgång", "Namn", "Typ", "Status"], [12, 55, 10, 11])
     radnr = 1
     for fas, rader in roadmap_tjanst.roadmap_data(conn, visa_krav=True):
         for n in rader:

@@ -8,7 +8,7 @@
   <div class="huvud">
     <span class="namn">{{ r.namn }}</span>
     <span class="badge status-{{ r.status }}">{{ STATUS[r.status].label }}</span>
-    {% if r.fas %}<span class="fas">fas: {{ r.fas }}</span>{% endif %}
+    {% if r.fas %}<span class="fas">avgång: {{ r.fas }}</span>{% endif %}
     {% if r.varning %}
     <span class="badge varning">⚠ blockerar go-live men ligger i ”{{ r.fas if r.fas == 'senare' else r.status }}”</span>
     {% endif %}

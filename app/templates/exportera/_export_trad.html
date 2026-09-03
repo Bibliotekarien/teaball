@@ -10,7 +10,7 @@
       <span class="namn {{ {'förmåga': 'formaga', 'funktion': 'funktion', 'krav': 'krav'}[n.typ] }}">{{ n.namn }}</span>
       <span class="badge typ">{{ n.typ }}</span>
       <span class="badge status-{{ n.status }}">{{ STATUS[n.status].label }}</span>
-      {% if n.fas %}<span class="fas">fas: {{ n.fas }}</span>{% endif %}
+      {% if n.fas %}<span class="fas">avgång: {{ n.fas }}</span>{% endif %}
       {% if not endast_synliga and not n.synlig_stig %}<span class="badge intern">intern</span>{% endif %}
       {% if n.lank_jira or n.lank_dokumentation %}
       <span class="lankar">

@@ -51,7 +51,7 @@
       {% for d in delade %}
       <li>{{ d.namn }}
         <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[d.status].cls }}" title="{{ STATUS[d.status].beskrivning }}">{{ STATUS[d.status].label }}</span>
-        <span class="text-xs text-stone-400">fas: {{ d.fas or "–" }}</span></li>
+        <span class="text-xs text-stone-400">avgång: {{ d.fas or "–" }}</span></li>
       {% else %}
       <li class="list-none text-stone-400">Inga gemensamma go-live-krav.</li>
       {% endfor %}
