@@ -9,7 +9,10 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 from app.services.importera import importera_medlemmar, importera_trad, las_rader
-from tests.conftest import csrf_fran, logga_in, satt_svar, seed_trad, skapa_medlem
+from app.services.roadmap import roadmap_data
+from tests.conftest import (
+    csrf_fran, logga_in, satt_svar, seed_trad, skapa_funktion, skapa_medlem,
+)
 
 
 def test_roadmap_r1_typfilter(client, app_db):
@@ -20,6 +23,17 @@ def test_roadmap_r1_typfilter(client, app_db):
     assert "Dubblettdetektering" not in sida          # krav hidden by default
     med_krav = client.get("/roadmap", params={"visa_krav": "1"}).text
     assert "Dubblettdetektering" in med_krav
+
+
+def test_roadmap_avgangsordning(conn):
+    # Medlem 1 först, övriga avgångar alfabetiskt, senare alltid näst sist
+    # och restgruppen "utan avgång" allra sist.
+    for namn, fas in [("A", "Zon"), ("B", None), ("C", "senare"),
+                      ("D", "Medlem 1"), ("E", "Alfa")]:
+        skapa_funktion(conn, namn, typ="funktion", fas=fas)
+    conn.commit()
+    assert [fas for fas, _ in roadmap_data(conn)] == [
+        "Medlem 1", "Alfa", "Zon", "senare", "utan avgång"]
 
 
 def test_acceptance_9_4_roadmap_export(client, app_db):
@@ -55,7 +69,7 @@ def test_roadmap_redigeringslage_och_flytt(client, app_db):
     sida = client.get("/roadmap", params={"redigera": "1"}).text
     assert "/roadmap/flytta" in sida
     assert "Klar — lås roadmapen" in sida
-    assert "utan fas" in sida
+    assert "utan avgång" in sida
 
     token = csrf_fran(sida)
     svar = client.post(
@@ -70,7 +84,7 @@ def test_roadmap_redigeringslage_och_flytt(client, app_db):
     assert app_db.execute("SELECT fas FROM funktion WHERE id = ?",
                           (ids["wos"],)).fetchone()[0] == "senare"
 
-    # htmx (drag-and-drop) gets the groups partial back; empty fas = "utan fas".
+    # htmx (drag-and-drop) gets the groups partial back; empty fas = "utan avgång".
     svar = client.post(
         "/roadmap/flytta",
         data={"nod_id": ids["publicering"], "fas": ""},

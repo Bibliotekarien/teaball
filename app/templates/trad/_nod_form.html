@@ -41,8 +41,8 @@
         {% endfor %}
       </select>
     </label>
-    <label class="grid gap-0.5 text-xs text-stone-500">Fas
-      <input name="fas" value="{{ nod.fas or '' if nod else '' }}" list="faser" placeholder="nu / nästa / senare / kvartal"
+    <label class="grid gap-0.5 text-xs text-stone-500">Avgång
+      <input name="fas" value="{{ nod.fas or '' if nod else '' }}" list="faser" placeholder="t.ex. Medlem 1"
              class="rounded-md border border-stone-300 px-2 py-1 text-sm">
       <datalist id="faser">{% for f in FASER %}<option value="{{ f }}">{% endfor %}</datalist>
     </label>

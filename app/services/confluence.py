@@ -72,7 +72,7 @@ def _dokument(rader) -> str:
 
 def kravtrad(conn, genererad: str) -> str:
     rader = ["h1. Kravträd — Teaball", f"_Exporterad {genererad}._", "",
-             _rad(["Namn", "Typ", "Status", "Fas", "Synlig för medlemmar",
+             _rad(["Namn", "Typ", "Status", "Avgång", "Synlig för medlemmar",
                    "Jira", "Dokumentation"], header=True)]
     for r in conn.execute("SELECT * FROM funktion_trad ORDER BY vag"):
         rader.append(_rad([
@@ -95,7 +95,7 @@ def analys(conn, arvda: bool, genererad: str) -> str:
         "{info}" + (f"{tck['svarande']} av {tck['totalt']} medlemmar har lämnat minst "
                     "ett svar. Obesvarat räknas inte som ”behövs ej” — endast direkta "
                     "svar räknas för täckningen.") + "{info}", "",
-        _rad(["Nod", "Status", "Fas", "Go-live", "Kan vänta", "Behövs ej", "Totalt",
+        _rad(["Nod", "Status", "Avgång", "Go-live", "Kan vänta", "Behövs ej", "Totalt",
               "Varning"], header=True),
     ]
     for r in rankning(conn, arvda):
@@ -113,7 +113,9 @@ def analys(conn, arvda: bool, genererad: str) -> str:
 def roadmap(conn, visa_krav: bool, genererad: str) -> str:
     rader = ["h1. Roadmap — Teaball", f"_Exporterad {genererad}._"]
     for fas, noder in roadmap_data(conn, visa_krav=visa_krav):
-        rader += ["", f"h2. {fas.capitalize()}",
+        # Bara första bokstaven höjs — capitalize() skulle gemena resten och
+        # förvanska egennamn som "Medlem 1".
+        rader += ["", f"h2. {fas[:1].upper() + fas[1:]}",
                   _rad(["Namn", "Typ", "Status"], header=True)]
         for n in noder:
             rader.append(_rad([

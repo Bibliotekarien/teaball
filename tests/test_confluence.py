@@ -17,7 +17,7 @@ def test_kravtrad_markup(conn):
     ut = confluence.kravtrad(conn, DATUM)
     assert ut.startswith("h1. Kravträd — Teaball")
     assert f"_Exporterad {DATUM}._" in ut
-    assert ("|| Namn || Typ || Status || Fas || Synlig för medlemmar"
+    assert ("|| Namn || Typ || Status || Avgång || Synlig för medlemmar"
             " || Jira || Dokumentation ||") in ut
     # förmåga is bolded; a child is indented one middot level.
     assert "| *Publicering* | förmåga | Driftsatt |" in ut
@@ -59,7 +59,7 @@ def test_analys_markup_med_varning(conn):
     ut = confluence.analys(conn, arvda=False, genererad=DATUM)
     assert ut.startswith("h1. Analys — blockerar-rankning")
     assert "{info}1 av 1 medlemmar" in ut
-    assert "|| Nod || Status || Fas ||" in ut
+    assert "|| Nod || Status || Avgång ||" in ut
     # golive on an 'idé/senare' node raises the N2 warning, rendered as (!).
     assert "(!) blockerar go-live" in ut
 
@@ -69,7 +69,7 @@ def test_roadmap_markup(conn):
     ut = confluence.roadmap(conn, visa_krav=True, genererad=DATUM)
     assert "h1. Roadmap — Teaball" in ut
     # seed_trad only uses 'senare' and unphased nodes.
-    assert "h2. Senare" in ut and "h2. Utan fas" in ut
+    assert "h2. Senare" in ut and "h2. Utan avgång" in ut
     assert "|| Namn || Typ || Status ||" in ut
 
 

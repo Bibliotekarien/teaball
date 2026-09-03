@@ -13,7 +13,7 @@ from app.auth.core import Principal, krav_forvaltare
 from app.auth.csrf import krav_csrf
 from app.db import get_conn
 from app.services import roadmap as tjanst
-from app.services.roadmap import FASTA_FASER, UTAN_FAS
+from app.services.roadmap import FASTA_FASER, SISTA_FASER, UTAN_FAS
 from app.web import is_htmx, templates
 
 router = APIRouter(prefix="/roadmap")
@@ -23,13 +23,15 @@ audit = logging.getLogger("teaball.audit")
 def _ctx(request: Request, conn, principal, visa_krav: bool, redigera: bool):
     grupper = tjanst.roadmap_data(conn, visa_krav, endast_synliga=False)
     if redigera:
-        # In edit mode the empty named phases (and "utan fas") must render too,
+        # In edit mode the empty named phases (and "utan avgång") must render too,
         # as drop targets.
         per_fas = dict(grupper)
-        ordning = list(dict.fromkeys([*FASTA_FASER, *[f for f, _ in grupper], UTAN_FAS]))
+        ordning = list(dict.fromkeys(
+            [*FASTA_FASER, *[f for f, _ in grupper if f != UTAN_FAS],
+             *SISTA_FASER, UTAN_FAS]))
         grupper = [(f, per_fas.get(f, [])) for f in ordning]
     fas_alternativ = list(dict.fromkeys(
-        [*FASTA_FASER, *[f for f, _ in grupper if f != UTAN_FAS]]))
+        [*FASTA_FASER, *[f for f, _ in grupper if f != UTAN_FAS], *SISTA_FASER]))
     return {
         "principal": principal,
         "visa_krav": visa_krav,
