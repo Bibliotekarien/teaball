@@ -71,6 +71,45 @@ def test_intern_ser_allt_men_bara_lasning(client, app_db):
         assert client.get(adress).status_code == 200, adress
 
 
+def test_intern_ser_inga_redigeringskontroller(client, app_db):
+    ids, medlem_id = _förbered(client, app_db, "intern", "ines")
+
+    trad = client.get("/trad").text
+    for kontroll in ("greppyta", "+ Ny nod", ">redigera<", "ta&nbsp;bort", "data-skrivbar"):
+        assert kontroll not in trad, kontroll
+    assert "Confluence" in trad  # intern får hämta Confluence-markup
+
+    bedomning = client.get(f"/bedomning?medlem_id={medlem_id}").text
+    assert 'name="svar"' not in bedomning
+    assert 'action="/bedomning/' not in bedomning
+    assert "Visar svar för:" in bedomning
+
+    medlemmar = client.get("/medlemmar").text
+    # Utloggningsformuläret i sidhuvudet finns kvar — det är medlemsformulären
+    # (skapa/redigera/token/ta bort) som ska vara borta.
+    assert 'action="/medlemmar' not in medlemmar
+    assert "skapa länk" not in medlemmar
+    assert "KTH" in medlemmar
+
+    assert "Redigera roadmap" not in client.get("/roadmap").text
+
+
+def test_extern_nav_visar_bara_kravtrad_och_roadmap(client, app_db):
+    _förbered(client, app_db, "extern", "elis")
+    sida = client.get("/trad").text
+    assert 'href="/roadmap"' in sida
+    for adress in ("/bedomning", "/analys", "/medlemmar", "/export"):
+        assert f'href="{adress}"' not in sida, adress
+    assert "Confluence" not in sida
+
+
+def test_admin_ser_redigeringskontroller(client, app_db):
+    _förbered(client, app_db, "admin", "anna")
+    trad = client.get("/trad").text
+    for kontroll in ("greppyta", "+ Ny nod", "data-skrivbar"):
+        assert kontroll in trad, kontroll
+
+
 def test_intern_far_403_pa_alla_skrivningar(client, app_db):
     ids, medlem_id = _förbered(client, app_db, "intern", "ines")
     token = _csrf(client)

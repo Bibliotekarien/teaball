@@ -1,15 +1,15 @@
 {% import "trad/_nod_makro.html" as m %}
-<div id="trad-rot" data-kompaktminne="teaball.trad.kompakterade">
+<div id="trad-rot" data-kompaktminne="teaball.trad.kompakterade"{% if skrivbar %} data-skrivbar="1"{% endif %}>
   {% if fel %}
   {# id:t låter trad.js avstå från spara-scrollen så bannern inte hamnar ovanför viewporten. #}
   <div id="trad-fel" class="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{{ fel }}</div>
   {% endif %}
   <div class="rounded-lg border border-stone-200 bg-white">
     <ul class="syskon" data-foralder="">
-      {% for n in rotter %}{{ m.nod(n, request, detaljerad) }}{% endfor %}
+      {% for n in rotter %}{{ m.nod(n, request, detaljerad, skrivbar) }}{% endfor %}
     </ul>
     {% if not rotter %}
-    <p class="p-4 text-sm text-stone-400">Inga noder ännu. Skapa den första med ”+ Ny nod”.</p>
+    <p class="p-4 text-sm text-stone-400">{% if skrivbar %}Inga noder ännu. Skapa den första med ”+ Ny nod”.{% else %}Inga noder att visa.{% endif %}</p>
     {% endif %}
   </div>
 </div>

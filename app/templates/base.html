@@ -27,9 +27,13 @@
 
   {% if principal and principal.kind == "forvaltare" %}
   <nav class="flex gap-1 overflow-x-auto border-b border-stone-200 bg-white px-4 sm:px-6">
-    {% for adress, etikett in [("/trad", "Kravträd"), ("/bedomning", "Bedömning"),
-                               ("/analys", "Analys"), ("/roadmap", "Roadmap"),
-                               ("/medlemmar", "Medlemmar"), ("/export", "Export")] %}
+    {# extern-rollen når bara det externt synliga — visa inga flikar som ändå ger 403. #}
+    {% set flikar = [("/trad", "Kravträd"), ("/roadmap", "Roadmap")]
+       if principal.roll == "extern" else
+       [("/trad", "Kravträd"), ("/bedomning", "Bedömning"),
+        ("/analys", "Analys"), ("/roadmap", "Roadmap"),
+        ("/medlemmar", "Medlemmar"), ("/export", "Export")] %}
+    {% for adress, etikett in flikar %}
     <a href="{{ adress }}"
        {% if request.url.path.startswith(adress) %}aria-current="page"{% endif %}
        class="whitespace-nowrap border-b-2 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-700

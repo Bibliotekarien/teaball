@@ -10,6 +10,10 @@
   if (!window.Sortable || !window.htmx) return;
 
   function initSortables(root) {
+    // Läsroller får trädet utan data-skrivbar (och utan greppytor) — samma
+    // vakt som roadmap.js: initiera inte Sortable alls.
+    var rot = document.getElementById("trad-rot");
+    if (!rot || !rot.dataset.skrivbar) return;
     root.querySelectorAll("ul.syskon").forEach(function (lista) {
       if (lista._sortable) return;
       lista._sortable = new Sortable(lista, {
