@@ -1,6 +1,8 @@
-"""Member management (admin): CRUD plus generating, regenerating and revoking
-the personal answer-link tokens (spec B2). The raw link is shown exactly once,
-via a session flash after the redirect."""
+"""Member management: CRUD plus generating, regenerating and revoking the
+personal answer-link tokens (spec B2). The raw link is shown exactly once,
+via a session flash after the redirect. The list is readable for the intern
+role (names and link status only — never tokens); every mutation and the
+delete confirmation require admin."""
 
 import logging
 import sqlite3
@@ -9,7 +11,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 
 from app.auth import token as token_backend
-from app.auth.core import Principal, krav_forvaltare
+from app.auth.core import Principal, krav_admin, krav_intern
 from app.auth.csrf import krav_csrf
 from app import config
 from app.db import get_conn
@@ -29,7 +31,7 @@ def _svarslank(request: Request, token: str) -> str:
 @router.get("")
 def lista(
     request: Request,
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_intern),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     medlemmar = conn.execute(
@@ -45,6 +47,7 @@ def lista(
         {
             "principal": principal,
             "medlemmar": medlemmar,
+            "skrivbar": principal.roll == "admin",
             "ny_lank": request.session.pop(FLASH_NYCKEL, None),
         },
     )
@@ -55,7 +58,7 @@ def skapa(
     request: Request,
     namn: str = Form(...),
     kategori: str = Form(""),
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     conn.execute(
@@ -73,7 +76,7 @@ def uppdatera(
     medlem_id: int,
     namn: str = Form(...),
     kategori: str = Form(""),
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     conn.execute(
@@ -90,7 +93,7 @@ def uppdatera(
 def ta_bort_bekrafta(
     request: Request,
     medlem_id: int,
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     """T2-style server-rendered confirmation — works without JS."""
@@ -112,7 +115,7 @@ def ta_bort_bekrafta(
 def ta_bort(
     request: Request,
     medlem_id: int,
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     # Delete answers explicitly so the D2 trigger writes them to the history
@@ -128,7 +131,7 @@ def ta_bort(
 def generera_token(
     request: Request,
     medlem_id: int,
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     """Generate or regenerate — the old link (and any active session) dies."""
@@ -148,7 +151,7 @@ def generera_token(
 def revokera_token(
     request: Request,
     medlem_id: int,
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     conn.execute("UPDATE medlem SET token = NULL WHERE id = ?", (medlem_id,))

@@ -1,11 +1,12 @@
-"""Analysis views (spec 5.3, admin only). Read-only GET pages with query
+"""Analysis views (spec 5.3, admin + intern — the data is per-member and
+internal, so the extern role has no access). Read-only GET pages with query
 parameters — bookmarkable, JS-free; the A3 toggle is the ?arvda=1 parameter."""
 
 import sqlite3
 
 from fastapi import APIRouter, Depends, Query, Request
 
-from app.auth.core import Principal, krav_forvaltare
+from app.auth.core import Principal, krav_intern
 from app.db import get_conn
 from app.services import analys as tjanst
 from app.web import templates
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/analys")
 def rankning(
     request: Request,
     arvda: str = "",
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_intern),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     med_arvda = arvda == "1"
@@ -39,7 +40,7 @@ def medlemmar(
     request: Request,
     arvda: str = "",
     medlem_id: str = "",
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_intern),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     med_arvda = arvda == "1"
@@ -74,7 +75,7 @@ def gemensamt(
     arvda: str = "",
     funktion_id: str = "",
     medlem_id: list[str] = Query(default=[]),
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_intern),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     med_arvda = arvda == "1"

@@ -7,7 +7,7 @@ import sqlite3
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 
-from app.auth.core import Principal, krav_forvaltare
+from app.auth.core import Principal, krav_admin, krav_intern
 from app.auth.csrf import krav_csrf
 from app.db import get_conn
 from app.services import bedomning as tjanst
@@ -51,6 +51,9 @@ def _gren_eller_redirect(request, conn, medlem_id: int, funktion_id: int):
             "delade": tjanst.delade_workarounds(conn, medlem_id),
             "bas": f"/bedomning/{medlem_id}",
             "visa_dold": True,
+            # Only reachable via admin POSTs; explicit rather than falling
+            # through to the macro's default.
+            "skrivbar": True,
             "bedomda": bedomda,
             "kvar": kvar,
         },
@@ -62,7 +65,7 @@ def visa(
     request: Request,
     medlem_id: str = "",
     dolj_bedomda: str = "",
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_intern),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     medlemmar = conn.execute("SELECT id, namn, kategori FROM medlem ORDER BY namn").fetchall()
@@ -80,6 +83,7 @@ def visa(
         "rotter": trad_tjanst.hamta_trad(conn) if vald else [],
         "bas": f"/bedomning/{vald}",
         "visa_dold": True,
+        "skrivbar": principal.roll == "admin",
     }
     ctx["dolj_bedomda"] = bool(dolj_bedomda)
     ctx["bedomda"], ctx["kvar"] = 0, 0
@@ -102,7 +106,7 @@ def spara_svar(
     medlem_id: int,
     funktion_id: int,
     svar: str = Form(...),
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     _kontrollera_finns(conn, medlem_id, funktion_id)
@@ -121,7 +125,7 @@ def spara_workaround(
     funktion_id: int,
     workaround: str = Form(""),
     workaround_delas: str = Form(""),
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     tjanst.satt_workaround(conn, medlem_id, funktion_id, workaround, bool(workaround_delas))
@@ -139,7 +143,7 @@ def spara_kommentar(
     medlem_id: int,
     funktion_id: int,
     kommentar: str = Form(""),
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     tjanst.satt_kommentar(conn, medlem_id, funktion_id, kommentar)

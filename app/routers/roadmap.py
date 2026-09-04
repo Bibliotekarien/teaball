@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.auth.core import Principal, krav_forvaltare
+from app.auth.core import Principal, krav_admin, krav_forvaltare
 from app.auth.csrf import krav_csrf
 from app.db import get_conn
 from app.services import roadmap as tjanst
@@ -21,7 +21,9 @@ audit = logging.getLogger("teaball.audit")
 
 
 def _ctx(request: Request, conn, principal, visa_krav: bool, redigera: bool):
-    grupper = tjanst.roadmap_data(conn, visa_krav, endast_synliga=False)
+    grupper = tjanst.roadmap_data(
+        conn, visa_krav, endast_synliga=principal.roll == "extern"
+    )
     if redigera:
         # In edit mode the empty named phases (and "utan avgång") must render too,
         # as drop targets.
@@ -36,6 +38,7 @@ def _ctx(request: Request, conn, principal, visa_krav: bool, redigera: bool):
         "principal": principal,
         "visa_krav": visa_krav,
         "redigera": redigera,
+        "skrivbar": principal.roll == "admin",
         "grupper": grupper,
         "fas_alternativ": fas_alternativ,
     }
@@ -49,10 +52,13 @@ def visa(
     principal: Principal = Depends(krav_forvaltare),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
+    # ?redigera=1 is neutralized here for read-only roles, so neither the
+    # template chain nor roadmap.js needs any role awareness.
     return templates.TemplateResponse(
         request,
         "roadmap/index.html",
-        _ctx(request, conn, principal, visa_krav == "1", redigera == "1"),
+        _ctx(request, conn, principal, visa_krav == "1",
+             redigera == "1" and principal.roll == "admin"),
     )
 
 
@@ -62,7 +68,7 @@ def flytta(
     nod_id: int = Form(...),
     fas: str = Form(""),
     visa_krav: str = Form(""),
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     """Move one node to another phase. Deliberately only the node itself —

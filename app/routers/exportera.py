@@ -1,5 +1,8 @@
 """Export downloads: E1, the all-views Excel workbook, the standalone tree
-HTML and the combined PDF report (tree + ranking). Admin only."""
+HTML and the combined PDF report (tree + ranking). Admin + intern only: the
+default outputs dump private comments and unshared workarounds, and the
+"safe" variants are opt-in query params — a blanket rule is the only
+auditable one. The extern role's sole export is /roadmap/export."""
 
 import sqlite3
 from datetime import UTC, datetime
@@ -7,7 +10,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
-from app.auth.core import Principal, krav_forvaltare
+from app.auth.core import Principal, krav_intern
 from app.db import get_conn
 from app.services import analys as analys_tjanst
 from app.services import confluence as confluence_tjanst
@@ -22,7 +25,7 @@ def _datum() -> str:
 
 
 @router.get("")
-def oversikt(request: Request, principal: Principal = Depends(krav_forvaltare)):
+def oversikt(request: Request, principal: Principal = Depends(krav_intern)):
     return templates.TemplateResponse(
         request, "exportera/index.html", {"principal": principal}
     )
@@ -30,7 +33,7 @@ def oversikt(request: Request, principal: Principal = Depends(krav_forvaltare)):
 
 @router.get("/teaball.xlsx")
 def xlsx(
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_intern),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     return Response(
@@ -43,7 +46,7 @@ def xlsx(
 
 @router.get("/json")
 def json_export(
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_intern),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     return Response(
@@ -56,7 +59,7 @@ def json_export(
 
 @router.get("/trad.csv")
 def trad_csv(
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_intern),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     return PlainTextResponse(
@@ -68,7 +71,7 @@ def trad_csv(
 
 @router.get("/bedomningar.csv")
 def bedomningar_csv(
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_intern),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     return PlainTextResponse(
@@ -81,7 +84,7 @@ def bedomningar_csv(
 @router.get("/kravtrad.html")
 def kravtrad_html(
     endast_synliga: str = "",
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_intern),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     """Standalone HTML of the tree, same pattern as the R2 roadmap export:
@@ -105,7 +108,7 @@ def kravtrad_html(
 @router.get("/rapport.pdf")
 def rapport_pdf(
     endast_synliga: str = "",
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_intern),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     """Tree + blockerar-rankning as one PDF (styrgrupp mailouts), rendered by
@@ -146,7 +149,7 @@ CONFLUENCE_VYER = {"kravtrad": "Kravträd", "analys": "Analys",
 def confluence(
     vy: str,
     request: Request,
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_intern),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     if vy not in CONFLUENCE_VYER:
