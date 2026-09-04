@@ -19,7 +19,7 @@
     <article class="space-y-6 text-sm leading-relaxed text-stone-700">
       <div>
         <h2 class="font-serif text-2xl text-stone-900">Personuppgifter &amp; integritet</h2>
-        <p class="mt-1 text-xs text-stone-500">Senast uppdaterad 27 augusti 2026.</p>
+        <p class="mt-1 text-xs text-stone-500">Senast uppdaterad 4 september 2026.</p>
       </div>
 
       <p>
@@ -44,15 +44,18 @@
       <section>
         <h3 class="font-semibold text-stone-900">Vilka uppgifter behandlas</h3>
         <ul class="mt-1 list-disc space-y-1 pl-5">
-          <li><strong>Förvaltarkonton:</strong> användarnamn och ett kryptografiskt
-            skyddat (hashat) lösenord.</li>
+          <li><strong>Förvaltarkonton:</strong> användarnamn, behörighetsroll, ett
+            kryptografiskt skyddat (hashat) lösenord samt tidpunkten för den senaste
+            inloggningen. Endast den senaste inloggningen sparas — tidigare tidpunkt
+            skrivs över och ingen inloggningshistorik förs.</li>
           <li><strong>Bedömningar:</strong> för varje krav den bedömning som lämnats,
             vem som svarat (namn eller roll, i fritext) och tidpunkt.</li>
           <li><strong>Fritext:</strong> workarounds och kommentarer som skrivs in.
             Dessa kan innehålla personuppgifter beroende på vad som skrivs.</li>
           <li><strong>Svarslänkar:</strong> varje medlemsorganisation får en personlig
             länk. Endast en oåterkallelig avtrycksform (hash) av länken lagras — aldrig
-            länken i klartext.</li>
+            länken i klartext. Även tidpunkten när länken senast användes för
+            inloggning sparas (endast det senaste tillfället, ingen historik).</li>
           <li><strong>Teknisk statistik:</strong> vid sidvisningar registreras IP-adress,
             webbläsartyp och språk för anonym besöksstatistik (se nedan).</li>
         </ul>
@@ -75,8 +78,9 @@
         <p class="mt-1">
           Förvaltare ser alla uppgifter. En medlem ser bara sina egna svar; delade
           workarounds från andra medlemmar visas anonymt. Kommentarer är privata och
-          syns endast för medlemmen själv och för förvaltare. Uppgifterna lämnas inte
-          ut till tredje part utanför konsortiets arbete.
+          syns endast för medlemmen själv och för förvaltare. Kontolistan med
+          inloggningstider visas endast för förvaltare med administratörsroll.
+          Uppgifterna lämnas inte ut till tredje part utanför konsortiets arbete.
         </p>
       </section>
 
