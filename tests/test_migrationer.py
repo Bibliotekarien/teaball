@@ -1,6 +1,7 @@
 """Migration 0002: a production database on the old status vocabulary must
 survive the funktion/bedomning rebuild with every row, relation and trigger
-intact."""
+intact. Migration 0003: staff accounts gain a role; pre-existing accounts
+must come out as admin so nobody is locked out at deploy."""
 
 import sqlite3
 from pathlib import Path
@@ -56,6 +57,7 @@ def gammal_produktionsdb(tmp_path) -> sqlite3.Connection:
                  " (7, 'Statistik', 'funktion', 'idé')")
     conn.execute("INSERT INTO funktion (id, namn, typ, status) VALUES"
                  " (8, 'Gammal exportmodul', 'funktion', 'utgår')")
+    conn.execute("INSERT INTO forvaltare (anvandarnamn, losen_hash) VALUES ('anna', 'hash')")
     conn.execute("INSERT INTO medlem (id, namn) VALUES (1, 'Uppsala universitet')")
     conn.execute("INSERT INTO bedomning (medlem_id, funktion_id, svar, workaround,"
                  " workaround_delas) VALUES (1, 2, 'kan_vanta', 'Manuellt.', 1)")
@@ -111,7 +113,8 @@ def test_migration_tar_sakerhetskopia_fore(tmp_path):
     conn = gammal_produktionsdb(tmp_path)
     db.init_db(conn)
 
-    kopior = list(tmp_path.glob("gammal.fore-0002-*.db"))
+    # The copy is named for the highest pending version in the batch.
+    kopior = list(tmp_path.glob("gammal.fore-0003-*.db"))
     assert len(kopior) == 1
     gammal = sqlite3.connect(kopior[0])
     gammal.row_factory = sqlite3.Row
@@ -149,3 +152,25 @@ def test_0002_triggers_och_vyer_fungerar_efterat(tmp_path):
     # Rerunning migrations is a no-op.
     db.migrate(conn)
     assert conn.execute("SELECT COUNT(*) FROM funktion").fetchone()[0] == 4
+
+
+def test_0003_befintliga_konton_blir_admin(tmp_path):
+    conn = gammal_produktionsdb(tmp_path)
+    db.init_db(conn)  # applies 0002 + 0003
+
+    rad = conn.execute("SELECT roll FROM forvaltare WHERE anvandarnamn = 'anna'").fetchone()
+    assert rad["roll"] == "admin"
+    # New rows without an explicit role also default to admin.
+    conn.execute("INSERT INTO forvaltare (anvandarnamn, losen_hash) VALUES ('ny', 'hash')")
+    assert conn.execute(
+        "SELECT roll FROM forvaltare WHERE anvandarnamn = 'ny'"
+    ).fetchone()["roll"] == "admin"
+
+
+def test_0003_roll_utanfor_vokabularet_avvisas(tmp_path):
+    conn = db.connect(tmp_path / "ny.db")
+    db.init_db(conn)
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("INSERT INTO forvaltare (anvandarnamn, losen_hash, roll)"
+                     " VALUES ('x', 'hash', 'chef')")
+    conn.close()

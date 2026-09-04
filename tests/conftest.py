@@ -64,13 +64,13 @@ def ge_token(conn, medlem_id) -> str:
     return token
 
 
-def skapa_forvaltare(conn, namn="anna", losenord="hemligt-losen"):
+def skapa_forvaltare(conn, namn="anna", losenord="hemligt-losen", roll="admin"):
     from app.auth.password import hash_losen
 
     conn.execute(
-        "INSERT INTO forvaltare (anvandarnamn, losen_hash) VALUES (?, ?)"
+        "INSERT INTO forvaltare (anvandarnamn, losen_hash, roll) VALUES (?, ?, ?)"
         " ON CONFLICT (anvandarnamn) DO NOTHING",
-        (namn, hash_losen(losenord)),
+        (namn, hash_losen(losenord), roll),
     )
     conn.commit()
 
@@ -79,9 +79,10 @@ def csrf_fran(html: str) -> str:
     return re.search(r'name="csrf_token" value="([^"]+)"', html).group(1)
 
 
-def logga_in(client, conn, namn="anna", losenord="hemligt-losen"):
-    """Create the admin account if needed and establish a session."""
-    skapa_forvaltare(conn, namn, losenord)
+def logga_in(client, conn, namn="anna", losenord="hemligt-losen", roll="admin"):
+    """Create the staff account if needed and establish a session. Role tests
+    use distinct usernames so ON CONFLICT DO NOTHING never masks a role."""
+    skapa_forvaltare(conn, namn, losenord, roll)
     token = csrf_fran(client.get("/login").text)
     svar = client.post(
         "/login",
