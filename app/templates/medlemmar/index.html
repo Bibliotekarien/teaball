@@ -10,6 +10,7 @@
 </div>
 {% endif %}
 
+{% if skrivbar %}
 <form method="post" action="/medlemmar" class="mb-4 flex flex-wrap items-end gap-2 text-sm">
   <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
   <label class="grid gap-0.5 text-xs text-stone-500">Namn
@@ -25,10 +26,12 @@
   </label>
   <button class="rounded-md bg-blue-900 px-3 py-1.5 text-sm text-white hover:bg-blue-800">Lägg till</button>
 </form>
+{% endif %}
 
 <div class="rounded-lg border border-stone-200 bg-white">
   {% for m in medlemmar %}
   <div class="flex flex-wrap items-center gap-2 border-b border-stone-100 p-2 text-sm hover:bg-stone-50">
+    {% if skrivbar %}
     <form method="post" action="/medlemmar/{{ m.id }}" class="flex flex-1 flex-wrap items-center gap-2">
       <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
       <input name="namn" value="{{ m.namn }}" required maxlength="200"
@@ -37,12 +40,19 @@
              class="w-32 rounded border border-stone-200 px-2 py-1 text-xs text-stone-600 focus:border-stone-400 focus:outline-none">
       <button class="rounded px-1.5 py-0.5 text-xs text-stone-500 hover:bg-stone-200 hover:text-stone-800">spara</button>
     </form>
+    {% else %}
+    <span class="flex flex-1 flex-wrap items-center gap-2">
+      <span class="w-64 px-2 py-1 text-sm">{{ m.namn }}</span>
+      <span class="w-32 px-2 py-1 text-xs text-stone-600">{{ m.kategori or '' }}</span>
+    </span>
+    {% endif %}
     <span class="text-xs text-stone-400">{{ m.antal_svar }} svar</span>
     {% if m.har_token %}
     <span class="rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-800">länk aktiv</span>
     {% else %}
     <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400">ingen länk</span>
     {% endif %}
+    {% if skrivbar %}
     <form method="post" action="/medlemmar/{{ m.id }}/token" class="inline">
       <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
       <button class="rounded border border-stone-200 px-1.5 py-0.5 text-xs text-stone-500 hover:bg-stone-100">
@@ -56,6 +66,7 @@
     {% endif %}
     <a href="/medlemmar/{{ m.id }}/ta-bort"
        class="rounded px-1.5 py-0.5 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-800">ta bort</a>
+    {% endif %}
   </div>
   {% else %}
   <p class="p-4 text-sm text-stone-400">Inga medlemmar ännu.</p>

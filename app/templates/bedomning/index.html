@@ -5,7 +5,7 @@
 {% endblock %}
 {% block innehall %}
 <form method="get" action="/bedomning" class="mb-4 flex flex-wrap items-center gap-3 text-sm">
-  <label for="medlem" class="text-stone-600">Svarar som (proxy):</label>
+  <label for="medlem" class="text-stone-600">{% if skrivbar %}Svarar som (proxy):{% else %}Visar svar för:{% endif %}</label>
   <select id="medlem" name="medlem_id" data-autosubmit
           class="rounded-md border border-stone-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700">
     {% for m in medlemmar %}

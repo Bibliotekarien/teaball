@@ -16,7 +16,7 @@ def hash_losen(losenord: str) -> str:
 
 def verifiera(conn: sqlite3.Connection, anvandarnamn: str, losenord: str) -> Principal | None:
     rad = conn.execute(
-        "SELECT id, anvandarnamn, losen_hash FROM forvaltare WHERE anvandarnamn = ?",
+        "SELECT id, anvandarnamn, losen_hash, roll FROM forvaltare WHERE anvandarnamn = ?",
         (anvandarnamn,),
     ).fetchone()
     if rad is None:
@@ -27,4 +27,6 @@ def verifiera(conn: sqlite3.Connection, anvandarnamn: str, losenord: str) -> Pri
         _hasher.verify(rad["losen_hash"], losenord)
     except VerifyMismatchError:
         return None
-    return Principal("forvaltare", rad["anvandarnamn"], forvaltare_id=rad["id"])
+    return Principal(
+        "forvaltare", rad["anvandarnamn"], forvaltare_id=rad["id"], roll=rad["roll"]
+    )

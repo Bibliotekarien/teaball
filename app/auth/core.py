@@ -31,12 +31,18 @@ def losen_digest(losen_hash: str) -> str:
     return hashlib.sha256(losen_hash.encode()).hexdigest()[:16]
 
 
+Roll = Literal["admin", "intern", "extern"]
+
+
 @dataclass(frozen=True)
 class Principal:
     kind: Literal["forvaltare", "medlem"]
     namn: str
     forvaltare_id: int | None = None
     medlem_id: int | None = None
+    # Staff role; always None for medlem principals. Read from the database on
+    # every request, so a role change takes effect without re-login.
+    roll: Roll | None = None
 
 
 def aktuell_principal(request: Request, conn: sqlite3.Connection) -> Principal | None:
@@ -44,11 +50,14 @@ def aktuell_principal(request: Request, conn: sqlite3.Connection) -> Principal |
     sessionsdigest = request.session.get(SESSION_FORVALTARE_HASH)
     if forvaltare_id is not None and sessionsdigest:
         rad = conn.execute(
-            "SELECT id, anvandarnamn, losen_hash FROM forvaltare WHERE id = ?",
+            "SELECT id, anvandarnamn, losen_hash, roll FROM forvaltare WHERE id = ?",
             (forvaltare_id,),
         ).fetchone()
         if rad and hmac.compare_digest(losen_digest(rad["losen_hash"]), sessionsdigest):
-            return Principal("forvaltare", rad["anvandarnamn"], forvaltare_id=rad["id"])
+            return Principal(
+                "forvaltare", rad["anvandarnamn"],
+                forvaltare_id=rad["id"], roll=rad["roll"],
+            )
 
     medlem_id = request.session.get(SESSION_MEDLEM)
     sessionshash = request.session.get(SESSION_MEDLEM_HASH)
@@ -72,6 +81,40 @@ def krav_forvaltare(
         if request.headers.get("hx-request") == "true":
             raise HTTPException(status_code=401, headers={"HX-Redirect": "/login"})
         raise HTTPException(status_code=303, headers={"Location": "/login"})
+    return principal
+
+
+def _skrivforbud(request: Request, detalj: str) -> HTTPException:
+    # Authenticated but not authorized: 403, never a login redirect. HX-Refresh
+    # (same reasoning as krav_medlem below) makes a stale tab reload into the
+    # correct read-only rendering after a mid-session role change.
+    huvuden = (
+        {"HX-Refresh": "true"}
+        if request.headers.get("hx-request") == "true"
+        else None
+    )
+    return HTTPException(status_code=403, detail=detalj, headers=huvuden)
+
+
+def krav_admin(
+    request: Request, principal: Principal = Depends(krav_forvaltare)
+) -> Principal:
+    """Write access and edit forms: the admin role only."""
+    if principal.roll != "admin":
+        raise _skrivforbud(
+            request,
+            "Ditt konto har läsbehörighet — ändringar kräver administratörsroll.",
+        )
+    return principal
+
+
+def krav_intern(
+    request: Request, principal: Principal = Depends(krav_forvaltare)
+) -> Principal:
+    """Views exposing internal data (assessments, analysis, exports, members):
+    admin and intern; the extern role only sees externally visible content."""
+    if principal.roll not in ("admin", "intern"):
+        raise _skrivforbud(request, "Den här vyn är endast för intern personal.")
     return principal
 
 

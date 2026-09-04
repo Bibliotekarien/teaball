@@ -59,11 +59,27 @@ Driftsättningschecklista (första gången):
 
 ```bash
 docker compose exec app python scripts/skapa_forvaltare.py anna
-docker compose exec app python scripts/skapa_forvaltare.py bertil
+docker compose exec app python scripts/skapa_forvaltare.py bertil --roll intern
+docker compose exec app python scripts/skapa_forvaltare.py cecilia --roll extern
 ```
 
 Lösenordet frågas efter interaktivt och lagras argon2-hashat. Logga sedan in på
 `/login`.
+
+Kontot får en av tre roller:
+
+- **admin** — full behörighet (skapa/ändra/ta bort i alla vyer). Default för
+  nya konton, och alla konton som fanns före rollstödet blir admin.
+- **intern** — ser allt (även dolda noder, bedömningar med privata kommentarer,
+  analys, export och medlemslistan) men kan inte ändra något.
+- **extern** — skrivskyddad och ser bara externt synligt innehåll: kravträdet
+  och roadmapen filtrerade på `synlig_externt` (samma regel som medlemsvyn).
+  Bedömningar, analys, medlemmar och export är spärrade; enda nedladdningen
+  är roadmapens HTML-export, som redan är extern-säker.
+
+Utelämnad `--roll` lämnar ett befintligt kontos roll orörd — ett lösenordsbyte
+ändrar aldrig behörighet. Rollbyte slår igenom på nästa request, ingen ny
+inloggning krävs.
 
 ### Initial datainläsning
 

@@ -8,11 +8,15 @@
 <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
   <p class="text-sm text-stone-500">Hela hierarkin. Typ är en etikett — krav kan ligga på vilken nivå som helst.</p>
   <span class="flex items-center gap-2">
+    {% if principal.roll != "extern" %}
     <a href="/export/confluence/kravtrad"
        class="px-1 text-xs text-stone-400 underline decoration-stone-300 underline-offset-2 hover:text-stone-600"
        title="Rå wiki-markup att klistra in i Confluence">Confluence</a>
+    {% endif %}
+    {% if skrivbar %}
     <a href="/trad/nod/ny" hx-get="/trad/nod/ny" hx-target="#ny-nod-plats" hx-swap="innerHTML"
        class="rounded-md bg-blue-900 px-3 py-1.5 text-sm text-white hover:bg-blue-800">+ Ny nod</a>
+    {% endif %}
   </span>
 </div>
 

@@ -16,6 +16,7 @@
     <noscript><button class="rounded border border-stone-300 px-2 py-0.5 hover:bg-stone-100">Uppdatera</button></noscript>
   </form>
   <span class="flex items-center gap-2">
+    {% if skrivbar %}
     {% if redigera %}
     <a href="/roadmap{% if visa_krav %}?visa_krav=1{% endif %}"
        class="rounded-md bg-blue-900 px-3 py-1.5 text-sm text-white hover:bg-blue-800">Klar — lås roadmapen</a>
@@ -23,13 +24,16 @@
     <a href="/roadmap?redigera=1{% if visa_krav %}&visa_krav=1{% endif %}"
        class="rounded-md border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100">Redigera roadmap</a>
     {% endif %}
+    {% endif %}
     <a href="/roadmap/export{% if visa_krav %}?visa_krav=1{% endif %}"
        class="rounded-md border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100">
       Ladda ner som HTML (för utskick)
     </a>
+    {% if principal.roll != "extern" %}
     <a href="/export/confluence/roadmap{% if visa_krav %}?visa_krav=1{% endif %}"
        class="px-1 text-xs text-stone-400 underline decoration-stone-300 underline-offset-2 hover:text-stone-600"
        title="Rå wiki-markup att klistra in i Confluence">Confluence</a>
+    {% endif %}
   </span>
 </div>
 

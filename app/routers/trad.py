@@ -1,6 +1,7 @@
-"""Kravträdet (spec 5.1, admin only). Every unsafe operation is a plain form
-POST that works without JavaScript; htmx enhances the same endpoints with
-partial swaps. Structural changes always respond with the whole tree container
+"""Kravträdet (spec 5.1). All staff roles may read (extern only the externally
+visible subset); every mutation and edit form requires the admin role. Every
+unsafe operation is a plain form POST that works without JavaScript; htmx
+enhances the same endpoints with partial swaps. Structural changes always respond with the whole tree container
 (#trad-rot) — simple and always consistent with the database."""
 
 import logging
@@ -9,7 +10,7 @@ import sqlite3
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 
-from app.auth.core import Principal, krav_forvaltare
+from app.auth.core import Principal, krav_admin, krav_forvaltare
 from app.auth.csrf import krav_csrf
 from app.db import get_conn
 from app.services import trad as tjanst
@@ -62,9 +63,11 @@ def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | N
         "rotter": tjanst.hamta_trad(
             conn, filter["q"] or None, filter["typ"] or None,
             filter["status"] or None, filter["fas"] or None,
+            endast_synliga=principal.roll == "extern",
         ),
         "fel": fel,
         "filter": filter,
+        "skrivbar": principal.roll == "admin",
         # Compact/detailed toggle, sticky per session (set in visa_trad).
         "detaljerad": request.session.get("trad_vy") == "detaljerad",
     }
@@ -113,7 +116,7 @@ def _formsvar(request, conn, principal, nod=None, foralder_id=None):
 def ny_nod_form(
     request: Request,
     foralder_id: str = "",
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     return _formsvar(request, conn, principal, foralder_id=_till_int(foralder_id))
@@ -123,7 +126,7 @@ def ny_nod_form(
 def namnkoll_nodnamn(
     request: Request,
     namn: str = "",
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     """Rådgivande dubblettkoll medan namnet på en ny nod skrivs (htmx).
@@ -143,7 +146,7 @@ def namnkoll_nodnamn(
 def redigera_form(
     request: Request,
     nod_id: int,
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     nod = conn.execute("SELECT * FROM funktion WHERE id = ?", (nod_id,)).fetchone()
@@ -164,7 +167,7 @@ def skapa_nod(
     lank_dokumentation: str = Form(""),
     lank_jira: str = Form(""),
     synlig_externt: str = Form(""),
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     try:
@@ -196,7 +199,7 @@ def uppdatera_nod(
     lank_dokumentation: str = Form(""),
     lank_jira: str = Form(""),
     synlig_externt: str = Form(""),
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     try:
@@ -235,7 +238,7 @@ def flytta(
     nod_id: int,
     foralder_id: str = Form(""),
     position: str = Form(""),
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     try:
@@ -253,7 +256,7 @@ def ordna(
     request: Request,
     nod_id: int,
     riktning: str = Form(...),
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     tjanst.ordna_nod(conn, nod_id, riktning)
@@ -267,7 +270,7 @@ def sortera(
     request: Request,
     foralder_id: str = Form(""),
     nod_id: list[str] = Form([]),
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     try:
@@ -286,7 +289,7 @@ def sortera(
 def vaxla_synlighet(
     request: Request,
     nod_id: int,
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     conn.execute(
@@ -301,7 +304,7 @@ def vaxla_synlighet(
 def ta_bort_bekrafta(
     request: Request,
     nod_id: int,
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     nod = conn.execute("SELECT * FROM funktion WHERE id = ?", (nod_id,)).fetchone()
@@ -322,7 +325,7 @@ def ta_bort_bekrafta(
 def ta_bort(
     request: Request,
     nod_id: int,
-    principal: Principal = Depends(krav_forvaltare),
+    principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     tjanst.ta_bort_nod(conn, nod_id)

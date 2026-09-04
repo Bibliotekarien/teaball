@@ -1,11 +1,15 @@
 {# Recursive tree node. The row sits inside <summary> when the node has
    children, so expand/collapse is pure <details> — no JavaScript (T1/I2). #}
-{% macro rad(n, request, detaljerad=false) %}
+{% macro rad(n, request, detaljerad=false, skrivbar=false) %}
 {# scroll-mt-2: lite luft ovanför raden när trad.js scrollar hit efter spara. #}
 <div id="rad-{{ n.id }}" class="group flex flex-wrap items-center gap-1.5 scroll-mt-2 border-b border-stone-100 py-1.5 pr-2 hover:bg-stone-50">
   {# Fast bredd (w-5) så namn och detaljblock kan indragsalignas med kända mått,
-     oberoende av glyfbredden på ⋮⋮. #}
+     oberoende av glyfbredden på ⋮⋮. Distansen utan handtag behåller måtten. #}
+  {% if skrivbar %}
   <span class="greppyta w-5 shrink-0 cursor-grab select-none text-center text-stone-300" title="Dra för att flytta">⋮⋮</span>
+  {% else %}
+  <span class="w-5 shrink-0"></span>
+  {% endif %}
   {% if n.barn %}
   <svg class="chevron h-3.5 w-3.5 shrink-0 text-stone-400 transition-transform" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M6 3.5 11 8l-5 4.5v-9z"/></svg>
   {% else %}
@@ -15,6 +19,7 @@
      element would leave the winner to stylesheet order. #}
   <span class="min-w-0 flex-1 break-words text-sm {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}" title="{{ n.beskrivning or n.namn }}">{{ n.namn }}</span>
 
+  {% if skrivbar %}
   <span class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
     <form method="post" action="/trad/nod/{{ n.id }}/ordna" hx-post="/trad/nod/{{ n.id }}/ordna" hx-target="#trad-rot" hx-swap="outerHTML" class="flex">
       <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
@@ -33,6 +38,7 @@
     <a href="/trad/nod/{{ n.id }}/ta-bort" hx-get="/trad/nod/{{ n.id }}/ta-bort" hx-target="#rad-{{ n.id }}" hx-swap="outerHTML"
        class="rounded px-1 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-800">ta&nbsp;bort</a>
   </span>
+  {% endif %}
 
   <span class="flex shrink-0 items-center gap-1.5">
     {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">dold</span>{% endif %}
@@ -59,17 +65,17 @@
 </div>
 {% endmacro %}
 
-{% macro nod(n, request, detaljerad=false) %}
+{% macro nod(n, request, detaljerad=false, skrivbar=false) %}
 <li id="nod-{{ n.id }}" data-nod="{{ n.id }}">
   {% if n.barn %}
   <details open>
-    <summary class="list-none [&::-webkit-details-marker]:hidden">{{ rad(n, request, detaljerad) }}</summary>
+    <summary class="list-none [&::-webkit-details-marker]:hidden">{{ rad(n, request, detaljerad, skrivbar) }}</summary>
     <ul class="syskon ml-[22px]" data-foralder="{{ n.id }}">
-      {% for b in n.barn %}{{ nod(b, request, detaljerad) }}{% endfor %}
+      {% for b in n.barn %}{{ nod(b, request, detaljerad, skrivbar) }}{% endfor %}
     </ul>
   </details>
   {% else %}
-  {{ rad(n, request, detaljerad) }}
+  {{ rad(n, request, detaljerad, skrivbar) }}
   {# Empty drop target so drag-and-drop can nest under a leaf. #}
   <ul class="syskon ml-[22px] min-h-[3px]" data-foralder="{{ n.id }}"></ul>
   {% endif %}
