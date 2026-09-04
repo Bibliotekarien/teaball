@@ -25,7 +25,14 @@ from app.web import is_htmx, templates
 router = APIRouter(prefix="/svara", dependencies=[Depends(krav_csrf)])
 
 
-def _starta_medlemssession(request: Request, rad) -> RedirectResponse:
+def _starta_medlemssession(request: Request, conn, rad) -> RedirectResponse:
+    # Stamped only when the link actually logs someone in — not on the switch
+    # confirmation page, where the link was shown but not used. Data-minimal:
+    # one timestamp, overwritten each time (see /integritet).
+    conn.execute(
+        "UPDATE medlem SET senast_anvand = datetime('now') WHERE id = ?", (rad["id"],)
+    )
+    conn.commit()
     request.session.clear()
     request.session[SESSION_MEDLEM] = rad["id"]
     request.session[SESSION_MEDLEM_HASH] = rad["token"]
@@ -60,7 +67,7 @@ def logga_in_med_token(
             {"principal": None, "medlem_namn": rad["namn"], "token": token},
             headers={"Referrer-Policy": "no-referrer"},
         )
-    return _starta_medlemssession(request, rad)
+    return _starta_medlemssession(request, conn, rad)
 
 
 @router.post("/vaxla")
@@ -74,7 +81,7 @@ def vaxla_session(
         return templates.TemplateResponse(
             request, "svara/ogiltig.html", {"principal": None}, status_code=404
         )
-    return _starta_medlemssession(request, rad)
+    return _starta_medlemssession(request, conn, rad)
 
 
 def _kontrollera_synlig(conn, funktion_id: int) -> None:

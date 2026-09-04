@@ -69,6 +69,13 @@ def logga_in(
             status_code=401,
         )
     _misslyckanden.pop(nyckel, None)
+    # Data-minimal activity stamp for /konton: a single timestamp overwritten
+    # on each login — no history (see /integritet).
+    conn.execute(
+        "UPDATE forvaltare SET senast_inloggad = datetime('now') WHERE id = ?",
+        (principal.forvaltare_id,),
+    )
+    conn.commit()
     rad = conn.execute(
         "SELECT losen_hash FROM forvaltare WHERE id = ?", (principal.forvaltare_id,)
     ).fetchone()

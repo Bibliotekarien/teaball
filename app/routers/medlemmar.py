@@ -37,6 +37,7 @@ def lista(
     medlemmar = conn.execute(
         """
         SELECT m.id, m.namn, m.kategori, m.token IS NOT NULL AS har_token,
+               m.senast_anvand,
                (SELECT COUNT(*) FROM bedomning b WHERE b.medlem_id = m.id) AS antal_svar
         FROM medlem m ORDER BY m.namn
         """
