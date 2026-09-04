@@ -198,6 +198,34 @@ def test_htmx_skrivforsok_ger_403_med_hx_refresh(client, app_db):
     assert svar.headers.get("hx-refresh") == "true"
 
 
+def test_skapa_forvaltare_script_satter_och_bevarar_roll(tmp_path, monkeypatch):
+    from scripts import skapa_forvaltare
+    import sqlite3
+
+    dbfil = str(tmp_path / "konton.db")
+    monkeypatch.setattr("sys.argv", ["skapa_forvaltare.py", "ines",
+                                     "--roll", "intern", "--losenord", "hemligt-losen",
+                                     "--db", dbfil])
+    assert skapa_forvaltare.main() == 0
+
+    def roll():
+        conn = sqlite3.connect(dbfil)
+        try:
+            return conn.execute(
+                "SELECT roll FROM forvaltare WHERE anvandarnamn = 'ines'"
+            ).fetchone()[0]
+        finally:
+            conn.close()
+
+    assert roll() == "intern"
+
+    # Lösenordsbyte utan --roll får inte ändra rollen.
+    monkeypatch.setattr("sys.argv", ["skapa_forvaltare.py", "ines",
+                                     "--losenord", "annat-losenord", "--db", dbfil])
+    assert skapa_forvaltare.main() == 0
+    assert roll() == "intern"
+
+
 def test_admin_paverkas_inte(client, app_db):
     ids, medlem_id = _förbered(client, app_db, "admin", "anna")
     svar = client.post(

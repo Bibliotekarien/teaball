@@ -1,9 +1,13 @@
-"""Create or update an admin account.
+"""Create or update a staff account.
 
 Usage:
-    python scripts/skapa_forvaltare.py <anvandarnamn> [--losenord ...] [--db sökväg]
+    python scripts/skapa_forvaltare.py <anvandarnamn> [--roll admin|intern|extern]
+                                       [--losenord ...] [--db sökväg]
 
-Without --losenord the password is prompted for (twice). In the container:
+Without --losenord the password is prompted for (twice). Without --roll a new
+account becomes admin (the column default) and an existing account keeps its
+role — a password reset must never silently change permissions. In the
+container:
     docker compose exec app python scripts/skapa_forvaltare.py anna
 """
 
@@ -21,6 +25,9 @@ from app.auth.password import hash_losen  # noqa: E402
 def main() -> int:
     parser = argparse.ArgumentParser(description="Skapa eller uppdatera ett förvaltarkonto.")
     parser.add_argument("anvandarnamn")
+    parser.add_argument("--roll", choices=["admin", "intern", "extern"],
+                        help="Roll för kontot. Utelämnad: nya konton blir admin,"
+                             " befintliga behåller sin roll.")
     parser.add_argument("--losenord", help="Anges helst inte på kommandoraden; utelämna för prompt.")
     parser.add_argument("--db", help="Sökväg till databasfilen (annars DB_PATH/standard).")
     args = parser.parse_args()
@@ -38,15 +45,29 @@ def main() -> int:
     conn = db.connect(args.db)
     try:
         db.init_db(conn)
-        conn.execute(
-            "INSERT INTO forvaltare (anvandarnamn, losen_hash) VALUES (?, ?)"
-            " ON CONFLICT (anvandarnamn) DO UPDATE SET losen_hash = excluded.losen_hash",
-            (args.anvandarnamn, hash_losen(losenord)),
-        )
+        if args.roll:
+            conn.execute(
+                "INSERT INTO forvaltare (anvandarnamn, losen_hash, roll) VALUES (?, ?, ?)"
+                " ON CONFLICT (anvandarnamn) DO UPDATE SET"
+                " losen_hash = excluded.losen_hash, roll = excluded.roll",
+                (args.anvandarnamn, hash_losen(losenord), args.roll),
+            )
+        else:
+            # No --roll: leave an existing account's role untouched (a password
+            # reset must never silently promote or demote); new rows fall back
+            # to the column default 'admin'.
+            conn.execute(
+                "INSERT INTO forvaltare (anvandarnamn, losen_hash) VALUES (?, ?)"
+                " ON CONFLICT (anvandarnamn) DO UPDATE SET losen_hash = excluded.losen_hash",
+                (args.anvandarnamn, hash_losen(losenord)),
+            )
         conn.commit()
+        roll = conn.execute(
+            "SELECT roll FROM forvaltare WHERE anvandarnamn = ?", (args.anvandarnamn,)
+        ).fetchone()["roll"]
     finally:
         conn.close()
-    print(f"Förvaltarkontot '{args.anvandarnamn}' är skapat/uppdaterat.")
+    print(f"Kontot '{args.anvandarnamn}' är skapat/uppdaterat med rollen {roll}.")
     return 0
 
 
