@@ -27,12 +27,14 @@
 
   {% if principal and principal.kind == "forvaltare" %}
   <nav class="flex gap-1 overflow-x-auto border-b border-stone-200 bg-white px-4 sm:px-6">
-    {# extern-rollen når bara det externt synliga — visa inga flikar som ändå ger 403. #}
+    {# Varje roll ser bara flikar den faktiskt når: extern två, intern sex,
+       admin dessutom kontolistan. #}
     {% set flikar = [("/trad", "Kravträd"), ("/roadmap", "Roadmap")]
        if principal.roll == "extern" else
-       [("/trad", "Kravträd"), ("/bedomning", "Bedömning"),
-        ("/analys", "Analys"), ("/roadmap", "Roadmap"),
-        ("/medlemmar", "Medlemmar"), ("/export", "Export")] %}
+       ([("/trad", "Kravträd"), ("/bedomning", "Bedömning"),
+         ("/analys", "Analys"), ("/roadmap", "Roadmap"),
+         ("/medlemmar", "Medlemmar"), ("/export", "Export")]
+        + ([("/konton", "Konton")] if principal.roll == "admin" else [])) %}
     {% for adress, etikett in flikar %}
     <a href="{{ adress }}"
        {% if request.url.path.startswith(adress) %}aria-current="page"{% endif %}

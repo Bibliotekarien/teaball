@@ -52,6 +52,11 @@
     {% else %}
     <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400">ingen länk</span>
     {% endif %}
+    {% if m.senast_anvand %}
+    <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="Senaste inloggning via svarslänken (endast senaste tillfället sparas)">inne {{ m.senast_anvand[:10] }}</span>
+    {% elif m.har_token %}
+    <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400" title="Länken har aldrig använts">aldrig använd</span>
+    {% endif %}
     {% if skrivbar %}
     <form method="post" action="/medlemmar/{{ m.id }}/token" class="inline">
       <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">

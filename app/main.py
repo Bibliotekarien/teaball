@@ -11,7 +11,8 @@ from starlette.middleware.sessions import SessionMiddleware
 from app import config, db, matomo
 from app.web import templates
 from app.routers import (
-    analys, bedomning, exportera, inloggning, medlemmar, roadmap, svara, trad,
+    analys, bedomning, exportera, inloggning, konton, medlemmar, roadmap, svara,
+    trad,
 )
 
 logger = logging.getLogger("teaball")
@@ -55,6 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(roadmap.router)
     app.include_router(exportera.router)
     app.include_router(medlemmar.router)
+    app.include_router(konton.router)
     app.include_router(svara.router)
 
     @app.get("/")

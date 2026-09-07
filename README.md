@@ -81,6 +81,11 @@ Utelämnad `--roll` lämnar ett befintligt kontos roll orörd — ett lösenords
 ändrar aldrig behörighet. Rollbyte slår igenom på nästa request, ingen ny
 inloggning krävs.
 
+Administratörer ser kontolistan med roll och senaste inloggning under
+**Konton** i appen; medlemslänkarnas senaste användning syns under
+**Medlemmar**. Endast den senaste tidpunkten sparas (skrivs över, ingen
+historik) — datasnålt nog att bara kräva en notis på `/integritet`.
+
 ### Initial datainläsning
 
 Läs in ett befintligt underlag som CSV eller JSON (kolumner/nycklar:

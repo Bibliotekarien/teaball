@@ -114,7 +114,7 @@ def test_migration_tar_sakerhetskopia_fore(tmp_path):
     db.init_db(conn)
 
     # The copy is named for the highest pending version in the batch.
-    kopior = list(tmp_path.glob("gammal.fore-0003-*.db"))
+    kopior = list(tmp_path.glob("gammal.fore-0004-*.db"))
     assert len(kopior) == 1
     gammal = sqlite3.connect(kopior[0])
     gammal.row_factory = sqlite3.Row
@@ -158,8 +158,12 @@ def test_0003_befintliga_konton_blir_admin(tmp_path):
     conn = gammal_produktionsdb(tmp_path)
     db.init_db(conn)  # applies 0002 + 0003
 
-    rad = conn.execute("SELECT roll FROM forvaltare WHERE anvandarnamn = 'anna'").fetchone()
+    rad = conn.execute(
+        "SELECT roll, senast_inloggad FROM forvaltare WHERE anvandarnamn = 'anna'"
+    ).fetchone()
     assert rad["roll"] == "admin"
+    # 0004: the activity stamp starts empty ("never") for pre-existing rows.
+    assert rad["senast_inloggad"] is None
     # New rows without an explicit role also default to admin.
     conn.execute("INSERT INTO forvaltare (anvandarnamn, losen_hash) VALUES ('ny', 'hash')")
     assert conn.execute(
