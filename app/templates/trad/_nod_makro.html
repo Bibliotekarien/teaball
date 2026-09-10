@@ -43,7 +43,33 @@
   <span class="flex shrink-0 items-center gap-1.5">
     {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">dold</span>{% endif %}
     <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ n.typ }}</span>
+    {% if n.djup < 2 %}
+    {# Grennivåerna (djup 0–1) sammanfattar undergrenen i stället för att visa
+       egen status (statusvärdet finns kvar men bär ingen information här):
+       siffran är driftsatta av grenens löv, och stapeln är lövens status-
+       fördelning i STATUS-ordning (klart → utgår), så den läses som en
+       progressbar där grönt växer från vänster. Bara löv räknas — en nod med
+       undernoder är struktur, inte innehåll — så samma innehåll ger samma
+       siffror oavsett hur djupt det grupperats. Segmentbredd via flex-grow =
+       antal (tomma spans ⇒ basis 0 ⇒ proportionellt); min-w håller enstaka
+       noder synliga och 2px-luckorna skiljer segmenten även utan färgseende.
+       Fast bredd (w-24) så staplarna kolumnlinjerar och kan jämföras rad för
+       rad — de absoluta talen bär siffran, inte stapellängden. #}
+    {% if n.antal_under %}
+    {% set driftsatta = n.status_under.get("driftsatt", 0) %}
+    <span class="text-xs tabular-nums text-stone-500"
+          title="{{ driftsatta }} av grenens {{ n.antal_under }} yttersta noder är driftsatta. Noder med undernoder räknas som struktur, inte innehåll.">{{ driftsatta }}/{{ n.antal_under }}</span>
+    <span class="flex h-2.5 w-24 gap-0.5 overflow-hidden rounded-full bg-white ring-1 ring-stone-200" role="img"
+          aria-label="Statusfördelning för grenens yttersta noder: {% for s, meta in STATUS.items() %}{{ meta.label|lower }} {{ n.status_under.get(s, 0) }}{% if not loop.last %}, {% endif %}{% endfor %}"
+          title="{% for s, meta in STATUS.items() %}{{ meta.label }}: {{ n.status_under.get(s, 0) }}{% if not loop.last %} · {% endif %}{% endfor %}">
+      {%- for s, meta in STATUS.items() %}{% if n.status_under.get(s) -%}
+      <span class="min-w-[3px] {{ meta.stapel }}" style="flex-grow: {{ n.status_under[s] }}" title="{{ meta.label }}: {{ n.status_under[s] }}"></span>
+      {%- endif %}{% endfor -%}
+    </span>
+    {% endif %}
+    {% else %}
     <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}" title="{{ STATUS[n.status].beskrivning }}">{{ STATUS[n.status].label }}</span>
+    {% endif %}
     <span class="hidden w-14 text-right text-xs text-stone-400 sm:inline">{{ n.fas or "" }}</span>
   </span>
 

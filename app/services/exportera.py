@@ -43,11 +43,12 @@ SVAR_STIL = {
     "kan_vanta": ("FEF3C7", "92400E"),
     "behovs_ej": ("E7E5E4", "57534E"),
 }
+# Mirrors the STATUS scale in app/web.py (yellow planned, two blues undecided).
 STATUS_STIL = {
     "driftsatt": ("D1FAE5", "065F46"),
-    "planerad": ("E0F2FE", "075985"),
-    "idé": ("E7E5E4", "57534E"),
-    "utreds": ("FEF3C7", "92400E"),
+    "planerad": ("FEF3C7", "92400E"),
+    "utreds": ("BAE6FD", "0C4A6E"),
+    "idé": ("E0F2FE", "075985"),
     "utgår": ("F5F5F4", "A8A29E"),
 }
 

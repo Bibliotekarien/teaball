@@ -6,7 +6,9 @@
 {% endblock %}
 {% block innehall %}
 <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-  <p class="text-sm text-stone-500">Hela hierarkin. Typ är en etikett — krav kan ligga på vilken nivå som helst.</p>
+  <p class="text-sm text-stone-500">Hela hierarkin. Typ är en etikett — krav kan ligga på vilken nivå som helst.
+    På de två översta nivåerna visas grenens läge: driftsatta av grenens yttersta noder, och deras statusfördelning som en stapel.
+    Noder med undernoder räknas som struktur, inte innehåll.</p>
   <span class="flex items-center gap-2">
     {% if principal.roll != "extern" %}
     <a href="/export/confluence/kravtrad"
