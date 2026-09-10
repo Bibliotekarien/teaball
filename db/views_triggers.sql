@@ -34,6 +34,37 @@ BEGIN
 END;
 
 ------------------------------------------------------------------------------
+-- Avgångskrav: en nod med status 'planerad' eller 'driftsatt' måste ha fas
+-- (UI: "avgång") ifylld. Gäller BARA skrivningar som rör status/fas — flytt,
+-- sortering och synlighet tilldelar inte kolumnerna, så befintliga rader utan
+-- avgång fortsätter fungera tills någon redigerar dem. Felprefixet 'AVGÅNG:'
+-- följer 'CYKEL:'-mönstret ovan (appen visar svansen inline via regeltext()).
+-- TRIM/COALESCE: routrarna lagrar strip() or None, men rå SQL kan lagra ''.
+-- KONVENTION: en framtida tabellombyggnads-migration (jfr 0002:s
+-- INSERT…SELECT av befintliga rader) måste DROPpa funktion_avgang_* först —
+-- förra uppstartens triggers ligger kvar när migrate() kör, och de återskapas
+-- ändå här vid nästa start.
+------------------------------------------------------------------------------
+
+DROP TRIGGER IF EXISTS funktion_avgang_insert;
+CREATE TRIGGER funktion_avgang_insert
+BEFORE INSERT ON funktion
+WHEN NEW.status IN ('planerad', 'driftsatt')
+     AND TRIM(COALESCE(NEW.fas, '')) = ''
+BEGIN
+    SELECT RAISE(ABORT, 'AVGÅNG: En nod med status planerad eller driftsatt måste ha en avgång.');
+END;
+
+DROP TRIGGER IF EXISTS funktion_avgang_update;
+CREATE TRIGGER funktion_avgang_update
+BEFORE UPDATE OF status, fas ON funktion
+WHEN NEW.status IN ('planerad', 'driftsatt')
+     AND TRIM(COALESCE(NEW.fas, '')) = ''
+BEGIN
+    SELECT RAISE(ABORT, 'AVGÅNG: En nod med status planerad eller driftsatt måste ha en avgång.');
+END;
+
+------------------------------------------------------------------------------
 -- D2: history. Copy the old row to bedomning_historik before UPDATE/DELETE.
 ------------------------------------------------------------------------------
 

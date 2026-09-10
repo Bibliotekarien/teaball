@@ -36,13 +36,6 @@ def _validera_lank(varde: str, falt: str) -> str | None:
     return lank or None
 
 
-def _cykeltext(fel: sqlite3.IntegrityError) -> str:
-    text = str(fel)
-    if "CYKEL: " in text:
-        return text.split("CYKEL: ", 1)[1]
-    return "Ändringen bröt mot en databasregel och avvisades."
-
-
 def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | None = None,
               aterstall_formular: bool = False, foralder_id: int | None = None):
     """Tree response: partial for htmx, full page (or redirect) otherwise.
@@ -175,11 +168,15 @@ def skapa_nod(
         jira = _validera_lank(lank_jira, "Jira-länken")
     except ValueError as fel:
         return _tradsvar(request, conn, principal, fel=str(fel))
-    nod_id = tjanst.skapa_nod(
-        conn, namn.strip()[:200], _till_int(foralder_id), typ, status,
-        fas.strip()[:50] or None, beskrivning.strip()[:4000] or None,
-        1 if synlig_externt else 0, dok, jira,
-    )
+    try:
+        nod_id = tjanst.skapa_nod(
+            conn, namn.strip()[:200], _till_int(foralder_id), typ, status,
+            fas.strip()[:50] or None, beskrivning.strip()[:4000] or None,
+            1 if synlig_externt else 0, dok, jira,
+        )
+    except sqlite3.IntegrityError as fel:
+        conn.rollback()
+        return _tradsvar(request, conn, principal, fel=tjanst.regeltext(fel))
     conn.commit()
     audit.info("forvaltare=%s op=skapa nod=%s namn=%r", principal.namn, nod_id, namn)
     return _tradsvar(request, conn, principal,
@@ -224,7 +221,7 @@ def uppdatera_nod(
             tjanst.flytta_nod(conn, nod_id, ny_foralder)
     except sqlite3.IntegrityError as fel:
         conn.rollback()
-        return _tradsvar(request, conn, principal, fel=_cykeltext(fel))
+        return _tradsvar(request, conn, principal, fel=tjanst.regeltext(fel))
     conn.commit()
     audit.info("forvaltare=%s op=uppdatera nod=%s namn=%r", principal.namn, nod_id, namn)
     return _tradsvar(request, conn, principal)
@@ -245,7 +242,7 @@ def flytta(
         tjanst.flytta_nod(conn, nod_id, _till_int(foralder_id), _till_int(position))
     except sqlite3.IntegrityError as fel:
         conn.rollback()
-        return _tradsvar(request, conn, principal, fel=_cykeltext(fel))
+        return _tradsvar(request, conn, principal, fel=tjanst.regeltext(fel))
     conn.commit()
     audit.info("forvaltare=%s op=flytta nod=%s foralder=%s", principal.namn, nod_id, foralder_id)
     return _tradsvar(request, conn, principal)
@@ -277,7 +274,7 @@ def sortera(
         tjanst.sortera_syskon(conn, _till_int(foralder_id), [int(n) for n in nod_id])
     except sqlite3.IntegrityError as fel:
         conn.rollback()
-        return _tradsvar(request, conn, principal, fel=_cykeltext(fel))
+        return _tradsvar(request, conn, principal, fel=tjanst.regeltext(fel))
     conn.commit()
     audit.info("forvaltare=%s op=sortera foralder=%s ordning=%s", principal.namn, foralder_id, nod_id)
     return _tradsvar(request, conn, principal)

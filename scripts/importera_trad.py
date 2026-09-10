@@ -4,7 +4,8 @@ Usage:
     python scripts/importera_trad.py underlag.csv [--db sökväg]
 
 CSV columns / JSON keys: namn, foralder (parent's name, empty for root),
-typ (förmåga|funktion|krav, default krav), status (default planerad), fas.
+typ (förmåga|funktion|krav, default krav), status (default planerad), fas
+(required when status is planerad/driftsatt — the avgång rule).
 The file order becomes the sibling order. The whole import is one transaction —
 a validation error leaves the database untouched."""
 

@@ -14,13 +14,15 @@ from app.auth.csrf import krav_csrf
 from app.db import get_conn
 from app.services import roadmap as tjanst
 from app.services.roadmap import FASTA_FASER, SISTA_FASER, UTAN_FAS
+from app.services.trad import regeltext
 from app.web import is_htmx, templates
 
 router = APIRouter(prefix="/roadmap")
 audit = logging.getLogger("teaball.audit")
 
 
-def _ctx(request: Request, conn, principal, visa_krav: bool, redigera: bool):
+def _ctx(request: Request, conn, principal, visa_krav: bool, redigera: bool,
+         fel: str | None = None):
     grupper = tjanst.roadmap_data(
         conn, visa_krav, endast_synliga=principal.roll == "extern"
     )
@@ -41,6 +43,7 @@ def _ctx(request: Request, conn, principal, visa_krav: bool, redigera: bool):
         "skrivbar": principal.roll == "admin",
         "grupper": grupper,
         "fas_alternativ": fas_alternativ,
+        "fel": fel,
     }
 
 
@@ -76,7 +79,22 @@ def flytta(
     if conn.execute("SELECT 1 FROM funktion WHERE id = ?", (nod_id,)).fetchone() is None:
         raise HTTPException(status_code=404, detail="Noden finns inte.")
     ny_fas = fas.strip()[:50] or None
-    conn.execute("UPDATE funktion SET fas = ? WHERE id = ?", (ny_fas, nod_id))
+    try:
+        conn.execute("UPDATE funktion SET fas = ? WHERE id = ?", (ny_fas, nod_id))
+    except sqlite3.IntegrityError as fel_db:
+        # Avgångstriggern: t.ex. en planerad nod dragen till "utan avgång".
+        # Rollback FÖRE _ctx så grupperna renderas från oförändrad databas —
+        # helhets-swappen av #roadmap-grupper återställer även SortableJS
+        # optimistiska DOM-flytt. htmx-svaret måste vara 200 (htmx swappar
+        # inte icke-2xx), helsidan får 400 som i trädet.
+        conn.rollback()
+        ctx = _ctx(request, conn, principal, visa_krav == "1", True,
+                   fel=regeltext(fel_db))
+        if is_htmx(request):
+            return templates.TemplateResponse(request, "roadmap/_grupper.html", ctx)
+        return templates.TemplateResponse(
+            request, "roadmap/index.html", ctx, status_code=400
+        )
     conn.commit()
     audit.info("forvaltare=%s op=roadmap_flytta nod=%s fas=%r", principal.namn, nod_id, ny_fas)
     if is_htmx(request):

@@ -1,11 +1,25 @@
 """Tree operations (spec 5.1). Shared by the no-JS forms and the SortableJS
 endpoints — the drag-and-drop enhancement posts to the same functions.
 
-The D1 cycle trigger is the authoritative guard; callers catch
-sqlite3.IntegrityError with the 'CYKEL:' prefix and show the message inline.
+The database triggers are the authoritative guards (D1 cycles, avgångskravet);
+callers catch sqlite3.IntegrityError and show regeltext() inline.
 """
 
 import sqlite3
+
+# Trigger error prefixes (db/views_triggers.sql). The Swedish tail after the
+# prefix is written to be shown to the user as-is.
+REGELPREFIX = ("CYKEL: ", "AVGÅNG: ")
+
+
+def regeltext(fel: sqlite3.IntegrityError) -> str:
+    """The user-facing message from a rule trigger's RAISE, or a generic
+    fallback for IntegrityErrors that aren't ours (FK violations etc.)."""
+    text = str(fel)
+    for prefix in REGELPREFIX:
+        if prefix in text:
+            return text.split(prefix, 1)[1]
+    return "Ändringen bröt mot en databasregel och avvisades."
 
 
 def undergren_ids(conn: sqlite3.Connection, nod_id: int) -> set[int]:

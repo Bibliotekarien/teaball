@@ -25,7 +25,8 @@ def test_kraver_inloggning(client):
 
 def test_post_utan_csrf_avvisas(client, app_db):
     logga_in(client, app_db)
-    svar = client.post("/trad/nod", data={"namn": "X", "typ": "krav", "status": "planerad"})
+    svar = client.post("/trad/nod",
+                       data={"namn": "X", "typ": "krav", "status": "planerad", "fas": "nu"})
     assert svar.status_code == 400
 
 
@@ -35,7 +36,7 @@ def test_skapa_och_redigera_nod(client, app_db):
     svar = client.post(
         "/trad/nod",
         data={"namn": "Publicering", "typ": "förmåga", "status": "driftsatt",
-              "synlig_externt": "1", "csrf_token": token},
+              "fas": "Medlem 1", "synlig_externt": "1", "csrf_token": token},
         follow_redirects=False,
     )
     assert svar.status_code == 303
@@ -189,7 +190,7 @@ def test_ny_nod_hamnar_forst_och_formularet_aterstalls(client, app_db):
     svar = client.post(
         "/trad/nod",
         data={"namn": "Ny rot", "typ": "förmåga", "status": "planerad",
-              "csrf_token": token},
+              "fas": "Medlem 1", "csrf_token": token},
         follow_redirects=False,
     )
     assert svar.status_code == 303
@@ -323,6 +324,45 @@ def test_ogiltig_lank_avvisas(client, app_db):
     assert svar.status_code == 400
     assert "http://" in svar.text
     assert app_db.execute("SELECT COUNT(*) FROM funktion").fetchone()[0] == 0
+
+
+def test_planerad_utan_avgang_avvisas_i_ui(client, app_db):
+    """Avgångstriggern via routrarna: svenskt inline-fel, aldrig 500."""
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    token = _token(client)
+
+    # Skapa utan avgång: helsida ⇒ 400 + feltext, inget skrivs.
+    svar = client.post(
+        "/trad/nod",
+        data={"namn": "Ny planerad", "typ": "funktion", "status": "planerad",
+              "csrf_token": token},
+    )
+    assert svar.status_code == 400
+    assert "måste ha en avgång" in svar.text
+    assert app_db.execute(
+        "SELECT COUNT(*) FROM funktion WHERE namn = 'Ny planerad'"
+    ).fetchone()[0] == 0
+
+    # htmx ⇒ 200 (htmx swappar inte icke-2xx) med felbanner i trädswappen.
+    svar = client.post(
+        "/trad/nod",
+        data={"namn": "Ny planerad", "typ": "funktion", "status": "planerad"},
+        headers={"HX-Request": "true", "X-CSRF-Token": token},
+    )
+    assert svar.status_code == 200
+    assert 'id="trad-fel"' in svar.text and "måste ha en avgång" in svar.text
+
+    # Redigering som byter status till planerad utan avgång avvisas orört.
+    svar = client.post(
+        f"/trad/nod/{ids['dubblett']}",
+        data={"namn": "Dubblettdetektering", "typ": "krav", "status": "planerad",
+              "fas": "", "csrf_token": token},
+    )
+    assert svar.status_code == 400 and "måste ha en avgång" in svar.text
+    rad = app_db.execute("SELECT status, fas FROM funktion WHERE id = ?",
+                         (ids["dubblett"],)).fetchone()
+    assert rad["status"] == "idé" and rad["fas"] == "senare"
 
 
 def test_funktion_trad_visningsordning(app_db):
