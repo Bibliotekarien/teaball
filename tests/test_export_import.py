@@ -30,7 +30,9 @@ def test_roadmap_avgangsordning(conn):
     # och restgruppen "utan avgång" allra sist.
     for namn, fas in [("A", "Zon"), ("B", None), ("C", "senare"),
                       ("D", "Medlem 1"), ("E", "Alfa")]:
-        skapa_funktion(conn, namn, typ="funktion", fas=fas)
+        # B utan avgång behöver en status utan avgångskrav.
+        skapa_funktion(conn, namn, typ="funktion", fas=fas,
+                       status="planerad" if fas else "utreds")
     conn.commit()
     assert [fas for fas, _ in roadmap_data(conn)] == [
         "Medlem 1", "Alfa", "Zon", "senare", "utan avgång"]
@@ -84,15 +86,45 @@ def test_roadmap_redigeringslage_och_flytt(client, app_db):
     assert app_db.execute("SELECT fas FROM funktion WHERE id = ?",
                           (ids["wos"],)).fetchone()[0] == "senare"
 
-    # htmx (drag-and-drop) gets the groups partial back; empty fas = "utan avgång".
+    # htmx (drag-and-drop) gets the groups partial back; empty fas = "utan
+    # avgång" — tillåtet för dubbletten (idé), medan planerad/driftsatt stoppas
+    # av avgångskravet (eget test nedan).
+    svar = client.post(
+        "/roadmap/flytta",
+        data={"nod_id": ids["dubblett"], "fas": ""},
+        headers={"HX-Request": "true", "X-CSRF-Token": token},
+    )
+    assert svar.status_code == 200 and 'id="roadmap-grupper"' in svar.text
+    assert app_db.execute("SELECT fas FROM funktion WHERE id = ?",
+                          (ids["dubblett"],)).fetchone()[0] is None
+    assert app_db.execute("SELECT fas FROM funktion WHERE id = ?",
+                          (ids["publicering"],)).fetchone()[0] == "nästa"
+
+
+def test_roadmap_flytt_till_utan_avgang_stoppas_for_planerad(client, app_db):
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    token = csrf_fran(client.get("/roadmap", params={"redigera": "1"}).text)
+
+    # htmx-svaret måste vara 200 (htmx swappar inte icke-2xx) — felet syns som
+    # banner i den omswappade gruppvyn, och databasen är orörd.
     svar = client.post(
         "/roadmap/flytta",
         data={"nod_id": ids["publicering"], "fas": ""},
         headers={"HX-Request": "true", "X-CSRF-Token": token},
     )
-    assert svar.status_code == 200 and 'id="roadmap-grupper"' in svar.text
+    assert svar.status_code == 200
+    assert 'id="roadmap-fel"' in svar.text and "måste ha en avgång" in svar.text
+    assert 'id="roadmap-grupper"' in svar.text
     assert app_db.execute("SELECT fas FROM funktion WHERE id = ?",
-                          (ids["publicering"],)).fetchone()[0] is None
+                          (ids["publicering"],)).fetchone()[0] == "Medlem 1"
+
+    # Utan JS: helsida med samma banner och 400.
+    svar = client.post(
+        "/roadmap/flytta",
+        data={"nod_id": ids["publicering"], "fas": "", "csrf_token": token},
+    )
+    assert svar.status_code == 400 and "måste ha en avgång" in svar.text
 
 
 def test_roadmap_flytta_kraver_csrf_och_nod(client, app_db):
@@ -210,19 +242,26 @@ def test_import_fran_csv(conn):
 def test_import_fel_avvisas(conn):
     import pytest
 
+    # fas-kolumnen ifylld där default-statusen (planerad) annars skulle snubbla
+    # på avgångskravet före det fel som faktiskt testas.
     with pytest.raises(ValueError, match="finns varken"):
-        importera_trad(conn, las_rader("namn,foralder\nA,Saknas\n", "x.csv"))
+        importera_trad(conn, las_rader("namn,foralder,fas\nA,Saknas,nu\n", "x.csv"))
     with pytest.raises(ValueError, match="inte unikt i filen"):
         importera_trad(conn, las_rader(
-            "namn,foralder\nDubbel,\nDubbel,\nBarn,Dubbel\n", "x.csv"))
+            "namn,foralder,fas\nDubbel,,nu\nDubbel,,nu\nBarn,Dubbel,nu\n", "x.csv"))
     with pytest.raises(ValueError, match="okänd typ"):
         importera_trad(conn, las_rader("namn,foralder,typ\nA,,fel\n", "x.csv"))
+    with pytest.raises(ValueError, match="kräver en avgång"):
+        importera_trad(conn, las_rader("namn,foralder,status\nA,,planerad\n", "x.csv"))
+    with pytest.raises(ValueError, match="Rad 3.*kräver en avgång"):
+        importera_trad(conn, las_rader(
+            "namn,status,fas\nA,utreds,\nB,driftsatt,\n", "x.csv"))
 
 
 def test_import_fran_json(conn):
     data = json.dumps([
-        {"namn": "Publicering", "typ": "förmåga", "status": "driftsatt"},
-        {"namn": "Import", "foralder": "Publicering", "typ": "funktion"},
+        {"namn": "Publicering", "typ": "förmåga", "status": "driftsatt", "fas": "nu"},
+        {"namn": "Import", "foralder": "Publicering", "typ": "funktion", "fas": "nu"},
     ])
     assert importera_trad(conn, las_rader(data, "underlag.json")) == 2
 

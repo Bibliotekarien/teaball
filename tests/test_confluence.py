@@ -65,11 +65,13 @@ def test_analys_markup_med_varning(conn):
 
 
 def test_roadmap_markup(conn):
-    seed_trad(conn)
+    ids = seed_trad(conn)
+    # Restgruppen "Utan avgång" behöver en avgångslös nod — tillåtet för idé
+    # (avgångskravet gäller bara planerad/driftsatt).
+    conn.execute("UPDATE funktion SET fas = NULL WHERE id = ?", (ids["dubblett"],))
     ut = confluence.roadmap(conn, visa_krav=True, genererad=DATUM)
     assert "h1. Roadmap — Teaball" in ut
-    # seed_trad only uses 'senare' and unphased nodes.
-    assert "h2. Senare" in ut and "h2. Utan avgång" in ut
+    assert "h2. Medlem 1" in ut and "h2. Senare" in ut and "h2. Utan avgång" in ut
     assert "|| Namn || Typ || Status ||" in ut
 
 

@@ -29,8 +29,8 @@ def _förbered(client, app_db, roll, namn):
 
 
 ALLA_SKRIVNINGAR = [
-    ("/trad/nod", {"namn": "Ny", "typ": "krav", "status": "planerad"}),
-    ("/trad/nod/{nod}", {"namn": "Bytt", "typ": "krav", "status": "planerad"}),
+    ("/trad/nod", {"namn": "Ny", "typ": "krav", "status": "planerad", "fas": "nu"}),
+    ("/trad/nod/{nod}", {"namn": "Bytt", "typ": "krav", "status": "planerad", "fas": "nu"}),
     ("/trad/nod/{nod}/flytta", {"foralder_id": ""}),
     ("/trad/nod/{nod}/ordna", {"riktning": "upp"}),
     ("/trad/sortera", {"foralder_id": "", "nod_id": "{nod}"}),
@@ -230,7 +230,7 @@ def test_admin_paverkas_inte(client, app_db):
     ids, medlem_id = _förbered(client, app_db, "admin", "anna")
     svar = client.post(
         "/trad/nod",
-        data={"namn": "Ny nod", "typ": "krav", "status": "planerad",
+        data={"namn": "Ny nod", "typ": "krav", "status": "planerad", "fas": "nu",
               "csrf_token": _csrf(client)},
         follow_redirects=False,
     )

@@ -1,6 +1,10 @@
 {# Phase groups. In edit mode every row gets a drag handle and a no-JS fas
    form; roadmap.js enhances cross-phase drops onto the same endpoint. #}
 <div id="roadmap-grupper" {% if redigera %}data-redigera="1"{% endif %}{% if visa_krav %} data-visa-krav="1"{% endif %}>
+  {% if fel %}
+  {# Samma utseende som #trad-fel i trad/_innehall.html. #}
+  <div id="roadmap-fel" class="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{{ fel }}</div>
+  {% endif %}
   {% for fas, rader in grupper %}
   <h2 class="mb-1 mt-4 font-serif text-sm text-blue-900">{{ fas }}</h2>
   <ol class="fas-lista list-none rounded-lg border border-stone-200 bg-white{% if redigera %} min-h-[14px]{% endif %}"

@@ -45,6 +45,7 @@
       <input name="fas" value="{{ nod.fas or '' if nod else '' }}" list="faser" placeholder="t.ex. Medlem 1"
              class="rounded-md border border-stone-300 px-2 py-1 text-sm">
       <datalist id="faser">{% for f in FASER %}<option value="{{ f }}">{% endfor %}</datalist>
+      <span class="text-stone-400">Krävs när status är planerad eller driftsatt.</span>
     </label>
     <label class="flex items-end gap-2 pb-1 text-sm">
       <input type="checkbox" name="synlig_externt" value="1"
