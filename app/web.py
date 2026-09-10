@@ -37,17 +37,30 @@ SVAR = {
 }
 
 # The beskrivning texts feed the legend partial and the pill tooltips.
+# Dict order = lifecycle order (done → dropped); the tree's distribution bar,
+# the legend and the filter checkboxes all iterate it, so the order is part of
+# the design: the bar reads left-to-right as a progress bar.
+# One scale everywhere: cls (pill) and stapel (bar segment) are the same hue
+# per status — green done, yellow planned, two blues for the undecided pair
+# (deliberately not red: idé/utreds are neutral states, not problems), gray out.
+# Bar steps are validated (dataviz palette checks): adjacent pairs separate for
+# normal and CVD vision; utgår is intentionally gray (= outside the pipeline).
 STATUS = {
     "driftsatt": {"label": "Driftsatt", "cls": "bg-emerald-100 text-emerald-800",
+                  "stapel": "bg-emerald-600",
                   "beskrivning": "Finns och fungerar i nya plattformen — räknas inte som blockerare."},
-    "planerad": {"label": "Planerad", "cls": "bg-sky-100 text-sky-800",
+    "planerad": {"label": "Planerad", "cls": "bg-amber-100 text-amber-800",
+                 "stapel": "bg-amber-500",
                  "beskrivning": "Beslutad att byggas; avgången i roadmapen anger när."},
-    "idé": {"label": "Idé", "cls": "bg-stone-200 text-stone-600",
-            "beskrivning": "Nytt förslag som ännu inte är beslutat."},
-    "utreds": {"label": "Utreds", "cls": "bg-amber-100 text-amber-800",
+    "utreds": {"label": "Utreds", "cls": "bg-sky-200 text-sky-900",
+               "stapel": "bg-sky-700",
                "beskrivning": "Finns i DiVA Classic; identifierad men ännu inte beslutad."},
+    "idé": {"label": "Idé", "cls": "bg-sky-100 text-sky-800",
+            "stapel": "bg-sky-400",
+            "beskrivning": "Nytt förslag som ännu inte är beslutat."},
     # 'utgår' exists in the schema but not in the prototype; muted strike-through badge.
     "utgår": {"label": "Utgår", "cls": "bg-stone-100 text-stone-400 line-through",
+              "stapel": "bg-stone-400",
               "beskrivning": "Byggs inte — tas inte vidare till nya plattformen."},
 }
 

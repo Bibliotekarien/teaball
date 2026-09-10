@@ -3,6 +3,7 @@ move/reorder endpoints (shared by no-JS forms and SortableJS), the Swedish
 cycle error in HTML (§9.1), delete confirmation impact (T2), filters (T4),
 transitive visibility (T5/D4) and CSRF enforcement."""
 
+from app.web import STATUS
 from tests.conftest import (
     csrf_fran,
     logga_in,
@@ -332,3 +333,45 @@ def test_funktion_trad_visningsordning(app_db):
         "Import från Web of Science", "Dubblettdetektering",
         "Export & spridning",
     ]
+
+
+def test_statusfordelning_raknar_grenens_lov(trad, conn):
+    from app.services.trad import hamta_trad, hitta_nod
+
+    rotter = hamta_trad(conn)
+    publicering = hitta_nod(rotter, trad["publicering"])
+    # Bara löven räknas (Registrera avhandling + Dubblettdetektering): noder
+    # med undernoder är struktur, och nodens egen status ingår aldrig.
+    assert publicering["status_under"] == {"planerad": 1, "idé": 1}
+    assert publicering["antal_under"] == 2
+    assert hitta_nod(rotter, trad["import"])["status_under"] == {"idé": 1}
+    assert hitta_nod(rotter, trad["export"])["antal_under"] == 0
+
+    # Ett statusfilter beskär trädet men inte fördelningen: stapeln ska visa
+    # grenens verkliga läge, inte det filtrerade urvalet.
+    rotter = hamta_trad(conn, status=["idé"])
+    assert hitta_nod(rotter, trad["publicering"])["antal_under"] == 2
+
+    # Medlemsvyn räknar däremot bara synliga noder (dold gren = dold undergren).
+    conn.execute("UPDATE funktion SET synlig_externt = 0 WHERE id = ?", (trad["import"],))
+    rotter = hamta_trad(conn, endast_synliga=True)
+    assert hitta_nod(rotter, trad["publicering"])["status_under"] == {"planerad": 1}
+
+
+def test_grenniva_visar_fordelning_i_stallet_for_status(client, app_db):
+    seed_trad(app_db)
+    logga_in(client, app_db)
+    sida = client.get("/trad").text
+
+    # Nivå 0–1 med undergren: driftsatta/grenens löv plus fördelningsstapeln.
+    assert "0/2" in sida and "0/1" in sida
+    assert sida.count('role="img"') == 2  # Publicering + Import; lövnoder får ingen
+    assert 'title="Planerad: 1"' in sida and 'style="flex-grow: 1"' in sida
+
+    # Inget status-piller på nivå 0–1 (statusvärdet finns kvar i datat):
+    # driftsatt bärs bara av rotnoderna, så pillrets tooltip ska inte finnas.
+    # (Beskrivningen som löptext i legenden räknas inte — bara title-attributet.)
+    assert f'title="{STATUS["driftsatt"]["beskrivning"]}"' not in sida
+    # På djup 2+ visas pillret som förut (wos planerad, dubblett idé).
+    assert sida.count(f'title="{STATUS["planerad"]["beskrivning"]}"') == 1
+    assert sida.count(f'title="{STATUS["idé"]["beskrivning"]}"') == 1

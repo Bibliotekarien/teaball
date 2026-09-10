@@ -28,7 +28,17 @@ def hamta_trad(conn, q=None, typ=None, status=None, fas=None, endast_synliga=Fal
     """The whole tree in display order as nested dicts. With filters (T4),
     matching nodes are kept together with their ancestors for context.
     typ and status accept several values — OR within a filter, AND between.
-    endast_synliga=True gives the member view: only synlig_stig = 1 (B7/T5)."""
+    endast_synliga=True gives the member view: only synlig_stig = 1 (B7/T5).
+
+    Every node also carries its subtree summary: status_under (status →
+    count of leaf descendants) and antal_under (all leaf descendants). Only
+    leaves count — a node with children is structure, not content — which
+    makes the figures structure-neutral (same content ⇒ same numbers however
+    deeply it is grouped) and exactly additive: a parent's counts are the sum
+    of its children's. Deliberately counted over the unfiltered rows — a
+    status filter must not make the level-0/1 distribution bars lie about the
+    branch's real state — but inside the endast_synliga selection, so members
+    are never shown counts of hidden nodes."""
     if isinstance(typ, str):
         typ = [typ]
     if isinstance(status, str):
@@ -39,7 +49,24 @@ def hamta_trad(conn, q=None, typ=None, status=None, fas=None, endast_synliga=Fal
         ).fetchall()
     else:
         rows = conn.execute("SELECT * FROM funktion_trad ORDER BY vag").fetchall()
-    noder = {r["id"]: {**dict(r), "barn": []} for r in rows}
+    noder = {r["id"]: {**dict(r), "barn": [], "status_under": {}} for r in rows}
+
+    # Leafness is judged within the selected rows: in the member view a node
+    # whose children are all hidden IS a leaf in the tree the member sees.
+    # Ancestor walk per leaf: O(noder × djup) — fine at this scale (hundreds).
+    # A hidden node never has a visible descendant (synlig_stig is transitive),
+    # so with endast_synliga every foralder_id still resolves inside noder.
+    foraldrar = {r["foralder_id"] for r in rows if r["foralder_id"] is not None}
+    for r in rows:
+        if r["id"] in foraldrar:
+            continue
+        foralder_id = r["foralder_id"]
+        while foralder_id is not None:
+            fordelning = noder[foralder_id]["status_under"]
+            fordelning[r["status"]] = fordelning.get(r["status"], 0) + 1
+            foralder_id = noder[foralder_id]["foralder_id"]
+    for nod in noder.values():
+        nod["antal_under"] = sum(nod["status_under"].values())
 
     inkludera = None
     if q or typ or status or fas:
