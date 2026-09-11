@@ -21,10 +21,11 @@ router = APIRouter(prefix="/roadmap")
 audit = logging.getLogger("teaball.audit")
 
 
-def _ctx(request: Request, conn, principal, visa_krav: bool, redigera: bool,
-         fel: str | None = None):
+def _ctx(request: Request, conn, principal, visa_krav: bool, dolj_formagor: bool,
+         redigera: bool, fel: str | None = None):
     grupper = tjanst.roadmap_data(
-        conn, visa_krav, endast_synliga=principal.roll == "extern"
+        conn, visa_krav, endast_synliga=principal.roll == "extern",
+        dolj_formagor=dolj_formagor,
     )
     if redigera:
         # In edit mode the empty named phases (and "utan avgång") must render too,
@@ -39,6 +40,7 @@ def _ctx(request: Request, conn, principal, visa_krav: bool, redigera: bool,
     return {
         "principal": principal,
         "visa_krav": visa_krav,
+        "dolj_formagor": dolj_formagor,
         "redigera": redigera,
         "skrivbar": principal.roll == "admin",
         "grupper": grupper,
@@ -51,6 +53,7 @@ def _ctx(request: Request, conn, principal, visa_krav: bool, redigera: bool,
 def visa(
     request: Request,
     visa_krav: str = "",
+    dolj_formagor: str = "",
     redigera: str = "",
     principal: Principal = Depends(krav_forvaltare),
     conn: sqlite3.Connection = Depends(get_conn),
@@ -60,7 +63,7 @@ def visa(
     return templates.TemplateResponse(
         request,
         "roadmap/index.html",
-        _ctx(request, conn, principal, visa_krav == "1",
+        _ctx(request, conn, principal, visa_krav == "1", dolj_formagor == "1",
              redigera == "1" and principal.roll == "admin"),
     )
 
@@ -71,6 +74,7 @@ def flytta(
     nod_id: int = Form(...),
     fas: str = Form(""),
     visa_krav: str = Form(""),
+    dolj_formagor: str = Form(""),
     principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
@@ -88,8 +92,8 @@ def flytta(
         # optimistiska DOM-flytt. htmx-svaret måste vara 200 (htmx swappar
         # inte icke-2xx), helsidan får 400 som i trädet.
         conn.rollback()
-        ctx = _ctx(request, conn, principal, visa_krav == "1", True,
-                   fel=regeltext(fel_db))
+        ctx = _ctx(request, conn, principal, visa_krav == "1",
+                   dolj_formagor == "1", True, fel=regeltext(fel_db))
         if is_htmx(request):
             return templates.TemplateResponse(request, "roadmap/_grupper.html", ctx)
         return templates.TemplateResponse(
@@ -101,9 +105,12 @@ def flytta(
         return templates.TemplateResponse(
             request,
             "roadmap/_grupper.html",
-            _ctx(request, conn, principal, visa_krav == "1", True),
+            _ctx(request, conn, principal, visa_krav == "1",
+                 dolj_formagor == "1", True),
         )
-    mal = "/roadmap?redigera=1" + ("&visa_krav=1" if visa_krav == "1" else "")
+    mal = ("/roadmap?redigera=1"
+           + ("&visa_krav=1" if visa_krav == "1" else "")
+           + ("&dolj_formagor=1" if dolj_formagor == "1" else ""))
     return RedirectResponse(mal, status_code=303)
 
 
@@ -111,6 +118,7 @@ def flytta(
 def exportera(
     request: Request,
     visa_krav: str = "",
+    dolj_formagor: str = "",
     principal: Principal = Depends(krav_forvaltare),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
@@ -118,7 +126,8 @@ def exportera(
     respects synlig_externt (transitively)."""
     html = templates.get_template("roadmap/export.html").render(
         {
-            "grupper": tjanst.roadmap_data(conn, visa_krav == "1", endast_synliga=True),
+            "grupper": tjanst.roadmap_data(conn, visa_krav == "1", endast_synliga=True,
+                                           dolj_formagor=dolj_formagor == "1"),
             "genererad": datetime.now(UTC).strftime("%Y-%m-%d"),
         }
     )

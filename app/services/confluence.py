@@ -110,9 +110,11 @@ def analys(conn, arvda: bool, genererad: str) -> str:
     return _dokument(rader)
 
 
-def roadmap(conn, visa_krav: bool, genererad: str) -> str:
+def roadmap(conn, visa_krav: bool, genererad: str,
+            dolj_formagor: bool = False) -> str:
     rader = ["h1. Roadmap — Teaball", f"_Exporterad {genererad}._"]
-    for fas, noder in roadmap_data(conn, visa_krav=visa_krav):
+    for fas, noder in roadmap_data(conn, visa_krav=visa_krav,
+                                   dolj_formagor=dolj_formagor):
         # Bara första bokstaven höjs — capitalize() skulle gemena resten och
         # förvanska egennamn som "Medlem 1".
         rader += ["", f"h2. {fas[:1].upper() + fas[1:]}",

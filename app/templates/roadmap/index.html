@@ -5,6 +5,10 @@
 <script src="/static/js/roadmap.js" defer></script>
 {% endblock %}
 {% block innehall %}
+{# Filterparametrarna följer med alla länkar så valet överlever lägesbyten
+   och gäller även exporterna. #}
+{% set filter_qs = (['visa_krav=1'] if visa_krav else [])
+                 + (['dolj_formagor=1'] if dolj_formagor else []) %}
 <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
   <form method="get" action="/roadmap" class="flex items-center gap-2 text-sm text-stone-500">
     {% if redigera %}<input type="hidden" name="redigera" value="1">{% endif %}
@@ -13,24 +17,29 @@
              data-autosubmit>
       Visa även krav
     </label>
+    <label class="flex cursor-pointer items-center gap-1.5">
+      <input type="checkbox" name="dolj_formagor" value="1" {% if dolj_formagor %}checked{% endif %}
+             data-autosubmit>
+      Dölj förmågor
+    </label>
     <noscript><button class="rounded border border-stone-300 px-2 py-0.5 hover:bg-stone-100">Uppdatera</button></noscript>
   </form>
   <span class="flex items-center gap-2">
     {% if skrivbar %}
     {% if redigera %}
-    <a href="/roadmap{% if visa_krav %}?visa_krav=1{% endif %}"
+    <a href="/roadmap{% if filter_qs %}?{{ filter_qs|join('&') }}{% endif %}"
        class="rounded-md bg-blue-900 px-3 py-1.5 text-sm text-white hover:bg-blue-800">Klar — lås roadmapen</a>
     {% else %}
-    <a href="/roadmap?redigera=1{% if visa_krav %}&visa_krav=1{% endif %}"
+    <a href="/roadmap?{{ (['redigera=1'] + filter_qs)|join('&') }}"
        class="rounded-md border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100">Redigera roadmap</a>
     {% endif %}
     {% endif %}
-    <a href="/roadmap/export{% if visa_krav %}?visa_krav=1{% endif %}"
+    <a href="/roadmap/export{% if filter_qs %}?{{ filter_qs|join('&') }}{% endif %}"
        class="rounded-md border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100">
       Ladda ner som HTML (för utskick)
     </a>
     {% if principal.roll != "extern" %}
-    <a href="/export/confluence/roadmap{% if visa_krav %}?visa_krav=1{% endif %}"
+    <a href="/export/confluence/roadmap{% if filter_qs %}?{{ filter_qs|join('&') }}{% endif %}"
        class="px-1 text-xs text-stone-400 underline decoration-stone-300 underline-offset-2 hover:text-stone-600"
        title="Rå wiki-markup att klistra in i Confluence">Confluence</a>
     {% endif %}

@@ -8,14 +8,21 @@ SISTA_FASER = ["senare"]
 UTAN_FAS = "utan avgång"
 
 
-def roadmap_data(conn, visa_krav: bool = False, endast_synliga: bool = False):
+def roadmap_data(conn, visa_krav: bool = False, endast_synliga: bool = False,
+                 dolj_formagor: bool = False):
     typer = ("förmåga", "funktion", "krav") if visa_krav else ("förmåga", "funktion")
+    if dolj_formagor:
+        typer = tuple(t for t in typer if t != "förmåga")
     platshallare = ",".join("?" * len(typer))
     synlighet = "AND synlig_stig = 1" if endast_synliga else ""
+    # Förmågor utan undernoder är tomma rubriker i roadmapen och utelämnas
+    # alltid — i kravträdet finns de kvar.
     rows = conn.execute(
         f"""
         SELECT * FROM funktion_trad
         WHERE typ IN ({platshallare}) {synlighet}
+          AND (typ != 'förmåga' OR EXISTS (
+               SELECT 1 FROM funktion b WHERE b.foralder_id = funktion_trad.id))
         ORDER BY vag
         """,
         typer,
