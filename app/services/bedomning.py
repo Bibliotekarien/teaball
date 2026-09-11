@@ -84,6 +84,18 @@ def utan_bedomda(rotter, effektiva):
     return ut
 
 
+def utan_driftsatta(rotter):
+    """The 'dölj driftsatta' filter: prune driftsatt nodes. Status is not
+    inherited, so a driftsatt node can still hold assessable descendants —
+    like in utan_bedomda it then stays as context instead of orphaning them."""
+    ut = []
+    for n in rotter:
+        barn = utan_driftsatta(n["barn"])
+        if barn or n["status"] != "driftsatt":
+            ut.append({**n, "barn": barn})
+    return ut
+
+
 def satt_svar(conn, medlem_id: int, funktion_id: int, svar: str, besvarat_av: str):
     """B3: clicking the already-selected answer removes it; otherwise upsert.
     Changing the answer keeps workaround/comment (the old row goes to history

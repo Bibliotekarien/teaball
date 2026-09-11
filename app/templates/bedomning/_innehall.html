@@ -7,7 +7,7 @@
     </ul>
     {% if not rotter %}
     <p class="p-4 text-sm text-stone-400">
-      {% if dolj_bedomda %}Allt som går att bedöma är bedömt — inget kvar att visa.{% else %}Kravträdet är tomt.{% endif %}
+      {% if dolj_bedomda %}Allt som går att bedöma är bedömt — inget kvar att visa.{% elif dolj_driftsatta %}Allt i kravträdet är driftsatt — inget kvar att visa.{% else %}Kravträdet är tomt.{% endif %}
     </p>
     {% endif %}
   </div>

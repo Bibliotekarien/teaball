@@ -149,6 +149,48 @@ def test_raknare_och_dolj_bedomda(client, app_db):
     assert "Allt som går att bedöma är bedömt" in sida
 
 
+def test_dolj_driftsatta(client, app_db):
+    ids, medlem, token = _förbered(client, app_db)
+
+    # Driftsatta noder döljs; en driftsatt förfader med bedömbara barn kvar
+    # behålls som kontext (samma princip som dölj bedömda).
+    sida = client.get(f"/bedomning?medlem_id={medlem}&dolj_driftsatta=1").text
+    assert ">Publicering</span>" in sida             # driftsatt, men barnen är kvar
+    assert ">Registrera avhandling</span>" in sida
+    assert "Export &amp; spridning" not in sida      # driftsatt utan något under
+    # Räknaren mäter hela trädet och påverkas inte av filtret.
+    assert "<strong>4</strong> kvar" in sida
+
+    # Kombinerat med dölj bedömda: svaret på Import döljer den grenen också.
+    client.post(f"/bedomning/{medlem}/{ids['import']}/svar",
+                data={"svar": "kan_vanta", "csrf_token": token})
+    sida = client.get(
+        f"/bedomning?medlem_id={medlem}&dolj_driftsatta=1&dolj_bedomda=1"
+    ).text
+    assert ">Registrera avhandling</span>" in sida
+    assert ">Import</span>" not in sida
+    assert "Export &amp; spridning" not in sida
+
+    # När allt är driftsatt: eget tomt-läge i stället för "Kravträdet är tomt".
+    app_db.execute("UPDATE funktion SET status = 'driftsatt'")
+    app_db.commit()
+    sida = client.get(f"/bedomning?medlem_id={medlem}&dolj_driftsatta=1").text
+    assert "Allt i kravträdet är driftsatt" in sida
+
+
+def test_dolj_driftsatta_i_medlemsvyn(app_db, klient_fabrik):
+    seed_trad(app_db)
+    medlem = skapa_medlem(app_db, "Uppsala universitet")
+    token = ge_token(app_db, medlem)
+    klient = klient_fabrik()
+    klient.get(f"/svara/{token}", follow_redirects=False)
+
+    sida = klient.get("/svara?dolj_driftsatta=1").text
+    assert ">Registrera avhandling</span>" in sida
+    assert "Export &amp; spridning" not in sida
+    assert 'name="dolj_driftsatta" value="1" data-autosubmit checked' in sida
+
+
 def test_raknare_och_filter_i_medlemsvyn(app_db, klient_fabrik):
     seed_trad(app_db)
     medlem = skapa_medlem(app_db, "Uppsala universitet")
