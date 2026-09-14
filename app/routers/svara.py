@@ -123,14 +123,17 @@ def _gren_eller_redirect(request, conn, principal: Principal, funktion_id: int):
 def visa(
     request: Request,
     dolj_bedomda: str = "",
+    dolj_driftsatta: str = "",
     principal: Principal = Depends(krav_medlem),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     direkta, effektiva = tjanst.svarskarta(conn, principal.medlem_id)
     rotter = trad_tjanst.hamta_trad(conn, endast_synliga=True)
-    # Counted before the filter — the counter must not shrink along with
+    # Counted before the filters — the counter must not shrink along with
     # what it measures.
     bedomda, kvar = tjanst.rakna_bedomt(rotter, effektiva)
+    if dolj_driftsatta:
+        rotter = tjanst.utan_driftsatta(rotter)
     if dolj_bedomda:
         rotter = tjanst.utan_bedomda(rotter, effektiva)
     return templates.TemplateResponse(
@@ -147,6 +150,7 @@ def visa(
             "bedomda": bedomda,
             "kvar": kvar,
             "dolj_bedomda": bool(dolj_bedomda),
+            "dolj_driftsatta": bool(dolj_driftsatta),
         },
     )
 
