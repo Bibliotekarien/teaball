@@ -178,6 +178,50 @@ def test_dolj_driftsatta(client, app_db):
     assert "Allt i kravträdet är driftsatt" in sida
 
 
+def test_formagor_ar_hierarki_utan_piller(client, app_db):
+    ids, medlem, token = _förbered(client, app_db)
+
+    # Förmågor är bara hierarki i bedömningen: den driftsatta förmågan
+    # Publicering får ingen statusbricka. Seedens enda driftsatta noder är
+    # förmågor, så sidan ska sakna brickan helt ...
+    sida = client.get(f"/bedomning?medlem_id={medlem}").text
+    assert ">Publicering</span>" in sida
+    assert ">Driftsatt</span>" not in sida
+
+    # ... men en driftsatt FUNKTION behåller sin bricka.
+    app_db.execute("UPDATE funktion SET status = 'driftsatt' WHERE id = ?",
+                   (ids["import"],))
+    app_db.commit()
+    assert ">Driftsatt</span>" in client.get(f"/bedomning?medlem_id={medlem}").text
+
+
+def test_dolj_formagor(client, app_db):
+    ids, medlem, token = _förbered(client, app_db)
+
+    # Dölj förmågor lyfter upp barnen i förmågans ställe — inget under
+    # Publicering försvinner, bara rubriknivån.
+    sida = client.get(f"/bedomning?medlem_id={medlem}&dolj_formagor=1").text
+    assert ">Publicering</span>" not in sida
+    assert "Export &amp; spridning" not in sida
+    assert ">Registrera avhandling</span>" in sida
+    assert "Import från Web of Science" in sida
+    # Räknaren mäter hela trädet och påverkas inte av filtret.
+    assert "<strong>4</strong> kvar" in sida
+
+
+def test_dolj_formagor_i_medlemsvyn(app_db, klient_fabrik):
+    seed_trad(app_db)
+    medlem = skapa_medlem(app_db, "Uppsala universitet")
+    token = ge_token(app_db, medlem)
+    klient = klient_fabrik()
+    klient.get(f"/svara/{token}", follow_redirects=False)
+
+    sida = klient.get("/svara?dolj_formagor=1").text
+    assert ">Publicering</span>" not in sida
+    assert ">Registrera avhandling</span>" in sida
+    assert 'name="dolj_formagor" value="1" data-autosubmit checked' in sida
+
+
 def test_dolj_driftsatta_i_medlemsvyn(app_db, klient_fabrik):
     seed_trad(app_db)
     medlem = skapa_medlem(app_db, "Uppsala universitet")

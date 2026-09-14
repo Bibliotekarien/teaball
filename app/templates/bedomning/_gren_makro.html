@@ -54,11 +54,14 @@
   <div class="flex shrink-0 flex-col items-end gap-1 pl-[22px] sm:pl-0">
     {% if n.status in ("driftsatt", "utgår") %}
     {# Not assessable (service-enforced too): driftsatt is already delivered,
-       utgår will never be built. The badge says why the buttons are gone. #}
+       utgår will never be built. The badge says why the buttons are gone —
+       except on förmågor, which are hierarchy here and carry no pills. #}
+    {% if n.typ != "förmåga" %}
     <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}"
           title="{{ STATUS[n.status].beskrivning }}">{{ STATUS[n.status].label }}</span>
     {% if eget %}
     <span class="text-[11px] italic text-stone-400" title="Svaret gavs innan noden blev {{ STATUS[n.status].label|lower }}.">tidigare svar: {{ SVAR[eget.svar].kort }}</span>
+    {% endif %}
     {% endif %}
     {% else %}
     {% if skrivbar_har %}

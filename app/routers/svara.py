@@ -124,6 +124,7 @@ def visa(
     request: Request,
     dolj_bedomda: str = "",
     dolj_driftsatta: str = "",
+    dolj_formagor: str = "",
     principal: Principal = Depends(krav_medlem),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
@@ -132,6 +133,8 @@ def visa(
     # Counted before the filters — the counter must not shrink along with
     # what it measures.
     bedomda, kvar = tjanst.rakna_bedomt(rotter, effektiva)
+    if dolj_formagor:
+        rotter = tjanst.utan_formagor(rotter)
     if dolj_driftsatta:
         rotter = tjanst.utan_driftsatta(rotter)
     if dolj_bedomda:
@@ -151,6 +154,7 @@ def visa(
             "kvar": kvar,
             "dolj_bedomda": bool(dolj_bedomda),
             "dolj_driftsatta": bool(dolj_driftsatta),
+            "dolj_formagor": bool(dolj_formagor),
         },
     )
 
