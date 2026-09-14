@@ -160,7 +160,9 @@ def confluence(
     elif vy == "analys":
         text = confluence_tjanst.analys(conn, request.query_params.get("arvda") == "1", datum)
     elif vy == "roadmap":
-        text = confluence_tjanst.roadmap(conn, request.query_params.get("visa_krav") == "1", datum)
+        text = confluence_tjanst.roadmap(
+            conn, request.query_params.get("visa_krav") == "1", datum,
+            dolj_formagor=request.query_params.get("dolj_formagor") == "1")
     else:
         text = confluence_tjanst.medlemmar(conn, datum)
     return PlainTextResponse(text, media_type="text/plain; charset=utf-8")

@@ -29,6 +29,7 @@
               fas: evt.to.dataset.fas,
               redigera: "1",
               visa_krav: behallare.dataset.visaKrav ? "1" : "",
+              dolj_formagor: behallare.dataset.doljFormagor ? "1" : "",
             },
           });
         },

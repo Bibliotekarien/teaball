@@ -25,6 +25,28 @@ def test_roadmap_r1_typfilter(client, app_db):
     assert "Dubblettdetektering" in med_krav
 
 
+def test_roadmap_dolj_formagor(client, app_db):
+    seed_trad(app_db)
+    logga_in(client, app_db)
+    sida = client.get("/roadmap", params={"dolj_formagor": "1"}).text
+    assert "Publicering" not in sida
+    assert "Registrera avhandling" in sida
+    # Exporten följer samma filter.
+    export = client.get("/roadmap/export", params={"dolj_formagor": "1"}).text
+    assert "Publicering" not in export
+    assert "Registrera avhandling" in export
+
+
+def test_roadmap_formaga_utan_undernoder_doljs(client, app_db):
+    # "Export & spridning" saknar undernoder och vore bara en tom rubrik i
+    # roadmapen — den utelämnas alltid. I kravträdet finns den kvar.
+    seed_trad(app_db)
+    logga_in(client, app_db)
+    assert "Export &amp; spridning" not in client.get("/roadmap").text
+    assert "Publicering" in client.get("/roadmap").text
+    assert "Export &amp; spridning" in client.get("/trad").text
+
+
 def test_roadmap_avgangsordning(conn):
     # Medlem 1 först, övriga avgångar alfabetiskt, senare alltid näst sist
     # och restgruppen "utan avgång" allra sist.
@@ -40,6 +62,10 @@ def test_roadmap_avgangsordning(conn):
 
 def test_acceptance_9_4_roadmap_export(client, app_db):
     ids = seed_trad(app_db)
+    # "Export & spridning" behöver en undernod för att alls visas i roadmapen
+    # (förmågor utan undernoder utelämnas) — testet gäller synlighetsfiltret.
+    skapa_funktion(app_db, "Spridning till DiVA-portalen", ids["export"],
+                   typ="funktion")
     app_db.execute("UPDATE funktion SET synlig_externt = 0 WHERE id = ?",
                    (ids["publicering"],))
     app_db.commit()

@@ -73,6 +73,10 @@ def test_roadmap_markup(conn):
     assert "h1. Roadmap — Teaball" in ut
     assert "h2. Medlem 1" in ut and "h2. Senare" in ut and "h2. Utan avgång" in ut
     assert "|| Namn || Typ || Status ||" in ut
+    utan_formagor = confluence.roadmap(conn, visa_krav=True, genererad=DATUM,
+                                       dolj_formagor=True)
+    assert "Publicering" not in utan_formagor
+    assert "Registrera avhandling" in utan_formagor
 
 
 def test_medlemmar_markup(conn):
