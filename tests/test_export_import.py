@@ -38,13 +38,47 @@ def test_roadmap_dolj_formagor(client, app_db):
 
 
 def test_roadmap_formaga_utan_undernoder_doljs(client, app_db):
-    # "Export & spridning" saknar undernoder och vore bara en tom rubrik i
-    # roadmapen — den utelämnas alltid. I kravträdet finns den kvar.
+    # "Export & spridning" saknar undernoder av typ funktion/krav och vore
+    # bara en tom rubrik i roadmapen — den visas ingenstans. I kravträdet
+    # finns den kvar.
     seed_trad(app_db)
     logga_in(client, app_db)
     assert "Export &amp; spridning" not in client.get("/roadmap").text
     assert "Publicering" in client.get("/roadmap").text
     assert "Export &amp; spridning" in client.get("/trad").text
+
+
+def test_roadmap_formagor_som_kontext(client, app_db):
+    seed_trad(app_db)
+    logga_in(client, app_db)
+    # Publicering har funktioner i både Medlem 1 (registrera, import) och
+    # senare (wos) — förmågan visas som hierarkikontext under båda avgångarna.
+    sida = client.get("/roadmap").text
+    assert sida.count(">Publicering</span>") == 2
+
+    # Förmågans EGEN avgång skapar ingen grupp: en förmåga i "Zon" med sin
+    # enda funktion i Medlem 1 syns bara där.
+    ensam = skapa_funktion(app_db, "Ensam förmåga", typ="förmåga", fas="Zon",
+                           status="planerad")
+    skapa_funktion(app_db, "Ensam funktion", ensam, typ="funktion")
+    app_db.commit()
+    sida = client.get("/roadmap").text
+    assert ">Zon</h2>" not in sida
+    assert ">Ensam förmåga</span>" in sida
+
+
+def test_roadmap_formagor_utan_statuspiller_och_flytt(client, app_db):
+    seed_trad(app_db)
+    logga_in(client, app_db)
+    # Seedens enda driftsatta noder är förmågor; utan status på förmågerader
+    # saknar exporten driftsatt-brickor helt, medan funktionerna har kvar sina.
+    export = client.get("/roadmap/export").text
+    assert 'badge status-driftsatt' not in export
+    assert 'badge status-planerad' in export
+    # I redigeringsläget kan förmågerader inte flyttas: bara de tre
+    # funktionerna får avgångsväljare (kravet är bortfiltrerat).
+    sida = client.get("/roadmap", params={"redigera": "1"}).text
+    assert sida.count("fas-form") == 3
 
 
 def test_roadmap_avgangsordning(conn):
