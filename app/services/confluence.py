@@ -123,7 +123,9 @@ def roadmap(conn, visa_krav: bool, genererad: str,
             rader.append(_rad([
                 _namncell(n["namn"], n["djup"], n["typ"]),
                 _cell(n["typ"]),
-                _cell(STATUS_ETIKETT.get(n["status"], n["status"])),
+                # Förmågor är hierarkikontext i roadmapen — ingen status.
+                " " if n["typ"] == "förmåga"
+                else _cell(STATUS_ETIKETT.get(n["status"], n["status"])),
             ]))
     return _dokument(rader)
 
