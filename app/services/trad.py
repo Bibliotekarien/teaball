@@ -38,6 +38,20 @@ def undergren_ids(conn: sqlite3.Connection, nod_id: int) -> set[int]:
     return {r["id"] for r in rows}
 
 
+def _traff(rad, q, typ, status, fas) -> bool:
+    """The T4 filter predicate, shared by the tree and the list view so
+    "same filters" stays literally true: OR within a filter, AND between."""
+    if q and q.lower() not in rad["namn"].lower():
+        return False
+    if typ and rad["typ"] not in typ:
+        return False
+    if status and rad["status"] not in status:
+        return False
+    if fas and (rad["fas"] or "") != fas:
+        return False
+    return True
+
+
 def hamta_trad(conn, q=None, typ=None, status=None, fas=None, endast_synliga=False):
     """The whole tree in display order as nested dicts. With filters (T4),
     matching nodes are kept together with their ancestors for context.
@@ -84,17 +98,7 @@ def hamta_trad(conn, q=None, typ=None, status=None, fas=None, endast_synliga=Fal
 
     inkludera = None
     if q or typ or status or fas:
-        traffar = set()
-        for r in rows:
-            if q and q.lower() not in r["namn"].lower():
-                continue
-            if typ and r["typ"] not in typ:
-                continue
-            if status and r["status"] not in status:
-                continue
-            if fas and (r["fas"] or "") != fas:
-                continue
-            traffar.add(r["id"])
+        traffar = {r["id"] for r in rows if _traff(r, q, typ, status, fas)}
         inkludera = set()
         for nod_id in traffar:
             aktuell = nod_id
@@ -112,6 +116,31 @@ def hamta_trad(conn, q=None, typ=None, status=None, fas=None, endast_synliga=Fal
         else:
             noder[r["foralder_id"]]["barn"].append(nod)
     return rotter
+
+
+LISTSORTERING = ("skapad", "uppdaterad")
+
+
+def hamta_lista(conn, q=None, typ=None, status=None, fas=None,
+                endast_synliga=False, sortera="skapad", stigande=False):
+    """All nodes as a flat list for the list view: same filter semantics as
+    hamta_trad (T4) but no ancestor context — the rows stand on their own.
+    Sorted on skapad or uppdaterad; rows from before the stamps (NULL,
+    migration 0005) always come last, whichever direction is chosen."""
+    if isinstance(typ, str):
+        typ = [typ]
+    if isinstance(status, str):
+        status = [status]
+    kolumn = sortera if sortera in LISTSORTERING else "skapad"
+    riktning = "ASC" if stigande else "DESC"
+    synlighet = "WHERE synlig_stig = 1" if endast_synliga else ""
+    rows = conn.execute(
+        f"""
+        SELECT * FROM funktion_trad {synlighet}
+        ORDER BY {kolumn} IS NULL, {kolumn} {riktning}, id {riktning}
+        """
+    ).fetchall()
+    return [dict(r) for r in rows if _traff(r, q, typ, status, fas)]
 
 
 def hitta_nod(rotter: list[dict], nod_id: int) -> dict | None:

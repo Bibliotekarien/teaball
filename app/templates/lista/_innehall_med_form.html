@@ -1,0 +1,7 @@
+{# Lyckat skapande över htmx: den omrenderade listan (nya noden överst i
+   standardsorteringen) PLUS ett färskt formulär OOB-swappat till
+   #lista-nyform, som ligger utanför #lista-rot — jfr trädets motsvarighet. #}
+{% include "lista/_innehall.html" %}
+<div id="lista-nyform" hx-swap-oob="innerHTML">
+  {% include "lista/_nyform.html" %}
+</div>

@@ -114,7 +114,7 @@ def test_migration_tar_sakerhetskopia_fore(tmp_path):
     db.init_db(conn)
 
     # The copy is named for the highest pending version in the batch.
-    kopior = list(tmp_path.glob("gammal.fore-0004-*.db"))
+    kopior = list(tmp_path.glob("gammal.fore-0005-*.db"))
     assert len(kopior) == 1
     gammal = sqlite3.connect(kopior[0])
     gammal.row_factory = sqlite3.Row
@@ -169,6 +169,20 @@ def test_0003_befintliga_konton_blir_admin(tmp_path):
     assert conn.execute(
         "SELECT roll FROM forvaltare WHERE anvandarnamn = 'ny'"
     ).fetchone()["roll"] == "admin"
+
+
+def test_0005_stamplar_startar_tomma(tmp_path):
+    conn = gammal_produktionsdb(tmp_path)
+    db.init_db(conn)  # applies 0002–0005
+
+    # Pre-existing rows keep NULL ("before tracking") rather than a fake
+    # migration-moment stamp; the list view sorts them last.
+    rad = conn.execute("SELECT skapad, uppdaterad FROM funktion WHERE id = 5").fetchone()
+    assert rad["skapad"] is None and rad["uppdaterad"] is None
+    # New rows are stamped by the trigger.
+    conn.execute("INSERT INTO funktion (namn, typ, status) VALUES ('Ny', 'krav', 'utreds')")
+    ny = conn.execute("SELECT skapad, uppdaterad FROM funktion WHERE namn = 'Ny'").fetchone()
+    assert ny["skapad"] is not None and ny["uppdaterad"] == ny["skapad"]
 
 
 def test_0003_roll_utanfor_vokabularet_avvisas(tmp_path):

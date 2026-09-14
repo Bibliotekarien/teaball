@@ -1,0 +1,56 @@
+{# Den platta listan. Sorteringslänkarna ligger INUTI #lista-rot så de alltid
+   bär det filter som listan faktiskt visar, även efter htmx-swappar. #}
+{% macro sortlank(kolumn, etikett, filter, fparametrar) %}
+{% set aktiv = filter.sortera == kolumn %}
+{% set riktning = ("stigande" if filter.riktning == "fallande" else "fallande") if aktiv else "fallande" %}
+<a href="/lista?{{ (["sortera=" ~ kolumn, "riktning=" ~ riktning] + fparametrar)|join('&') }}"
+   title="Sortera på {{ etikett|lower }}{{ ", " ~ riktning }}"
+   class="rounded px-1.5 py-0.5 hover:bg-stone-100 {{ 'font-medium text-blue-900' if aktiv else 'text-stone-500' }}">{{ etikett }}{% if aktiv %} {{ '↓' if filter.riktning == 'fallande' else '↑' }}{% endif %}</a>
+{% endmacro %}
+{% set fparametrar = [] %}
+{% if filter.q %}{% set _ = fparametrar.append("q=" ~ filter.q|urlencode) %}{% endif %}
+{% for t in filter.typ %}{% set _ = fparametrar.append("typ=" ~ t|urlencode) %}{% endfor %}
+{% for s in filter.status %}{% set _ = fparametrar.append("status=" ~ s|urlencode) %}{% endfor %}
+{% if filter.fas %}{% set _ = fparametrar.append("fas=" ~ filter.fas|urlencode) %}{% endif %}
+<div id="lista-rot">
+  {% if fel %}
+  <div id="lista-fel" class="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{{ fel }}</div>
+  {% endif %}
+  <div class="mb-1 flex items-center justify-end gap-1 text-xs">
+    <span class="text-stone-400">Sortera på:</span>
+    {{ sortlank("skapad", "Skapad", filter, fparametrar) }}
+    {{ sortlank("uppdaterad", "Uppdaterad", filter, fparametrar) }}
+  </div>
+  <div class="rounded-lg border border-stone-200 bg-white">
+    <ul>
+      {% for n in rader %}
+      <li class="flex flex-wrap items-center gap-1.5 border-b border-stone-100 px-2 py-1.5 hover:bg-stone-50">
+        {# utgår ersätter typfärgen rakt av — samma resonemang som i trädet. #}
+        <span class="min-w-0 flex-1 break-words text-sm {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}" title="{{ n.beskrivning or n.namn }}">{{ n.namn }}</span>
+        {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">dold</span>{% endif %}
+        <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ n.typ }}</span>
+        <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}" title="{{ STATUS[n.status].beskrivning }}">{{ STATUS[n.status].label }}</span>
+        <span class="hidden w-14 text-right text-xs text-stone-400 sm:inline">{{ n.fas or "" }}</span>
+        <span class="w-[4.6rem] shrink-0 text-right text-xs tabular-nums text-stone-400"
+              title="Skapad: {{ n.skapad ~ ' UTC' if n.skapad else 'före spårningen' }}">{{ n.skapad[:10] if n.skapad else "—" }}</span>
+        <span class="w-[4.6rem] shrink-0 text-right text-xs tabular-nums text-stone-400"
+              title="Uppdaterad: {{ n.uppdaterad ~ ' UTC' if n.uppdaterad else 'före spårningen' }}">{{ n.uppdaterad[:10] if n.uppdaterad else "—" }}</span>
+        {% if detaljerad and (n.beskrivning or n.lank_dokumentation or n.lank_jira) %}
+        <div class="w-full pb-1 text-xs">
+          {% if n.beskrivning %}<p class="max-w-prose text-stone-400">{{ n.beskrivning }}</p>{% endif %}
+          {% if n.lank_dokumentation or n.lank_jira %}
+          <p class="mt-0.5 flex gap-4">
+            <span class="w-36 shrink-0">{% if n.lank_dokumentation %}<a href="{{ n.lank_dokumentation }}" target="_blank" rel="noopener noreferrer" class="whitespace-nowrap text-blue-800 underline hover:text-blue-900">Dokumentation&nbsp;↗</a>{% endif %}</span>
+            <span>{% if n.lank_jira %}<a href="{{ n.lank_jira }}" target="_blank" rel="noopener noreferrer" class="whitespace-nowrap text-blue-800 underline hover:text-blue-900">Jira&nbsp;↗</a>{% endif %}</span>
+          </p>
+          {% endif %}
+        </div>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% if not rader %}
+    <p class="p-4 text-sm text-stone-400">Inga noder att visa.</p>
+    {% endif %}
+  </div>
+</div>

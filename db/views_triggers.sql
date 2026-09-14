@@ -41,9 +41,9 @@ END;
 -- följer 'CYKEL:'-mönstret ovan (appen visar svansen inline via regeltext()).
 -- TRIM/COALESCE: routrarna lagrar strip() or None, men rå SQL kan lagra ''.
 -- KONVENTION: en framtida tabellombyggnads-migration (jfr 0002:s
--- INSERT…SELECT av befintliga rader) måste DROPpa funktion_avgang_* först —
--- förra uppstartens triggers ligger kvar när migrate() kör, och de återskapas
--- ändå här vid nästa start.
+-- INSERT…SELECT av befintliga rader) måste DROPpa funktion_avgang_* och
+-- funktion_stampel_* först — förra uppstartens triggers ligger kvar när
+-- migrate() kör, och de återskapas ändå här vid nästa start.
 ------------------------------------------------------------------------------
 
 DROP TRIGGER IF EXISTS funktion_avgang_insert;
@@ -62,6 +62,43 @@ WHEN NEW.status IN ('planerad', 'driftsatt')
      AND TRIM(COALESCE(NEW.fas, '')) = ''
 BEGIN
     SELECT RAISE(ABORT, 'AVGÅNG: En nod med status planerad eller driftsatt måste ha en avgång.');
+END;
+
+------------------------------------------------------------------------------
+-- Tidsstämplar (migration 0005): skapad sätts vid INSERT, uppdaterad vid
+-- INNEHÅLLSändringar. WHEN-villkoret (IS NOT hanterar NULL) gör att bara
+-- faktiska ändringar stämplar — sortera_syskon skriver foralder_id på hela
+-- syskongruppen även när värdet står stilla, och redigeringsformuläret
+-- skriver alla kolumner varje spar. sortering är medvetet utelämnad: att
+-- ordna om syskon är inte en innehållsändring. COALESCE bevarar stämplar
+-- som en framtida ombyggnads-migration eller import redan satt.
+------------------------------------------------------------------------------
+
+DROP TRIGGER IF EXISTS funktion_stampel_insert;
+CREATE TRIGGER funktion_stampel_insert
+AFTER INSERT ON funktion
+BEGIN
+    UPDATE funktion
+    SET skapad = COALESCE(NEW.skapad, datetime('now')),
+        uppdaterad = COALESCE(NEW.uppdaterad, NEW.skapad, datetime('now'))
+    WHERE id = NEW.id;
+END;
+
+DROP TRIGGER IF EXISTS funktion_stampel_update;
+CREATE TRIGGER funktion_stampel_update
+AFTER UPDATE OF namn, foralder_id, typ, status, fas, beskrivning,
+                synlig_externt, lank_dokumentation, lank_jira ON funktion
+WHEN OLD.namn IS NOT NEW.namn
+  OR OLD.foralder_id IS NOT NEW.foralder_id
+  OR OLD.typ IS NOT NEW.typ
+  OR OLD.status IS NOT NEW.status
+  OR OLD.fas IS NOT NEW.fas
+  OR OLD.beskrivning IS NOT NEW.beskrivning
+  OR OLD.synlig_externt IS NOT NEW.synlig_externt
+  OR OLD.lank_dokumentation IS NOT NEW.lank_dokumentation
+  OR OLD.lank_jira IS NOT NEW.lank_jira
+BEGIN
+    UPDATE funktion SET uppdaterad = datetime('now') WHERE id = NEW.id;
 END;
 
 ------------------------------------------------------------------------------
@@ -120,7 +157,8 @@ WITH RECURSIVE trad(id, djup, vag, synlig_stig) AS (
 )
 SELECT t.id, t.djup, t.vag, t.synlig_stig,
        f.namn, f.beskrivning, f.foralder_id, f.typ, f.status, f.fas,
-       f.synlig_externt, f.sortering, f.lank_dokumentation, f.lank_jira
+       f.synlig_externt, f.sortering, f.lank_dokumentation, f.lank_jira,
+       f.skapad, f.uppdaterad
 FROM trad t
 JOIN funktion f ON f.id = t.id;
 

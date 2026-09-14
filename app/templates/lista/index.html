@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block titel %}Lista – Teaball{% endblock %}
+{% block innehall %}
+<div class="mb-3">
+  <p class="text-sm text-stone-500">Alla noder i en platt lista, sorterbar på när de
+    skapades och när de senast ändrades. Innehållsändringar flyttar
+    uppdaterad-stämpeln — omsortering i trädet gör det inte. Noder från före
+    stämplarna (äldre än spårningen) visas med — och hamnar sist.</p>
+</div>
+
+{% include "_forklaringar.html" %}
+
+<form method="get" action="/lista" class="mb-3 flex flex-wrap items-end gap-2 text-sm"
+      hx-get="/lista" hx-target="#lista-rot" hx-swap="outerHTML"
+      hx-trigger="input delay:300ms, change" hx-push-url="true">
+  <input type="hidden" name="sortera" value="{{ filter.sortera }}">
+  <input type="hidden" name="riktning" value="{{ filter.riktning }}">
+  <label class="grid gap-0.5 text-xs text-stone-500">Sök
+    <input name="q" value="{{ filter.q }}" placeholder="namn …"
+           class="w-44 rounded-md border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700">
+  </label>
+  <fieldset class="grid gap-0.5 text-xs text-stone-500">
+    <legend>Typ</legend>
+    <span class="flex items-center gap-2 rounded-md border border-stone-300 bg-white px-2 py-1" title="Ingen ikryssad = alla. Flera kan väljas.">
+      {% for t in typer %}
+      <label class="flex cursor-pointer items-center gap-1">
+        <input type="checkbox" name="typ" value="{{ t }}" {% if t in filter.typ %}checked{% endif %}>{{ t }}</label>
+      {% endfor %}
+    </span>
+  </fieldset>
+  <fieldset class="grid gap-0.5 text-xs text-stone-500">
+    <legend>Status</legend>
+    <span class="flex items-center gap-2 rounded-md border border-stone-300 bg-white px-2 py-1" title="Ingen ikryssad = alla. Flera kan väljas.">
+      {% for s, meta in STATUS.items() %}
+      <label class="flex cursor-pointer items-center gap-1">
+        <input type="checkbox" name="status" value="{{ s }}" {% if s in filter.status %}checked{% endif %}>{{ meta.label }}</label>
+      {% endfor %}
+    </span>
+  </fieldset>
+  <label class="grid gap-0.5 text-xs text-stone-500">Avgång
+    <input name="fas" value="{{ filter.fas }}" list="faser" placeholder="alla"
+           class="w-24 rounded-md border border-stone-300 px-2 py-1 text-sm">
+  </label>
+  <datalist id="faser">{% for f in FASER %}<option value="{{ f }}">{% endfor %}</datalist>
+  <button class="rounded-md border border-stone-300 px-3 py-1 hover:bg-stone-100">Filtrera</button>
+</form>
+
+{% if skrivbar %}
+<div id="lista-nyform">{% include "lista/_nyform.html" %}</div>
+{% endif %}
+
+{% include "lista/_innehall.html" %}
+
+{# Vyvalet är en vanlig länk — sessionen minns valet i routern (jfr trädet). #}
+<div role="group" aria-label="Visningsval för listan"
+     class="fixed bottom-4 right-4 z-20 grid gap-1 rounded-lg border border-stone-200 bg-white p-1.5 text-sm shadow-lg print:hidden">
+  <a href="/lista?vy={{ 'kompakt' if detaljerad else 'detaljerad' }}"
+     class="rounded-md border border-stone-300 px-3 py-1.5 text-left hover:bg-stone-100">{{ 'Kompakt vy' if detaljerad else 'Detaljerad vy' }}</a>
+</div>
+{% endblock %}
