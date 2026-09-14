@@ -1,0 +1,53 @@
+{# Snabbformuläret högst upp: fånga in nya saker utan att leta rätt på platsen
+   i trädet först. Länkfälten är medvetet utelämnade — detaljer kompletteras i
+   kravträdets redigering. Namnkollen återanvänder trädets endpoint. #}
+<form method="post" action="/lista/nod" hx-post="/lista/nod"
+      hx-target="#lista-rot" hx-swap="outerHTML"
+      class="mb-3 grid gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm sm:grid-cols-2">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+  <label class="grid gap-0.5 text-xs text-stone-500 sm:col-span-2">Ny nod
+    <input name="namn" required maxlength="200" placeholder="namn …"
+           hx-get="/trad/nod/namnkoll" hx-trigger="input changed delay:300ms"
+           hx-target="next .namnkoll" hx-swap="innerHTML"
+           class="rounded-md border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700">
+    <span class="namnkoll" aria-live="polite"></span>
+  </label>
+  <label class="grid gap-0.5 text-xs text-stone-500">Förälder
+    <select name="foralder_id" class="rounded-md border border-stone-300 px-2 py-1 text-sm">
+      <option value="">(rotnivå)</option>
+      {% for v in val %}
+      <option value="{{ v.id }}">{{ v.etikett }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="grid gap-0.5 text-xs text-stone-500">Typ
+    <select name="typ" class="rounded-md border border-stone-300 px-2 py-1 text-sm">
+      {% for t in typer %}
+      <option value="{{ t }}" {% if t == 'funktion' %}selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="grid gap-0.5 text-xs text-stone-500">Status
+    <select name="status" class="rounded-md border border-stone-300 px-2 py-1 text-sm">
+      {% for s in statusar %}
+      <option value="{{ s }}" {% if s == 'utreds' %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="grid gap-0.5 text-xs text-stone-500">Avgång
+    <input name="fas" list="faser" placeholder="t.ex. Medlem 1"
+           class="rounded-md border border-stone-300 px-2 py-1 text-sm">
+    <span class="text-stone-400">Krävs när status är planerad eller driftsatt.</span>
+  </label>
+  <label class="grid gap-0.5 text-xs text-stone-500 sm:col-span-2">Beskrivning
+    <textarea name="beskrivning" rows="2" maxlength="4000"
+              class="rounded-md border border-stone-300 px-2 py-1 text-sm"></textarea>
+  </label>
+  <div class="flex items-center justify-between sm:col-span-2">
+    <label class="flex items-center gap-2 text-sm">
+      <input type="checkbox" name="synlig_externt" value="1" checked>
+      Synlig för medlemmar
+    </label>
+    <button class="rounded-md bg-blue-900 px-3 py-1.5 text-white hover:bg-blue-800">Lägg till</button>
+  </div>
+</form>

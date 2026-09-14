@@ -31,7 +31,7 @@
        admin dessutom kontolistan. #}
     {% set flikar = [("/trad", "Kravträd"), ("/roadmap", "Roadmap")]
        if principal.roll == "extern" else
-       ([("/trad", "Kravträd"), ("/bedomning", "Bedömning"),
+       ([("/trad", "Kravträd"), ("/lista", "Lista"), ("/bedomning", "Bedömning"),
          ("/analys", "Analys"), ("/roadmap", "Roadmap"),
          ("/medlemmar", "Medlemmar"), ("/export", "Export")]
         + ([("/konton", "Konton")] if principal.roll == "admin" else [])) %}
