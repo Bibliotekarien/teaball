@@ -66,6 +66,7 @@ def visa(
     medlem_id: str = "",
     dolj_bedomda: str = "",
     dolj_driftsatta: str = "",
+    dolj_formagor: str = "",
     principal: Principal = Depends(krav_intern),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
@@ -88,6 +89,7 @@ def visa(
     }
     ctx["dolj_bedomda"] = bool(dolj_bedomda)
     ctx["dolj_driftsatta"] = bool(dolj_driftsatta)
+    ctx["dolj_formagor"] = bool(dolj_formagor)
     ctx["bedomda"], ctx["kvar"] = 0, 0
     if vald:
         ctx["direkta"], ctx["effektiva"] = tjanst.svarskarta(conn, vald)
@@ -95,6 +97,8 @@ def visa(
         # Counted on the full tree, before the filters — the counter must not
         # shrink along with what it measures.
         ctx["bedomda"], ctx["kvar"] = tjanst.rakna_bedomt(ctx["rotter"], ctx["effektiva"])
+        if dolj_formagor:
+            ctx["rotter"] = tjanst.utan_formagor(ctx["rotter"])
         if dolj_driftsatta:
             ctx["rotter"] = tjanst.utan_driftsatta(ctx["rotter"])
         if dolj_bedomda:

@@ -84,6 +84,21 @@ def utan_bedomda(rotter, effektiva):
     return ut
 
 
+def utan_formagor(rotter):
+    """The 'dölj förmågor' filter: förmågor are hierarchy scaffolding in the
+    assessment view, so hiding one lifts its children into its place instead
+    of hiding the subtree. Inherited answers keep working — the källa label
+    may name a hidden förmåga, which is the honest description."""
+    ut = []
+    for n in rotter:
+        barn = utan_formagor(n["barn"])
+        if n["typ"] == "förmåga":
+            ut.extend(barn)
+        else:
+            ut.append({**n, "barn": barn})
+    return ut
+
+
 def utan_driftsatta(rotter):
     """The 'dölj driftsatta' filter: prune driftsatt nodes. Status is not
     inherited, so a driftsatt node can still hold assessable descendants —
