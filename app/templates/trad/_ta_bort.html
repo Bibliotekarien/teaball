@@ -1,6 +1,14 @@
 {# T2: deleting a node with children or assessments requires a confirmation
-   that states the impact. #}
-<div id="rad-{{ nod.id }}" class="border-b border-stone-100 bg-rose-50 p-3 text-sm">
+   that states the impact. Listvyn återanvänder mallen med samma kontext-
+   parametrar som _nod_form.html (form_url, form_mal, avbryt_*, omslag);
+   utan dem gäller trädets värden. #}
+{% set form_url = form_url|default('/trad/nod/' ~ nod.id ~ '/ta-bort') %}
+{% set form_mal = form_mal|default('#trad-rot') %}
+{% set avbryt_href = avbryt_href|default('/trad') %}
+{% set avbryt_hx = avbryt_hx|default('/trad') %}
+{% set avbryt_mal = avbryt_mal|default(form_mal) %}
+{% set omslag = omslag|default('div') %}
+<{{ omslag }} id="rad-{{ nod.id }}" class="border-b border-stone-100 bg-rose-50 p-3 text-sm">
   <p class="mb-2 text-rose-900">
     <strong>Ta bort ”{{ nod.namn }}”?</strong>
     {% if antal_barn or antal_bedomningar %}
@@ -9,12 +17,12 @@
     (bedömningarna bevaras i historiken).
     {% endif %}
   </p>
-  <form method="post" action="/trad/nod/{{ nod.id }}/ta-bort"
-        hx-post="/trad/nod/{{ nod.id }}/ta-bort" hx-target="#trad-rot" hx-swap="outerHTML"
+  <form method="post" action="{{ form_url }}"
+        hx-post="{{ form_url }}" hx-target="{{ form_mal }}" hx-swap="outerHTML"
         class="flex gap-2">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <button class="rounded-md bg-rose-700 px-3 py-1 text-white hover:bg-rose-800">Ta bort</button>
-    <a href="/trad" hx-get="/trad" hx-target="#trad-rot" hx-swap="outerHTML"
+    <a href="{{ avbryt_href }}" hx-get="{{ avbryt_hx }}" hx-target="{{ avbryt_mal }}" hx-swap="outerHTML"
        class="rounded-md border border-stone-300 px-3 py-1 hover:bg-stone-100">Avbryt</a>
   </form>
-</div>
+</{{ omslag }}>

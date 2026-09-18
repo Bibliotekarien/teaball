@@ -140,15 +140,56 @@ def redigera_form(
         "val": tjanst.hamta_val(conn, exkludera_nod_id=nod_id),
         "typer": TYPER,
         "statusar": STATUSAR,
-        "form_url": f"/lista/nod/{nod_id}",
+    } | _inline_mal(nod_id, f"/lista/nod/{nod_id}")
+    mall = "trad/_nod_form.html" if is_htmx(request) else "trad/nod_sida.html"
+    return templates.TemplateResponse(request, mall, ctx)
+
+
+def _inline_mal(nod_id: int, form_url: str) -> dict:
+    """Kontextparametrarna som riktar trädets formulär/bekräftelse mot
+    listan (se kommentaren i trad/_nod_form.html)."""
+    return {
+        "form_url": form_url,
         "form_mal": "#lista-rot",
         "avbryt_href": "/lista",
         "avbryt_hx": f"/lista/nod/{nod_id}/rad",
         "avbryt_mal": f"#rad-{nod_id}",
         "omslag": "li",
     }
-    mall = "trad/_nod_form.html" if is_htmx(request) else "trad/nod_sida.html"
+
+
+@router.get("/nod/{nod_id}/ta-bort")
+def ta_bort_bekrafta(
+    request: Request,
+    nod_id: int,
+    principal: Principal = Depends(krav_admin),
+    conn: sqlite3.Connection = Depends(get_conn),
+):
+    """Kravträdets bekräftelse (T2: konsekvensen anges) riktad mot listan."""
+    nod = _hamta_rad(conn, nod_id)
+    antal_barn, antal_bedomningar = tjanst.borttagskonsekvens(conn, nod_id)
+    ctx = {
+        "principal": principal,
+        "nod": nod,
+        "antal_barn": antal_barn,
+        "antal_bedomningar": antal_bedomningar,
+    } | _inline_mal(nod_id, f"/lista/nod/{nod_id}/ta-bort")
+    mall = "trad/_ta_bort.html" if is_htmx(request) else "trad/ta_bort_sida.html"
     return templates.TemplateResponse(request, mall, ctx)
+
+
+@router.post("/nod/{nod_id}/ta-bort")
+def ta_bort(
+    request: Request,
+    nod_id: int,
+    principal: Principal = Depends(krav_admin),
+    conn: sqlite3.Connection = Depends(get_conn),
+):
+    _hamta_rad(conn, nod_id)
+    tjanst.ta_bort_nod(conn, nod_id)
+    conn.commit()
+    audit.info("forvaltare=%s op=ta_bort nod=%s via=lista", principal.namn, nod_id)
+    return _listsvar(request, conn, principal)
 
 
 @router.get("/nod/{nod_id}/rad")
