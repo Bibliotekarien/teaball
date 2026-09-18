@@ -1,19 +1,21 @@
 """Listvyn: alla noder som platt lista, sorterbar på skapande- och
-uppdateringstid (migration 0005), med kravträdets filter (T4) och en
-snabbformulär-inbox högst upp. Läsning kräver intern roll — vyn är ett
-arbetsverktyg för förvaltare, extern har kravträdet; skapande kräver admin.
-Standardsorteringen (skapad, fallande) gör att nyskapade noder hamnar
-överst, direkt under formuläret."""
+uppdateringstid (migration 0005), med kravträdets filter (T4), en
+snabbformulär-inbox högst upp och inline-redigering rad för rad med samma
+formulär som kravträdet. Läsning kräver intern roll — vyn är ett
+arbetsverktyg för förvaltare, extern har kravträdet; skapande och
+redigering kräver admin. Standardsorteringen (skapad, fallande) gör att
+nyskapade noder hamnar överst, direkt under formuläret."""
 
 import logging
 import sqlite3
 
-from fastapi import APIRouter, Depends, Form, Query, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 
 from app.auth.core import Principal, krav_admin, krav_intern
 from app.auth.csrf import krav_csrf
 from app.db import get_conn
+from app.routers.trad import STATUSAR, TYPER
 from app.services import trad as tjanst
 from app.services.trad import LISTSORTERING
 from app.web import is_htmx, templates
@@ -45,8 +47,8 @@ def _listsvar(request, conn, principal, fel: str | None = None,
         "filter": filter,
         "skrivbar": principal.roll == "admin",
         "detaljerad": request.session.get("lista_vy") == "detaljerad",
-        "typer": ["förmåga", "funktion", "krav"],
-        "statusar": ["driftsatt", "planerad", "idé", "utreds", "utgår"],
+        "typer": TYPER,
+        "statusar": STATUSAR,
         "val": tjanst.hamta_val(conn),
     }
     if is_htmx(request):
@@ -92,8 +94,8 @@ def skapa_nod(
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     """Snabbformuläret: samma skapa-tjänst som kravträdet (nya noder hamnar
-    först bland syskonen), men utan länkfälten — detaljer kompletteras i
-    kravträdets redigering."""
+    först bland syskonen), men utan länkfälten — detaljer kompletteras med
+    redigera på raden."""
     try:
         nod_id = tjanst.skapa_nod(
             conn, namn.strip()[:200],
@@ -108,3 +110,101 @@ def skapa_nod(
     audit.info("forvaltare=%s op=skapa nod=%s namn=%r via=lista",
                principal.namn, nod_id, namn)
     return _listsvar(request, conn, principal, aterstall_formular=True)
+
+
+# --- inline-redigering ------------------------------------------------------
+
+def _hamta_rad(conn, nod_id: int) -> dict:
+    """The node as the list renders it (funktion_trad carries synlig_stig)."""
+    rad = conn.execute("SELECT * FROM funktion_trad WHERE id = ?", (nod_id,)).fetchone()
+    if rad is None:
+        raise HTTPException(status_code=404, detail="Noden finns inte.")
+    return dict(rad)
+
+
+@router.get("/nod/{nod_id}/redigera")
+def redigera_form(
+    request: Request,
+    nod_id: int,
+    principal: Principal = Depends(krav_admin),
+    conn: sqlite3.Connection = Depends(get_conn),
+):
+    """Kravträdets formulär (trad/_nod_form.html) riktat mot listan: sparandet
+    postas hit, svaret swappar #lista-rot, och avbryt hämtar bara raden igen
+    så sorteringen och filtret består. Utan htmx: helsidan, som i trädet."""
+    nod = _hamta_rad(conn, nod_id)
+    ctx = {
+        "principal": principal,
+        "nod": nod,
+        "foralder_id": nod["foralder_id"],
+        "val": tjanst.hamta_val(conn, exkludera_nod_id=nod_id),
+        "typer": TYPER,
+        "statusar": STATUSAR,
+        "form_url": f"/lista/nod/{nod_id}",
+        "form_mal": "#lista-rot",
+        "avbryt_href": "/lista",
+        "avbryt_hx": f"/lista/nod/{nod_id}/rad",
+        "avbryt_mal": f"#rad-{nod_id}",
+        "omslag": "li",
+    }
+    mall = "trad/_nod_form.html" if is_htmx(request) else "trad/nod_sida.html"
+    return templates.TemplateResponse(request, mall, ctx)
+
+
+@router.get("/nod/{nod_id}/rad")
+def visa_rad(
+    request: Request,
+    nod_id: int,
+    principal: Principal = Depends(krav_intern),
+    conn: sqlite3.Connection = Depends(get_conn),
+):
+    """Avbryt i inline-redigeringen: bara raden, på formulärets plats."""
+    if not is_htmx(request):
+        return RedirectResponse("/lista", status_code=303)
+    ctx = {
+        "principal": principal,
+        "n": _hamta_rad(conn, nod_id),
+        "skrivbar": principal.roll == "admin",
+        "detaljerad": request.session.get("lista_vy") == "detaljerad",
+    }
+    return templates.TemplateResponse(request, "lista/_rad.html", ctx)
+
+
+@router.post("/nod/{nod_id}")
+def uppdatera_nod(
+    request: Request,
+    nod_id: int,
+    namn: str = Form(...),
+    foralder_id: str = Form(""),
+    typ: str = Form(...),
+    status: str = Form(...),
+    fas: str = Form(""),
+    beskrivning: str = Form(""),
+    lank_dokumentation: str = Form(""),
+    lank_jira: str = Form(""),
+    synlig_externt: str = Form(""),
+    principal: Principal = Depends(krav_admin),
+    conn: sqlite3.Connection = Depends(get_conn),
+):
+    """Samma sparande som kravträdets, men svaret är listan (sessionens
+    filter och sortering) — raden kan alltså byta plats, t.ex. hamna överst
+    vid sortering på uppdaterad; lista.js scrollar dit."""
+    _hamta_rad(conn, nod_id)
+    try:
+        dok = tjanst.validera_lank(lank_dokumentation, "Dokumentationslänken")
+        jira = tjanst.validera_lank(lank_jira, "Jira-länken")
+    except ValueError as fel:
+        return _listsvar(request, conn, principal, fel=str(fel))
+    try:
+        tjanst.uppdatera_nod(
+            conn, nod_id, namn.strip()[:200], tjanst.till_int(foralder_id), typ, status,
+            fas.strip()[:50] or None, beskrivning.strip()[:4000] or None,
+            1 if synlig_externt else 0, dok, jira,
+        )
+    except sqlite3.IntegrityError as fel:
+        conn.rollback()
+        return _listsvar(request, conn, principal, fel=tjanst.regeltext(fel))
+    conn.commit()
+    audit.info("forvaltare=%s op=uppdatera nod=%s namn=%r via=lista",
+               principal.namn, nod_id, namn)
+    return _listsvar(request, conn, principal)

@@ -23,19 +23,6 @@ TYPER = ["förmåga", "funktion", "krav"]
 STATUSAR = ["driftsatt", "planerad", "idé", "utreds", "utgår"]
 
 
-def _till_int(varde: str | None) -> int | None:
-    return int(varde) if varde not in (None, "") else None
-
-
-def _validera_lank(varde: str, falt: str) -> str | None:
-    """External links must be absolute http(s) URLs — anything else (javascript:,
-    relative paths, typos) is rejected before it reaches an href."""
-    lank = varde.strip()[:500]
-    if lank and not lank.startswith(("http://", "https://")):
-        raise ValueError(f"{falt} måste börja med http:// eller https://.")
-    return lank or None
-
-
 def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | None = None,
               aterstall_formular: bool = False, foralder_id: int | None = None):
     """Tree response: partial for htmx, full page (or redirect) otherwise.
@@ -112,7 +99,7 @@ def ny_nod_form(
     principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
-    return _formsvar(request, conn, principal, foralder_id=_till_int(foralder_id))
+    return _formsvar(request, conn, principal, foralder_id=tjanst.till_int(foralder_id))
 
 
 @router.get("/nod/namnkoll")
@@ -164,13 +151,13 @@ def skapa_nod(
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     try:
-        dok = _validera_lank(lank_dokumentation, "Dokumentationslänken")
-        jira = _validera_lank(lank_jira, "Jira-länken")
+        dok = tjanst.validera_lank(lank_dokumentation, "Dokumentationslänken")
+        jira = tjanst.validera_lank(lank_jira, "Jira-länken")
     except ValueError as fel:
         return _tradsvar(request, conn, principal, fel=str(fel))
     try:
         nod_id = tjanst.skapa_nod(
-            conn, namn.strip()[:200], _till_int(foralder_id), typ, status,
+            conn, namn.strip()[:200], tjanst.till_int(foralder_id), typ, status,
             fas.strip()[:50] or None, beskrivning.strip()[:4000] or None,
             1 if synlig_externt else 0, dok, jira,
         )
@@ -180,7 +167,7 @@ def skapa_nod(
     conn.commit()
     audit.info("forvaltare=%s op=skapa nod=%s namn=%r", principal.namn, nod_id, namn)
     return _tradsvar(request, conn, principal,
-                     aterstall_formular=True, foralder_id=_till_int(foralder_id))
+                     aterstall_formular=True, foralder_id=tjanst.till_int(foralder_id))
 
 
 @router.post("/nod/{nod_id}")
@@ -200,25 +187,16 @@ def uppdatera_nod(
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     try:
-        dok = _validera_lank(lank_dokumentation, "Dokumentationslänken")
-        jira = _validera_lank(lank_jira, "Jira-länken")
+        dok = tjanst.validera_lank(lank_dokumentation, "Dokumentationslänken")
+        jira = tjanst.validera_lank(lank_jira, "Jira-länken")
     except ValueError as fel:
         return _tradsvar(request, conn, principal, fel=str(fel))
     try:
-        conn.execute(
-            "UPDATE funktion SET namn = ?, typ = ?, status = ?, fas = ?,"
-            " beskrivning = ?, lank_dokumentation = ?, lank_jira = ?,"
-            " synlig_externt = ? WHERE id = ?",
-            (namn.strip()[:200], typ, status, fas.strip()[:50] or None,
-             beskrivning.strip()[:4000] or None, dok, jira,
-             1 if synlig_externt else 0, nod_id),
+        tjanst.uppdatera_nod(
+            conn, nod_id, namn.strip()[:200], tjanst.till_int(foralder_id), typ, status,
+            fas.strip()[:50] or None, beskrivning.strip()[:4000] or None,
+            1 if synlig_externt else 0, dok, jira,
         )
-        gammal = conn.execute(
-            "SELECT foralder_id FROM funktion WHERE id = ?", (nod_id,)
-        ).fetchone()
-        ny_foralder = _till_int(foralder_id)
-        if gammal and gammal["foralder_id"] != ny_foralder:
-            tjanst.flytta_nod(conn, nod_id, ny_foralder)
     except sqlite3.IntegrityError as fel:
         conn.rollback()
         return _tradsvar(request, conn, principal, fel=tjanst.regeltext(fel))
@@ -239,7 +217,7 @@ def flytta(
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     try:
-        tjanst.flytta_nod(conn, nod_id, _till_int(foralder_id), _till_int(position))
+        tjanst.flytta_nod(conn, nod_id, tjanst.till_int(foralder_id), tjanst.till_int(position))
     except sqlite3.IntegrityError as fel:
         conn.rollback()
         return _tradsvar(request, conn, principal, fel=tjanst.regeltext(fel))
@@ -271,7 +249,7 @@ def sortera(
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     try:
-        tjanst.sortera_syskon(conn, _till_int(foralder_id), [int(n) for n in nod_id])
+        tjanst.sortera_syskon(conn, tjanst.till_int(foralder_id), [int(n) for n in nod_id])
     except sqlite3.IntegrityError as fel:
         conn.rollback()
         return _tradsvar(request, conn, principal, fel=tjanst.regeltext(fel))

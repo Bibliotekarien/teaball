@@ -1,9 +1,20 @@
 {# Create/edit form. Inline (htmx swaps it in place of the row) and as the body
-   of the full-page fallback (trad/nod_sida.html). #}
-<div id="{{ 'rad-' ~ nod.id if nod else 'ny-nod-form' }}" class="border-b border-stone-100 bg-blue-50 p-3">
-  <form method="post" action="{{ '/trad/nod/' ~ nod.id if nod else '/trad/nod' }}"
-        hx-post="{{ '/trad/nod/' ~ nod.id if nod else '/trad/nod' }}"
-        hx-target="#trad-rot" hx-swap="outerHTML"
+   of the full-page fallback (trad/nod_sida.html). Listvyn återanvänder mallen
+   för sin inline-redigering och styr då via kontexten: form_url (dit sparandet
+   postas), form_mal (behållaren som svaret swappar), avbryt_* (avbryt-länkens
+   href/hx-get/mål) och omslag (radens tagg — <li> i listan, <div> i trädet,
+   så formuläret kan ersätta raden på plats utan att bryta listmarkupen).
+   Utan dem gäller trädets värden. #}
+{% set form_url = form_url|default('/trad/nod/' ~ nod.id if nod else '/trad/nod') %}
+{% set form_mal = form_mal|default('#trad-rot') %}
+{% set avbryt_href = avbryt_href|default('/trad') %}
+{% set avbryt_hx = avbryt_hx|default('/trad') %}
+{% set avbryt_mal = avbryt_mal|default(form_mal) %}
+{% set omslag = omslag|default('div') %}
+<{{ omslag }} id="{{ 'rad-' ~ nod.id if nod else 'ny-nod-form' }}" class="border-b border-stone-100 bg-blue-50 p-3">
+  <form method="post" action="{{ form_url }}"
+        hx-post="{{ form_url }}"
+        hx-target="{{ form_mal }}" hx-swap="outerHTML"
         class="grid gap-2 text-sm sm:grid-cols-2">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <label class="grid gap-0.5 text-xs text-stone-500">Namn
@@ -68,8 +79,8 @@
     </label>
     <div class="flex gap-2 sm:col-span-2">
       <button class="rounded-md bg-blue-900 px-3 py-1.5 text-white hover:bg-blue-800">Spara</button>
-      <a href="/trad" hx-get="/trad" hx-target="#trad-rot" hx-swap="outerHTML"
+      <a href="{{ avbryt_href }}" hx-get="{{ avbryt_hx }}" hx-target="{{ avbryt_mal }}" hx-swap="outerHTML"
          class="rounded-md border border-stone-300 px-3 py-1.5 hover:bg-stone-100">Avbryt</a>
     </div>
   </form>
-</div>
+</{{ omslag }}>

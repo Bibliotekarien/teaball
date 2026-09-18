@@ -150,3 +150,91 @@ def test_lista_behorigheter(app_db, klient_fabrik):
     extern = klient_fabrik()
     logga_in(extern, app_db, namn="eva", roll="extern")
     assert extern.get("/lista").status_code == 403
+
+
+def test_lista_redigera_inline(client, app_db):
+    """Redigera på raden: kravträdets formulär riktat mot listan, sparande
+    som byter ut listan (sessionens sortering/filter består) och avbryt som
+    bara hämtar raden igen."""
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    sida = client.get("/lista?sortera=uppdaterad").text
+    token = csrf_fran(sida)
+    assert f'hx-get="/lista/nod/{ids["wos"]}/redigera"' in sida
+    assert f'id="rad-{ids["wos"]}"' in sida
+
+    # Över htmx: formuläret som ett <li> på radens plats, postar till listan,
+    # swappar #lista-rot, och avbryt hämtar bara raden.
+    form = client.get(f"/lista/nod/{ids['wos']}/redigera",
+                      headers={"HX-Request": "true"}).text
+    assert form.lstrip().startswith(f'<li id="rad-{ids["wos"]}"')
+    assert form.rstrip().endswith("</li>")
+    assert f'action="/lista/nod/{ids["wos"]}"' in form
+    assert 'hx-target="#lista-rot"' in form
+    assert f'hx-get="/lista/nod/{ids["wos"]}/rad" hx-target="#rad-{ids["wos"]}"' in form
+    assert 'value="Import från Web of Science"' in form
+    assert '<option value="funktion" selected>funktion</option>' in form
+    # Egen undergren är utesluten ur förälderväljaren (skulle bli en cykel).
+    assert f'<option value="{ids["dubblett"]}"' not in form
+    # Helsida utan htmx, som i trädet.
+    helsida = client.get(f"/lista/nod/{ids['wos']}/redigera").text
+    assert "Redigera ”Import från Web of Science”" in helsida
+    assert f'action="/lista/nod/{ids["wos"]}"' in helsida
+
+    # Avbryt: bara raden, inte hela listan.
+    rad = client.get(f"/lista/nod/{ids['wos']}/rad", headers={"HX-Request": "true"}).text
+    assert rad.lstrip().startswith(f'<li id="rad-{ids["wos"]}"')
+    assert 'id="lista-rot"' not in rad
+    assert client.get(f"/lista/nod/{ids['wos']}/rad",
+                      follow_redirects=False).status_code == 303
+
+    # Spara över htmx: hela listan tillbaka med sessionens sortering, noden
+    # omdöpt, länk sparad och flyttad till ny förälder.
+    partial = client.post(
+        f"/lista/nod/{ids['wos']}",
+        data={"namn": "Import från WoS", "foralder_id": str(ids["export"]),
+              "typ": "funktion", "status": "planerad", "fas": "Medlem 1",
+              "lank_jira": "https://jira.example/WOS-1", "synlig_externt": "1"},
+        headers={"HX-Request": "true", "X-CSRF-Token": token}).text
+    assert 'id="lista-rot"' in partial and 'id="lista-fel"' not in partial
+    assert "Import från WoS" in partial
+    assert 'title="Sortera på uppdaterad, stigande"' in partial  # sorteringen kvar
+    rad = app_db.execute("SELECT * FROM funktion WHERE id = ?", (ids["wos"],)).fetchone()
+    assert rad["foralder_id"] == ids["export"]
+    assert rad["lank_jira"] == "https://jira.example/WOS-1"
+    assert rad["status"] == "planerad" and rad["fas"] == "Medlem 1"
+
+    # Utan htmx: 303 tillbaka till listan.
+    svar = client.post(f"/lista/nod/{ids['wos']}",
+                       data={"namn": "Import från WoS", "foralder_id": str(ids["export"]),
+                             "typ": "funktion", "status": "utreds", "csrf_token": token},
+                       follow_redirects=False)
+    assert svar.status_code == 303 and svar.headers["location"] == "/lista"
+
+    # Regelbrott inline: ogiltig länk och avgångskravet ger listan med banner.
+    svar = client.post(f"/lista/nod/{ids['wos']}",
+                       data={"namn": "X", "typ": "funktion", "status": "utreds",
+                             "lank_jira": "javascript:alert(1)"},
+                       headers={"HX-Request": "true", "X-CSRF-Token": token})
+    assert svar.status_code == 200
+    assert 'id="lista-fel"' in svar.text and "http://" in svar.text
+    svar = client.post(f"/lista/nod/{ids['wos']}",
+                       data={"namn": "X", "typ": "funktion", "status": "planerad",
+                             "csrf_token": token})
+    assert svar.status_code == 400 and "avgång" in svar.text
+    assert app_db.execute("SELECT namn FROM funktion WHERE id = ?",
+                          (ids["wos"],)).fetchone()["namn"] == "Import från WoS"
+
+    assert client.get("/lista/nod/999999/redigera").status_code == 404
+
+
+def test_lista_redigering_kraver_admin(app_db, klient_fabrik):
+    ids = seed_trad(app_db)
+    intern = klient_fabrik()
+    logga_in(intern, app_db, namn="ivan", roll="intern")
+    sida = intern.get("/lista")
+    assert "/redigera" not in lista_delen(sida.text)
+    assert intern.get(f"/lista/nod/{ids['wos']}/redigera").status_code == 403
+    assert intern.post(f"/lista/nod/{ids['wos']}",
+                       data={"namn": "X", "typ": "funktion", "status": "utreds",
+                             "csrf_token": csrf_fran(sida.text)}).status_code == 403

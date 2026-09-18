@@ -1,0 +1,38 @@
+{# En rad i listvyn. Eget makro så raden kan renderas fristående (GET
+   /lista/nod/<id>/rad — avbryt i inline-redigeringen byter tillbaka bara den
+   raden i stället för att ladda om hela listan och tappa sorteringen). id:t
+   rad-<id> är det formuläret ersätter, och det spara-scrollen i lista.js
+   letar upp efteråt. #}
+{% macro rad(n, request, detaljerad=false, skrivbar=false) %}
+<li id="rad-{{ n.id }}" class="group flex flex-wrap items-center gap-1.5 scroll-mt-2 border-b border-stone-100 px-2 py-1.5 hover:bg-stone-50">
+  {# utgår ersätter typfärgen rakt av — samma resonemang som i trädet. #}
+  <span class="min-w-0 flex-1 break-words text-sm {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}" title="{{ n.beskrivning or n.namn }}">{{ n.namn }}</span>
+  {% if skrivbar %}
+  {# Redigera öppnar samma formulär som i kravträdet, på radens plats. Utan
+     JS leder länken till helsidesvarianten. #}
+  <span class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+    <a href="/lista/nod/{{ n.id }}/redigera" hx-get="/lista/nod/{{ n.id }}/redigera" hx-target="#rad-{{ n.id }}" hx-swap="outerHTML"
+       class="rounded px-1 text-xs text-stone-400 hover:bg-stone-200 hover:text-stone-700">redigera</a>
+  </span>
+  {% endif %}
+  {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">dold</span>{% endif %}
+  <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ n.typ }}</span>
+  <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}" title="{{ STATUS[n.status].beskrivning }}">{{ STATUS[n.status].label }}</span>
+  <span class="hidden w-14 text-right text-xs text-stone-400 sm:inline">{{ n.fas or "" }}</span>
+  <span class="w-[4.6rem] shrink-0 text-right text-xs tabular-nums text-stone-400"
+        title="Skapad: {{ n.skapad ~ ' UTC' if n.skapad else 'före spårningen' }}">{{ n.skapad[:10] if n.skapad else "—" }}</span>
+  <span class="w-[4.6rem] shrink-0 text-right text-xs tabular-nums text-stone-400"
+        title="Uppdaterad: {{ n.uppdaterad ~ ' UTC' if n.uppdaterad else 'före spårningen' }}">{{ n.uppdaterad[:10] if n.uppdaterad else "—" }}</span>
+  {% if detaljerad and (n.beskrivning or n.lank_dokumentation or n.lank_jira) %}
+  <div class="w-full pb-1 text-xs">
+    {% if n.beskrivning %}<p class="max-w-prose text-stone-400">{{ n.beskrivning }}</p>{% endif %}
+    {% if n.lank_dokumentation or n.lank_jira %}
+    <p class="mt-0.5 flex gap-4">
+      <span class="w-36 shrink-0">{% if n.lank_dokumentation %}<a href="{{ n.lank_dokumentation }}" target="_blank" rel="noopener noreferrer" class="whitespace-nowrap text-blue-800 underline hover:text-blue-900">Dokumentation&nbsp;↗</a>{% endif %}</span>
+      <span>{% if n.lank_jira %}<a href="{{ n.lank_jira }}" target="_blank" rel="noopener noreferrer" class="whitespace-nowrap text-blue-800 underline hover:text-blue-900">Jira&nbsp;↗</a>{% endif %}</span>
+    </p>
+    {% endif %}
+  </div>
+  {% endif %}
+</li>
+{% endmacro %}
