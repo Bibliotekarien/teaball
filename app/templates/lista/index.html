@@ -1,11 +1,15 @@
 {% extends "base.html" %}
 {% block titel %}Lista – Teaball{% endblock %}
+{% block huvudskript %}
+<script src="/static/js/lista.js" defer></script>
+{% endblock %}
 {% block innehall %}
 <div class="mb-3">
   <p class="text-sm text-stone-500">Alla noder i en platt lista, sorterbar på när de
     skapades och när de senast ändrades. Innehållsändringar flyttar
     uppdaterad-stämpeln — omsortering i trädet gör det inte. Noder från före
-    stämplarna (äldre än spårningen) visas med — och hamnar sist.</p>
+    stämplarna (äldre än spårningen) visas med — och hamnar sist.{% if skrivbar %}
+    Redigera på raden öppnar samma formulär som i kravträdet.{% endif %}</p>
 </div>
 
 {% include "_forklaringar.html" %}

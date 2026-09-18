@@ -22,6 +22,21 @@ def regeltext(fel: sqlite3.IntegrityError) -> str:
     return "Ändringen bröt mot en databasregel och avvisades."
 
 
+def till_int(varde: str | None) -> int | None:
+    """Form fields arrive as strings; empty means "no value" (e.g. root parent)."""
+    return int(varde) if varde not in (None, "") else None
+
+
+def validera_lank(varde: str, falt: str) -> str | None:
+    """External links must be absolute http(s) URLs — anything else (javascript:,
+    relative paths, typos) is rejected before it reaches an href. Shared by
+    the tree's and the list's node forms."""
+    lank = varde.strip()[:500]
+    if lank and not lank.startswith(("http://", "https://")):
+        raise ValueError(f"{falt} måste börja med http:// eller https://.")
+    return lank or None
+
+
 def undergren_ids(conn: sqlite3.Connection, nod_id: int) -> set[int]:
     """The node itself and all its descendants."""
     rows = conn.execute(
@@ -199,6 +214,26 @@ def skapa_nod(conn, namn, foralder_id, typ, status, fas, beskrivning, synlig_ext
     ordning = [nytt] + [i for i in _syskon_ordning(conn, foralder_id) if i != nytt]
     _normalisera(conn, ordning)
     return nytt
+
+
+def uppdatera_nod(conn, nod_id, namn, foralder_id, typ, status, fas, beskrivning,
+                  synlig_externt, lank_dokumentation=None, lank_jira=None):
+    """The edit form's save, shared by the tree and the list. Writes every
+    content column (the stamp trigger only bumps uppdaterad on an actual
+    change) and reparents via flytta_nod only when the parent differs, so an
+    untouched parent keeps the node's place among its siblings."""
+    gammal = conn.execute(
+        "SELECT foralder_id FROM funktion WHERE id = ?", (nod_id,)
+    ).fetchone()
+    conn.execute(
+        "UPDATE funktion SET namn = ?, typ = ?, status = ?, fas = ?,"
+        " beskrivning = ?, lank_dokumentation = ?, lank_jira = ?,"
+        " synlig_externt = ? WHERE id = ?",
+        (namn, typ, status, fas, beskrivning, lank_dokumentation, lank_jira,
+         synlig_externt, nod_id),
+    )
+    if gammal and gammal["foralder_id"] != foralder_id:
+        flytta_nod(conn, nod_id, foralder_id)
 
 
 def flytta_nod(conn, nod_id: int, ny_foralder_id: int | None, position: int | None = None):
