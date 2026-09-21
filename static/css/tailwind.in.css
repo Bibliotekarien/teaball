@@ -16,10 +16,13 @@ details[open] > summary .chevron {
 }
 
 /* Kort blink på raden trad.js scrollat till efter sparad redigering,
-   så ögat hittar den. Klassen tas bort på animationend. */
+   så ögat hittar den. Klassen tas bort på animationend. Samma blink på
+   raden ett ankarhopp från kravträdets sidomeny landat på (:target) —
+   ren CSS, fungerar utan JS. */
 @keyframes nyss-sparad-blink {
   from { background-color: #dbeafe; }
 }
-.nyss-sparad {
+.nyss-sparad,
+#trad-rot [id^="rad-"]:target {
   animation: nyss-sparad-blink 1.2s ease-out;
 }

@@ -156,6 +156,15 @@
     spara(kompakterade);
   });
 
+  // Sidomenyns ankarlänkar (#rad-<id>): målet kan ligga i en kompakterad
+  // gren, och ett ankarhopp till en dold rad blir ingenting. Öppna grenen
+  // (och stryk den ur minnet) innan webbläsaren gör själva hoppet — hoppet
+  // och :target-blinket i CSS:en lämnas åt webbläsaren.
+  document.addEventListener("click", function (h) {
+    var lank = h.target.closest("[data-tradmeny] a[href^='#rad-']");
+    if (lank) oppnaGrenTill(lank.getAttribute("href").slice("#rad-".length));
+  });
+
   // Efter ett lyckat skapande (OOB-formuläret kommer tillbaka med föräldern
   // vald) öppnas förälderns gren — annars hamnar den nya noden osynlig inne i
   // en kompakterad gren. Både DOM och minne uppdateras så resultatet blir

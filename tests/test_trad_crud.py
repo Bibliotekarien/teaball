@@ -415,3 +415,31 @@ def test_grenniva_visar_fordelning_i_stallet_for_status(client, app_db):
     # På djup 2+ visas pillret som förut (wos planerad, dubblett idé).
     assert sida.count(f'title="{STATUS["planerad"]["beskrivning"]}"') == 1
     assert sida.count(f'title="{STATUS["idé"]["beskrivning"]}"') == 1
+
+
+def test_sidomeny_lankar_till_de_tva_oversta_nivaerna(client, app_db):
+    """Sidomenyn bredvid trädet: rötter + deras barn som ankarlänkar till
+    raderna, inget djupare. Den ligger i #trad-rot så filtrering och
+    htmx-swappar bygger om den — en bortfiltrerad gren har ingen länk."""
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    sida = client.get("/trad").text
+    start = sida.index("data-tradmeny")
+    meny = sida[start:sida.index("</nav>", start)]
+
+    for nyckel in ("publicering", "registrera", "import", "export"):
+        assert f'href="#rad-{ids[nyckel]}"' in meny
+    for nyckel in ("wos", "dubblett"):  # djup 2+ hör inte hemma i menyn
+        assert f'href="#rad-{ids[nyckel]}"' not in meny
+    # Alla länkmål finns som rader i trädet.
+    for nyckel in ("publicering", "registrera", "import", "export"):
+        assert f'id="rad-{ids[nyckel]}"' in sida
+
+    # htmx-partialen (filtrering) bär samma meny, byggd från det filtrerade trädet.
+    partial = client.get("/trad?q=Export", headers={"HX-Request": "true"}).text
+    assert "data-tradmeny" in partial
+    assert f'href="#rad-{ids["export"]}"' in partial
+    assert f'href="#rad-{ids["publicering"]}"' not in partial
+
+    # Inga noder att visa ⇒ ingen meny alls.
+    assert "data-tradmeny" not in client.get("/trad?q=finnsinte").text
