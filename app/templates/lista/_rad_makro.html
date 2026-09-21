@@ -8,11 +8,13 @@
   {# utgår ersätter typfärgen rakt av — samma resonemang som i trädet. #}
   <span class="min-w-0 flex-1 break-words text-sm {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}" title="{{ n.beskrivning or n.namn }}">{{ n.namn }}</span>
   {% if skrivbar %}
-  {# Redigera öppnar samma formulär som i kravträdet, på radens plats. Utan
-     JS leder länken till helsidesvarianten. #}
+  {# Redigera och ta bort öppnar samma formulär/bekräftelse som i kravträdet,
+     på radens plats. Utan JS leder länkarna till helsidesvarianterna. #}
   <span class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
     <a href="/lista/nod/{{ n.id }}/redigera" hx-get="/lista/nod/{{ n.id }}/redigera" hx-target="#rad-{{ n.id }}" hx-swap="outerHTML"
        class="rounded px-1 text-xs text-stone-400 hover:bg-stone-200 hover:text-stone-700">redigera</a>
+    <a href="/lista/nod/{{ n.id }}/ta-bort" hx-get="/lista/nod/{{ n.id }}/ta-bort" hx-target="#rad-{{ n.id }}" hx-swap="outerHTML"
+       class="rounded px-1 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-800">ta&nbsp;bort</a>
   </span>
   {% endif %}
   {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">dold</span>{% endif %}

@@ -228,13 +228,53 @@ def test_lista_redigera_inline(client, app_db):
     assert client.get("/lista/nod/999999/redigera").status_code == 404
 
 
+def test_lista_ta_bort_inline(client, app_db):
+    """Ta bort på raden: kravträdets bekräftelse riktad mot listan, med
+    konsekvensen angiven, och listan tillbaka efter borttagning."""
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    sida = client.get("/lista").text
+    token = csrf_fran(sida)
+    assert f'hx-get="/lista/nod/{ids["import"]}/ta-bort"' in sida
+
+    bekraftelse = client.get(f"/lista/nod/{ids['import']}/ta-bort",
+                             headers={"HX-Request": "true"}).text
+    assert bekraftelse.lstrip().startswith(f'<li id="rad-{ids["import"]}"')
+    assert "Ta bort ”Import”?" in bekraftelse
+    assert "2 underliggande noder" in bekraftelse
+    assert f'action="/lista/nod/{ids["import"]}/ta-bort"' in bekraftelse
+    assert 'hx-target="#lista-rot"' in bekraftelse
+    assert f'hx-get="/lista/nod/{ids["import"]}/rad" hx-target="#rad-{ids["import"]}"' in bekraftelse
+    # Helsida utan htmx.
+    assert "Ta bort ”Import”?" in client.get(f"/lista/nod/{ids['import']}/ta-bort").text
+
+    partial = client.post(f"/lista/nod/{ids['import']}/ta-bort",
+                          headers={"HX-Request": "true", "X-CSRF-Token": token}).text
+    assert 'id="lista-rot"' in partial
+    assert "Import" not in lista_delen(client.get("/lista").text)
+    assert app_db.execute("SELECT COUNT(*) FROM funktion WHERE id IN (?, ?, ?)",
+                          (ids["import"], ids["wos"], ids["dubblett"])).fetchone()[0] == 0
+
+    svar = client.post(f"/lista/nod/{ids['registrera']}/ta-bort",
+                       data={"csrf_token": token}, follow_redirects=False)
+    assert svar.status_code == 303 and svar.headers["location"] == "/lista"
+    assert client.get("/lista/nod/999999/ta-bort").status_code == 404
+
+
 def test_lista_redigering_kraver_admin(app_db, klient_fabrik):
     ids = seed_trad(app_db)
     intern = klient_fabrik()
     logga_in(intern, app_db, namn="ivan", roll="intern")
     sida = intern.get("/lista")
     assert "/redigera" not in lista_delen(sida.text)
+    assert "/ta-bort" not in lista_delen(sida.text)
+    token = csrf_fran(sida.text)
     assert intern.get(f"/lista/nod/{ids['wos']}/redigera").status_code == 403
+    assert intern.get(f"/lista/nod/{ids['wos']}/ta-bort").status_code == 403
     assert intern.post(f"/lista/nod/{ids['wos']}",
                        data={"namn": "X", "typ": "funktion", "status": "utreds",
-                             "csrf_token": csrf_fran(sida.text)}).status_code == 403
+                             "csrf_token": token}).status_code == 403
+    assert intern.post(f"/lista/nod/{ids['wos']}/ta-bort",
+                       data={"csrf_token": token}).status_code == 403
+    assert app_db.execute("SELECT COUNT(*) FROM funktion WHERE id = ?",
+                          (ids["wos"],)).fetchone()[0] == 1
