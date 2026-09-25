@@ -100,33 +100,71 @@
     var kompakterade = filterAktivt() ? new Set() : lasKompakterade();
     detaljer().forEach(function (d) { d.open = !kompakterade.has(nodId(d)); });
 
-    // Efter en sparad redigering scrollas den redigerade nodens rad högst upp
-    // i viewporten — noden byter aldrig plats i trädet, men swappen gör att
-    // blicken annars tappar den när formuläret försvinner. Körs här, efter att
-    // minnet applicerats, så kompakterade grenar ovanför inte förskjuter målet.
-    // Avvisades sparandet (felbannern renderas) lämnas scrollen ifred så
-    // felmeddelandet syns.
-    var mal = sparadNod;
-    sparadNod = null;
+    // Efter vissa åtgärder scrollas en rad högst upp i viewporten (scrollMal,
+    // se nedan) — swappen byter ut hela trädet och blicken tappar annars sin
+    // plats. Körs här, efter att minnet applicerats, så kompakterade grenar
+    // ovanför inte förskjuter målet. Avvisades åtgärden (felbannern renderas)
+    // lämnas scrollen ifred så felmeddelandet syns.
+    var mal = scrollMal;
+    scrollMal = null;
     if (mal && !document.getElementById("trad-fel")) {
-      var rad = oppnaGrenTill(mal) && document.getElementById("rad-" + mal);
+      var rad = oppnaGrenTill(mal.id) && document.getElementById("rad-" + mal.id);
       if (rad) {
         rad.scrollIntoView({ block: "start" });
-        rad.classList.add("nyss-sparad");
-        rad.addEventListener("animationend", function () {
-          rad.classList.remove("nyss-sparad");
-        }, { once: true });
+        if (mal.blink) {
+          rad.classList.add("nyss-sparad");
+          rad.addEventListener("animationend", function () {
+            rad.classList.remove("nyss-sparad");
+          }, { once: true });
+        }
       }
     }
   }
 
-  // Fångar vilken nod som just sparats: POST /trad/nod/<id> är redigerings-
-  // formuläret (skapande postar utan id, ordna/synlighet har egna suffix).
-  var sparadNod = null;
+  // Vilken rad nästa aterstall ska scrolla till: { id, blink }. Sätts av
+  // lyssnarna nedan och nollställs inför varje nytt anrop, så ett misslyckat
+  // eller orelaterat anrop aldrig ärver ett gammalt mål.
+  var scrollMal = null;
+
+  // Raden närmast ovanför en nod, i den ordning trädet visas: syskonets
+  // sista öppna ättling, eller föräldern om noden är första barn. Rader i
+  // kompakterade grenar räknas inte — de är inte vad ögat ser. null om noden
+  // är trädets första rad.
+  function radOvanfor(id) {
+    var rader = document.querySelectorAll("[data-kompaktminne] [id^='rad-']");
+    var ovanfor = null;
+    for (var i = 0; i < rader.length; i++) {
+      var rad = rader[i];
+      var traff = /^rad-(\d+)$/.exec(rad.id);
+      if (!traff) continue;
+      if (traff[1] === id) return ovanfor;
+      var synlig = rad.checkVisibility ? rad.checkVisibility() : rad.offsetParent !== null;
+      if (synlig) ovanfor = traff[1];
+    }
+    return null;
+  }
+
+  // Ta bort och dölj/visa: noden försvinner (eller byter skepnad) och raden
+  // ovanför den hamnar högst upp, så ögat landar där noden nyss var. Raden
+  // måste hittas innan svaret swappar in — därav beforeRequest.
+  document.addEventListener("htmx:beforeRequest", function (h) {
+    scrollMal = null;
+    var cfg = h.detail.requestConfig;
+    var traff = cfg && cfg.verb === "post"
+      && /^\/trad\/nod\/(\d+)\/(ta-bort|synlighet)$/.exec(cfg.path);
+    if (!traff) return;
+    var ovanfor = radOvanfor(traff[1]);
+    if (ovanfor) scrollMal = { id: ovanfor, blink: false };
+  });
+
+  // Sparad redigering: den redigerade raden själv högst upp, med blink —
+  // noden byter aldrig plats men formuläret försvinner. POST /trad/nod/<id>
+  // är redigeringsformuläret (skapande postar utan id, ordna/synlighet/
+  // ta-bort har egna suffix).
   document.addEventListener("htmx:afterSwap", function (h) {
     var cfg = h.detail.requestConfig;
     var traff = cfg && cfg.verb === "post" && /^\/trad\/nod\/(\d+)$/.exec(cfg.path);
-    if (traff) sparadNod = traff[1];
+    if (traff) scrollMal = { id: traff[1], blink: true };
   });
 
   // toggle bubblar inte — lyssna i capture-fasen. Programmatiska växlingar

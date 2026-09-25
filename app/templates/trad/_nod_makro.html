@@ -1,7 +1,8 @@
 {# Recursive tree node. The row sits inside <summary> when the node has
    children, so expand/collapse is pure <details> — no JavaScript (T1/I2). #}
 {% macro rad(n, request, detaljerad=false, skrivbar=false) %}
-{# scroll-mt-2: lite luft ovanför raden när trad.js scrollar hit efter spara. #}
+{# scroll-mt-2: lite luft ovanför raden när trad.js scrollar hit efter spara,
+   ta bort eller dölj/visa (då till raden ovanför den berörda). #}
 <div id="rad-{{ n.id }}" class="group flex flex-wrap items-center gap-1.5 scroll-mt-2 border-b border-stone-100 py-1.5 pr-2 hover:bg-stone-50">
   {# Fast bredd (w-5) så namn och detaljblock kan indragsalignas med kända mått,
      oberoende av glyfbredden på ⋮⋮. Distansen utan handtag behåller måtten. #}
