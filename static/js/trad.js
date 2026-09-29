@@ -37,6 +37,20 @@
     });
   }
 
+  // Sortable för ett globalt register över alla listor det initierats på,
+  // och stryker en lista först vid destroy(). Utan destroy pekade registret
+  // via föräldrakedjan på hela det utbytta trädet efter varje swap av
+  // #trad-rot (spara, flytta, dölj, filtrera …) — en komplett trädkopia per
+  // åtgärd blev kvar i minnet, gigabyte efter en längre session, och
+  // skräpsamlingen gjorde allt trögt. htmx skickar beforeCleanupElement för
+  // varje element en swap tar bort (rekursivt): destroya där.
+  document.addEventListener("htmx:beforeCleanupElement", function (h) {
+    var lista = h.target;
+    if (!lista || !lista._sortable) return;
+    lista._sortable.destroy();
+    lista._sortable = null;
+  });
+
   htmx.onLoad(initSortables);
 })();
 
@@ -98,7 +112,13 @@
 
   function aterstall() {
     var kompakterade = filterAktivt() ? new Set() : lasKompakterade();
-    detaljer().forEach(function (d) { d.open = !kompakterade.has(nodId(d)); });
+    // Sätt open bara när det ändras: en tilldelning av samma värde räknas
+    // ändå som attributändring, och med details[open] i stilmallen tvingar
+    // den en stilomräkning av hela grenen — för varje gren, varje gång.
+    detaljer().forEach(function (d) {
+      var oppen = !kompakterade.has(nodId(d));
+      if (d.open !== oppen) d.open = oppen;
+    });
 
     // Efter vissa åtgärder scrollas en rad högst upp i viewporten (scrollMal,
     // se nedan) — swappen byter ut hela trädet och blicken tappar annars sin
@@ -218,7 +238,17 @@
   });
 
   if (window.htmx) {
-    htmx.onLoad(aterstall);
+    // htmx:load kommer för varje inswappat element — även dubblettkollens
+    // lilla span vid varje tangentpaus i skapa-formuläret. Bara innehåll som
+    // bär grenar (hela trädet, en enskild gren i bedömningen) behöver
+    // återställas; ett väntande scrollmål körs alltid, det hör till en
+    // trädswap. Övrigt (formulär, varningar, OOB-fragment) hoppas över så
+    // skrivandet inte betalar en trädgenomgång per anrop.
+    htmx.onLoad(function (el) {
+      var barGrenar = el && el.querySelector
+        && (el.matches("details") || !!el.querySelector("details"));
+      if (barGrenar || scrollMal) aterstall();
+    });
   } else {
     document.addEventListener("DOMContentLoaded", aterstall);
   }
