@@ -46,7 +46,9 @@ Driftsättningschecklista (första gången):
    `https://teaball.bibliotekarien.se`) och sätt `MATOMO_SITE_ID` +
    `MATOMO_TOKEN` i `.env`. Trackingen sker **server-side** (Tracking HTTP API)
    — ingen matomo.js i klienten, DNT/GPC respekteras, `/svara/<token>` maskas.
-5. `sudo /opt/teaball/app/scripts/deploy.sh` (skapar nätet), därefter
+5. `sudo SKIP_BACKUP=1 /opt/teaball/app/scripts/deploy.sh` (skapar nätet;
+   `SKIP_BACKUP=1` bara denna första gång — backup-uniten kommer i steg 6 och
+   databasen är ännu tom), därefter
    `make -C /opt/bibliotekarien-platform edge-recreate` (Caddy joinar nätet).
 6. Systemd: `sudo cp deploy/teaball.service deploy/teaball-backup.{service,timer} /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now teaball.service teaball-backup.timer`.
 7. Skapa förvaltarkonton + läs in underlag (se nedan, med
@@ -148,6 +150,13 @@ Målet ska vara en separat montering (t.ex. CIFS). Cron-exempel:
 
 Återställning: stoppa appen, kopiera in backupfilen som `data/teaball.db`,
 starta igen.
+
+I produktion kör `teaball-backup.timer` skriptet varje natt (unit + timer i
+`deploy/`), och `scripts/deploy.sh` startar samma unit innan den rör
+arbetskopian — ingen kodändring driftsätts utan en färsk, verifierad kopia.
+Misslyckas kopian avbryts deployen. Kontrollera läget med
+`systemctl list-timers teaball-backup.timer` och
+`journalctl -u teaball-backup.service -n 20`.
 
 ## Utveckling
 
