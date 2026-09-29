@@ -2,7 +2,8 @@
 # Deploy för Teaball på bibliotekarien-vps (markrounding-mönstret).
 #
 # Kör som root (eller via sudo); växlar internt till service-användaren.
-# Flöde: fetch → [ev. signaturkontroll] → ff-only merge → build → up -d → status.
+# Flöde: fetch → [ev. signaturkontroll] → backup → ff-only merge → build →
+# up -d → status.
 #
 # En komprometterad remote är root på en delad VPS, så fetch är skild från
 # utcheckningen och målcommiten visas innan den appliceras (ff-only). Det här
@@ -10,14 +11,24 @@
 # (REQUIRE_SIGNED=0 som standard) — slå på signaturkravet så snart releaser
 # taggas signerat (git tag -s + GIT_REF=v1.x + REQUIRE_SIGNED=1).
 #
+# Ingen kod ändras i drift utan en färsk, verifierad databaskopia: innan
+# arbetskopian rörs startas samma systemd-unit som nattens backup, så kopian
+# hamnar där de andra ligger och roteras med dem. Databasen bär inrapporterad
+# data som inte kan återskapas, och nattens kopia kan vara ett dygn gammal.
+#
 # Miljövariabler:
 #   GIT_REMOTE       Remote att hämta från (default: origin)
 #   GIT_REF          Tagg (helst signerad) eller gren att driftsätta (default: main)
 #   REQUIRE_SIGNED   1 = kräv giltig GPG-signatur på commiten/taggen. Default 0
 #                    för det här repot tills signerade releaser finns på plats.
+#   BACKUP_UNIT      Systemd-unit som tar databaskopian (default:
+#                    teaball-backup.service, se deploy/).
+#   SKIP_BACKUP      1 = driftsätt utan kopia. Bara för första bring-up, när
+#                    uniten inte är installerad och databasen ännu är tom.
 #
 # Flaggor:
-#   --check / --dry-run   Hämta + ev. signaturkontroll, men applicera inget
+#   --check / --dry-run   Hämta + ev. signaturkontroll + kolla att backup-uniten
+#                         finns, men applicera inget
 #   -h / --help           Visa denna hjälptext
 set -euo pipefail
 
@@ -27,6 +38,8 @@ SERVICE_USER="${SERVICE_USER:-teaball}"
 GIT_REMOTE="${GIT_REMOTE:-origin}"
 GIT_REF="${GIT_REF:-main}"
 REQUIRE_SIGNED="${REQUIRE_SIGNED:-0}"
+BACKUP_UNIT="${BACKUP_UNIT:-teaball-backup.service}"
+SKIP_BACKUP="${SKIP_BACKUP:-0}"
 CHECK_ONLY=0
 
 for arg in "$@"; do
@@ -78,10 +91,42 @@ if [[ "$REQUIRE_SIGNED" == "1" ]]; then
   fi
 fi
 
+backup_unit_finns() { systemctl cat "$BACKUP_UNIT" &>/dev/null; }
+
 if [[ $CHECK_ONLY -eq 1 ]]; then
   echo "==> Dry-run: validerar compose-konfigurationen"
   run_as "docker compose -f '$COMPOSE_FILE' config >/dev/null && echo 'compose config OK'"
+  if backup_unit_finns; then
+    echo "    backup-unit $BACKUP_UNIT: finns"
+  else
+    echo "    backup-unit $BACKUP_UNIT: SAKNAS — en skarp körning avbryts utan SKIP_BACKUP=1"
+  fi
   exit 0
+fi
+
+# Samma unit som nattens backup: en enda sanning om databasens och kopiornas
+# sökvägar, och journalen som logg. Skriptet bakom tar en konsistent kopia via
+# backup-API:t, integritetskontrollerar den och skriver dagens fil — två
+# deployer samma dag lämnar bara den senare kopian, men nattens ligger kvar
+# under sitt eget datum. systemctl start på en oneshot väntar tills jobbet är
+# klart och misslyckas om skriptet gör det, så ett fel stoppar deployen innan
+# någon kod rörts.
+if [[ "$SKIP_BACKUP" == "1" ]]; then
+  echo "==> Hoppar över databaskopian (SKIP_BACKUP=1)"
+elif ! backup_unit_finns; then
+  echo "AVBRYTER: backup-uniten '$BACKUP_UNIT' finns inte — ingen kopia före deploy." >&2
+  echo "Installera deploy/teaball-backup.{service,timer} (README, systemd-steget)," >&2
+  echo "eller sätt SKIP_BACKUP=1 vid första bring-up medan databasen ännu är tom." >&2
+  exit 1
+else
+  echo "==> Tar en verifierad databaskopia ($BACKUP_UNIT)"
+  backup_start="$(date '+%Y-%m-%d %H:%M:%S')"
+  if ! systemctl start "$BACKUP_UNIT"; then
+    echo "AVBRYTER: databaskopian misslyckades — ingen kod ändras utan färsk kopia." >&2
+    journalctl -u "$BACKUP_UNIT" --since "$backup_start" -o cat >&2 || true
+    exit 1
+  fi
+  journalctl -u "$BACKUP_UNIT" --since "$backup_start" -o cat | sed 's/^/    /' || true
 fi
 
 echo "==> Uppdaterar arbetskopian till $MAL (fast-forward)"
