@@ -139,7 +139,9 @@ LISTSORTERING = ("skapad", "uppdaterad")
 def hamta_lista(conn, q=None, typ=None, status=None, fas=None,
                 endast_synliga=False, sortera="skapad", stigande=False):
     """All nodes as a flat list for the list view: same filter semantics as
-    hamta_trad (T4) but no ancestor context — the rows stand on their own.
+    hamta_trad (T4); each row carries its ancestors as "stig" (root first)
+    so the list can show where the node belongs, since the flat order says
+    nothing about it.
     Sorted on skapad or uppdaterad; rows from before the stamps (NULL,
     migration 0005) always come last, whichever direction is chosen."""
     if isinstance(typ, str):
@@ -155,7 +157,42 @@ def hamta_lista(conn, q=None, typ=None, status=None, fas=None,
         ORDER BY {kolumn} IS NULL, {kolumn} {riktning}, id {riktning}
         """
     ).fetchall()
-    return [dict(r) for r in rows if _traff(r, q, typ, status, fas)]
+    karta = _foralderkarta(conn)
+    rader = []
+    for r in rows:
+        if _traff(r, q, typ, status, fas):
+            rad = dict(r)
+            rad["stig"] = _stig(karta, r["foralder_id"])
+            rader.append(rad)
+    return rader
+
+
+def _foralderkarta(conn) -> dict:
+    """id -> (namn, foralder_id) for every node; one query, then the
+    breadcrumbs are walked in memory."""
+    return {
+        r["id"]: (r["namn"], r["foralder_id"])
+        for r in conn.execute("SELECT id, namn, foralder_id FROM funktion")
+    }
+
+
+def _stig(karta: dict, foralder_id) -> list[dict]:
+    """Ancestors of a node, root first: [{"id", "namn"}, ...]. Empty for a
+    root node. Where the row belongs in the tree — the list is flat and
+    sorted on time, so the row itself gives no such context."""
+    stig = []
+    while foralder_id is not None:
+        namn, foralder_id_nasta = karta[foralder_id]
+        stig.append({"id": foralder_id, "namn": namn})
+        foralder_id = foralder_id_nasta
+    stig.reverse()
+    return stig
+
+
+def foraldrastig(conn, foralder_id) -> list[dict]:
+    """The breadcrumb for a single row (the list's standalone row endpoint);
+    hamta_lista does the same for every row with one shared lookup."""
+    return _stig(_foralderkarta(conn), foralder_id)
 
 
 def hitta_nod(rotter: list[dict], nod_id: int) -> dict | None:
