@@ -171,7 +171,7 @@ def test_lista_breadcrumb(client, app_db):
     for lank in lankar:
         assert lank in dubblett
     assert dubblett.index(lankar[0]) < dubblett.index(lankar[1]) < dubblett.index(lankar[2])
-    assert dubblett.count("›") == 2  # mellan länkarna, inte efter sista
+    assert dubblett.count('<span aria-hidden="true">/</span>') == 2  # mellan länkarna, inte efter sista
     assert f'/trad#nod-{ids["dubblett"]}' not in dubblett  # noden själv ingår inte
     assert "(rotnivå)" not in dubblett
 
