@@ -5,6 +5,17 @@
    letar upp efteråt. #}
 {% macro rad(n, request, detaljerad=false, skrivbar=false) %}
 <li id="rad-{{ n.id }}" class="group flex flex-wrap items-center gap-1.5 scroll-mt-2 border-b border-stone-100 px-2 py-1.5 hover:bg-stone-50">
+  {# Var noden hör hemma: förfäderna från roten, länkade in i kravträdet.
+     Listan är sorterad på tid, så raden själv säger inget om platsen. w-full
+     ger stigen en egen rad ovanför namnet. Rotnoder skrivs ut som (rotnivå),
+     samma ord som föräldravalet, så alla rader får samma form. #}
+  <span class="flex w-full flex-wrap items-center gap-x-1 -mb-1 text-[11px] leading-tight text-stone-400">
+    {% for f in n.stig %}
+    {% if not loop.first %}<span aria-hidden="true">›</span>{% endif %}<a href="/trad#nod-{{ f.id }}" class="hover:text-stone-700 hover:underline">{{ f.namn }}</a>
+    {% else %}
+    <span class="italic">(rotnivå)</span>
+    {% endfor %}
+  </span>
   {# utgår ersätter typfärgen rakt av — samma resonemang som i trädet. #}
   <span class="min-w-0 flex-1 break-words text-sm {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}" title="{{ n.beskrivning or n.namn }}">{{ n.namn }}</span>
   {% if skrivbar %}

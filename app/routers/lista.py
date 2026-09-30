@@ -119,7 +119,9 @@ def _hamta_rad(conn, nod_id: int) -> dict:
     rad = conn.execute("SELECT * FROM funktion_trad WHERE id = ?", (nod_id,)).fetchone()
     if rad is None:
         raise HTTPException(status_code=404, detail="Noden finns inte.")
-    return dict(rad)
+    rad = dict(rad)
+    rad["stig"] = tjanst.foraldrastig(conn, rad["foralder_id"])
+    return rad
 
 
 @router.get("/nod/{nod_id}/redigera")

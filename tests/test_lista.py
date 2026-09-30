@@ -72,18 +72,24 @@ def test_lista_sortering(client, app_db):
 
 
 def test_lista_filter_som_kravtradet(client, app_db):
-    seed_trad(app_db)
+    ids = seed_trad(app_db)
     logga_in(client, app_db)
-    # Fritext — men utan trädets förfäderskontext: bara träffarna listas.
+
+    def rad(nod):
+        return f'id="rad-{ids[nod]}"'
+
+    # Fritext — men utan trädets förfäderskontext: bara träffarna får rader
+    # (förfäderna syns ändå, som breadcrumb på träffens rad).
     rader = lista_delen(client.get("/lista?q=web").text)
-    assert "Import från Web of Science" in rader
-    assert "Registrera avhandling" not in rader and "Publicering" not in rader
+    assert rad("wos") in rader
+    assert rad("registrera") not in rader and rad("publicering") not in rader
+    assert "Publicering" in rader  # i breadcrumben
     # Typfilter.
     rader = lista_delen(client.get("/lista?typ=krav").text)
-    assert "Dubblettdetektering" in rader and "Publicering" not in rader
+    assert rad("dubblett") in rader and rad("publicering") not in rader
     # Statusfilter + avgång.
     rader = lista_delen(client.get("/lista?status=driftsatt&fas=Medlem+1").text)
-    assert "Publicering" in rader and "Registrera avhandling" not in rader
+    assert rad("publicering") in rader and rad("registrera") not in rader
 
 
 def test_lista_vyvaxling(client, app_db):
@@ -150,6 +156,32 @@ def test_lista_behorigheter(app_db, klient_fabrik):
     extern = klient_fabrik()
     logga_in(extern, app_db, namn="eva", roll="extern")
     assert extern.get("/lista").status_code == 403
+
+
+def test_lista_breadcrumb(client, app_db):
+    """Varje rad bär sin plats i trädet: förfäderna från roten som länkar in i
+    kravträdet, rotnoder som (rotnivå). Även den fristående raden (avbryt i
+    inline-redigeringen) har den, så raden inte byter form efter avbryt."""
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    rader = lista_delen(client.get("/lista").text)
+
+    dubblett = rader.split(f'id="rad-{ids["dubblett"]}"', 1)[1].split("</li>", 1)[0]
+    lankar = [f'<a href="/trad#nod-{ids[n]}"' for n in ("publicering", "import", "wos")]
+    for lank in lankar:
+        assert lank in dubblett
+    assert dubblett.index(lankar[0]) < dubblett.index(lankar[1]) < dubblett.index(lankar[2])
+    assert dubblett.count("›") == 2  # mellan länkarna, inte efter sista
+    assert f'/trad#nod-{ids["dubblett"]}' not in dubblett  # noden själv ingår inte
+    assert "(rotnivå)" not in dubblett
+
+    rot = rader.split(f'id="rad-{ids["export"]}"', 1)[1].split("</li>", 1)[0]
+    assert "(rotnivå)" in rot
+    assert "/trad#nod-" not in rot
+
+    rad = client.get(f"/lista/nod/{ids['wos']}/rad", headers={"HX-Request": "true"}).text
+    assert f'<a href="/trad#nod-{ids["import"]}"' in rad
+    assert ">Import</a>" in rad
 
 
 def test_lista_redigera_inline(client, app_db):
