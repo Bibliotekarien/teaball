@@ -15,6 +15,7 @@ mittpunkter (· ) precis som i Confluence så att hierarkin går att läsa även
 i råtexten."""
 
 from app.services.analys import rankning, tackning
+from app.services.confluence import koda_url
 from app.services.roadmap import roadmap_data
 
 # Lokal kopia i stället för import från app.web så exportlagret slipper bero på
@@ -46,13 +47,13 @@ def _bold(s: str) -> str:
 
 def _lank(text: str, url) -> str:
     """En markdown-länk i en tabellcell. URL:er valideras som http(s) vid
-    inmatning, men ')' avslutar länkmålet och '|' avslutar cellen — de
-    procentkodas så länken fortsatt pekar rätt."""
+    inmatning, men ')' avslutar länkmålet, '|' avslutar cellen och en
+    radbrytning avslutar tabellraden — allt utanför URL-strukturen
+    procentkodas (samma vitlista som Confluence-exporten) så länken fortsatt
+    pekar rätt."""
     if not url:
         return ""
-    saker = (str(url).replace(" ", "%20").replace("|", "%7C")
-             .replace("(", "%28").replace(")", "%29"))
-    return f"[{text}]({saker})"
+    return f"[{text}]({koda_url(url)})"
 
 
 def _rad(celler) -> str:
@@ -122,8 +123,9 @@ def roadmap(conn, visa_krav: bool, genererad: str,
     for fas, noder in roadmap_data(conn, visa_krav=visa_krav,
                                    dolj_formagor=dolj_formagor):
         # Bara första bokstaven höjs — capitalize() skulle gemena resten och
-        # förvanska egennamn som "Medlem 1".
-        rader += ["", f"## {fas[:1].upper() + fas[1:]}", ""]
+        # förvanska egennamn som "Medlem 1". Avgångsnamnet är fri admin-text
+        # och escapas som en cell, annars blir [x](url) en länk i rubriken.
+        rader += ["", f"## {_cell(fas[:1].upper() + fas[1:])}", ""]
         rader += _tabellhuvud(["Namn", "Typ", "Status"])
         for n in noder:
             rader.append(_rad([

@@ -66,6 +66,27 @@ def test_analys_markdown_med_varning(conn):
     assert "⚠ blockerar go-live" in ut
 
 
+def test_lank_kodar_allt_utanfor_url_strukturen(conn):
+    # Säkerhetsgranskningen av PR #37: '<' '>' '"' och radbrytning i en URL
+    # bröt cellen/raden. Strukturtecken och redan kodade sekvenser bevaras.
+    skapa_funktion(conn, "Länkad", typ="funktion",
+                   lank_jira='https://j.example/a b<c>"d\ne|f)g',
+                   lank_dokumentation="https://w.example/p%20q?x=1&y=å#frag")
+    conn.commit()
+    ut = markdown.kravtrad(conn, DATUM)
+    assert "[Jira](https://j.example/a%20b%3Cc%3E%22d%0Ae%7Cf%29g)" in ut
+    assert "[Dokumentation](https://w.example/p%20q?x=1&y=%C3%A5#frag)" in ut
+    assert all(rad.startswith("|") for rad in ut.splitlines()[4:])
+
+
+def test_avgangsnamn_escapas_i_rubriken(conn):
+    # Avgångsnamnet är fri admin-text; [x](url) får inte bli en länk i rubriken.
+    skapa_funktion(conn, "Något", typ="funktion", fas="q2 [x](https://e.example) *fet*")
+    conn.commit()
+    ut = markdown.roadmap(conn, visa_krav=False, genererad=DATUM)
+    assert "## Q2 \\[x\\](https://e.example) \\*fet\\*" in ut
+
+
 def test_roadmap_markdown(conn):
     ids = seed_trad(conn)
     conn.execute("UPDATE funktion SET fas = NULL WHERE id = ?", (ids["dubblett"],))
