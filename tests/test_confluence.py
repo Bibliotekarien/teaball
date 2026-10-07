@@ -64,6 +64,29 @@ def test_analys_markup_med_varning(conn):
     assert "(!) blockerar go-live" in ut
 
 
+def test_lank_kodar_allt_utanfor_url_strukturen(conn):
+    # Säkerhetsgranskningen av PR #37: '<' '>' '"' och radbrytning i en URL
+    # bröt cellen/raden. Strukturtecken och redan kodade sekvenser bevaras.
+    skapa_funktion(conn, "Länkad", typ="funktion",
+                   lank_jira='https://j.example/a b<c>"d\ne|f]g',
+                   lank_dokumentation="https://w.example/p%20q?x=1&y=å#frag")
+    conn.commit()
+    ut = confluence.kravtrad(conn, DATUM)
+    assert "[Jira|https://j.example/a%20b%3Cc%3E%22d%0Ae%7Cf%5Dg]" in ut
+    assert "[Dokumentation|https://w.example/p%20q?x=1&y=%C3%A5#frag]" in ut
+    # Inga råa radbrytningar inuti tabellen — varje rad är fortfarande en rad.
+    assert all(rad.startswith("|") for rad in ut.splitlines()[3:])
+
+
+def test_avgangsnamn_escapas_i_rubriken(conn):
+    # Avgångsnamnet är fri admin-text; {x} och [x] får inte bli makro/länk.
+    skapa_funktion(conn, "Något", typ="funktion", fas="q2 {status:x} [y]")
+    conn.commit()
+    ut = confluence.roadmap(conn, visa_krav=False, genererad=DATUM)
+    assert "h2. Q2 \\{status:x\\} \\[y\\]" in ut
+    assert "h2. q2 {status" not in ut and "h2. Q2 {status" not in ut
+
+
 def test_roadmap_markup(conn):
     ids = seed_trad(conn)
     # Restgruppen "Utan avgång" behöver en avgångslös nod — tillåtet för idé

@@ -9,6 +9,8 @@ Roadmap, Medlemmar. Bedömning and the member view are not yet covered.
 Functions take the export date as an argument so the markup is deterministic
 (easy to test); the router passes today's date."""
 
+from urllib.parse import quote
+
 from app.services.analys import rankning, tackning
 from app.services.roadmap import roadmap_data
 
@@ -36,14 +38,26 @@ def _bold(s: str) -> str:
     return f"*{s}*"
 
 
+# Tecken som får stå okodade i ett länkmål: URL-strukturen (schema, värd,
+# sökväg, fråga, fragment) och redan procentkodade sekvenser. Allt annat —
+# '|' och ']' som avslutar wiki-länken, '<' '>' '"' blanksteg och
+# radbrytningar som bryter cellen eller tabellraden — procentkodas. Delas med
+# markdown.py så båda exporterna kodar lika.
+URL_SAKRA_TECKEN = ":/?#@!$&'*+,;=%~"
+
+
+def koda_url(url) -> str:
+    return quote(str(url), safe=URL_SAKRA_TECKEN)
+
+
 def _lank(text: str, url) -> str:
     """A wiki-markup link cell. URLs are validated as http(s) on input, but a
-    '|' or ']' inside one would still end the link markup early — percent-encode
-    those instead of backslash-escaping, so the link target stays a valid URL."""
+    '|' or ']' inside one would still end the link markup early, and a
+    newline would end the table row — percent-encode instead of
+    backslash-escaping, so the link target stays a valid URL."""
     if not url:
         return " "
-    saker = str(url).replace(" ", "%20").replace("|", "%7C").replace("]", "%5D")
-    return f"[{text}|{saker}]"
+    return f"[{text}|{koda_url(url)}]"
 
 
 def _rad(celler, header: bool = False) -> str:
@@ -116,8 +130,9 @@ def roadmap(conn, visa_krav: bool, genererad: str,
     for fas, noder in roadmap_data(conn, visa_krav=visa_krav,
                                    dolj_formagor=dolj_formagor):
         # Bara första bokstaven höjs — capitalize() skulle gemena resten och
-        # förvanska egennamn som "Medlem 1".
-        rader += ["", f"h2. {fas[:1].upper() + fas[1:]}",
+        # förvanska egennamn som "Medlem 1". Avgångsnamnet är fri admin-text
+        # och escapas som en cell, annars blir {x} eller [x] markup i rubriken.
+        rader += ["", f"h2. {_cell(fas[:1].upper() + fas[1:])}",
                   _rad(["Namn", "Typ", "Status"], header=True)]
         for n in noder:
             rader.append(_rad([
