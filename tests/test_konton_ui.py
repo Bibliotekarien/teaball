@@ -223,3 +223,67 @@ def test_slumpat_anvandarnamn_undviker_kollision(app_db, monkeypatch):
     skapa_forvaltare(app_db, "stilla-ek", roll="intern")
     # Båda upptagna → suffix i stället för evig loop.
     assert re.fullmatch(r"stilla-(lax|ek)-\d{3}", konton.slumpa_anvandarnamn(app_db))
+
+
+# --- Rättningar efter säkerhetsgranskningen av PR #38 -------------------------
+
+def test_sista_admin_skyddas_atomiskt_i_skrivsatsen(app_db, monkeypatch):
+    """Räkningen före skrivsatsen ligger utanför transaktionen; villkoret i
+    själva DELETE/UPDATE är det som gäller. Stäng av förkontrollen och visa
+    att skrivsatsen ändå vägrar."""
+    skapa_forvaltare(app_db, "anna", roll="admin")
+    skapa_forvaltare(app_db, "ines", roll="intern")
+    anna = _konto(app_db, "anna")["id"]
+    ines = _konto(app_db, "ines")["id"]
+    monkeypatch.setattr(konton, "_inte_sista_admin", lambda *a, **k: None)
+
+    with pytest.raises(konton.Kontofel, match="sista administratören"):
+        konton.ta_bort(app_db, anna, aktor_id=ines)
+    with pytest.raises(konton.Kontofel, match="sista administratören"):
+        konton.byt_roll(app_db, anna, "intern", aktor_id=ines)
+    assert _konto(app_db, "anna")["roll"] == "admin"
+    # Med två admin går det igenom.
+    skapa_forvaltare(app_db, "bo", roll="admin")
+    konton.ta_bort(app_db, anna, aktor_id=ines)
+    assert _konto(app_db, "anna") is None
+
+
+def test_dubblett_i_racet_blir_kontofel_inte_500(app_db, monkeypatch):
+    skapa_forvaltare(app_db, "anna", roll="admin")
+    monkeypatch.setattr(konton, "_finns_namn", lambda conn, namn: False)
+    with pytest.raises(konton.Kontofel, match="finns redan"):
+        konton.skapa(app_db, "anna", "intern")
+
+
+def test_anvandarnamn_tillater_svenska_men_inte_homoglyfer():
+    assert konton.giltigt_anvandarnamn("styrgrupp-sö")
+    assert konton.giltigt_anvandarnamn("kb_titt.2")
+    assert not konton.giltigt_anvandarnamn("аnna")      # kyrilliskt а
+    assert not konton.giltigt_anvandarnamn("a")
+    assert not konton.giltigt_anvandarnamn("anna\n")
+
+
+def test_losenord_throttlas_efter_upprepade_fel(client, app_db):
+    from app.routers import inloggning
+    inloggning._misslyckanden.clear()
+    logga_in(client, app_db)
+    token = csrf_fran(client.get("/losenord").text)
+    fel = {"nuvarande": "fel", "nytt": "nytt-losen-1", "upprepat": "nytt-losen-1",
+           "csrf_token": token}
+    for _ in range(inloggning.MAX_FORSOK):
+        assert client.post("/losenord", data=fel).status_code == 400
+    # Spärrad — även rätt lösenord nekas nu, och inget byts.
+    ratt = {**fel, "nuvarande": "hemligt-losen"}
+    assert client.post("/losenord", data=ratt).status_code == 429
+    # Nyckeln delas med /login, så även inloggning är spärrad under tiden.
+    assert _logga_in_med(client, "anna", "hemligt-losen") == 429
+    inloggning._misslyckanden.clear()
+    assert _logga_in_med(client, "anna", "hemligt-losen") == 303   # gamla gäller
+    token = csrf_fran(client.get("/losenord").text)
+    ratt["csrf_token"] = token
+    # Formfel (olika upprepning) räknas inte som gissning.
+    for _ in range(inloggning.MAX_FORSOK + 1):
+        svar = client.post("/losenord", data={**ratt, "upprepat": "annat-1"})
+        assert svar.status_code == 400
+    assert client.post("/losenord", data=ratt).status_code == 200
+    inloggning._misslyckanden.clear()

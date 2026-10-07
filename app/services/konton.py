@@ -16,10 +16,10 @@ from app.auth.password import hash_losen, verifiera_losen
 
 ROLLER = ("admin", "intern", "extern")
 MINSTA_LOSENORD = 8
-# Bokstäver, siffror, punkt, bindestreck, understreck; 2–50 tecken. Svenska
-# bokstäver tillåts så att den som vill döpa kontot efter en funktion kan
-# skriva "styrgrupp-sö" — men förslagen håller sig till ASCII.
-_ANVANDARNAMN = re.compile(r"^[\w.-]{2,50}$")
+# Latinska bokstäver plus åäö, siffror, punkt, bindestreck, understreck;
+# 2–50 tecken. Avsiktligt inte \w: det släpper igenom hela Unicode, och ett
+# kyrilliskt "а" i "аnna" ser ut som ett befintligt konto utan att vara det.
+_ANVANDARNAMN = re.compile(r"^[A-Za-z0-9åäöÅÄÖ._-]{2,50}$")
 
 # Ordlistorna är medvetet ASCII och lätta att läsa upp i telefon. 24 × 24 ger
 # 576 kombinationer — gott och väl för ett tiotal konton; slumpa_anvandarnamn
@@ -40,8 +40,22 @@ class Kontofel(ValueError):
     """Ett regelbrott som ska visas för användaren, inte en programbugg."""
 
 
+class FelLosenord(Kontofel):
+    """Nuvarande lösenord stämde inte — routern räknar dessa för throttling."""
+
+
+# Python-sqlite öppnar transaktionen först vid skrivsatsen, så en SELECT
+# COUNT(*) före en DELETE/UPDATE ligger utanför den: två admin som tar bort
+# varandra samtidigt passerar båda kontrollen. Villkoret måste därför sitta i
+# själva skrivsatsen, där SQLite utvärderar det under skrivlåset.
+_INTE_SISTA_ADMIN_SQL = (
+    "(roll != 'admin' OR (SELECT COUNT(*) FROM forvaltare WHERE roll = 'admin') > 1)"
+)
+
+
 def giltigt_anvandarnamn(namn: str) -> bool:
-    return bool(_ANVANDARNAMN.match(namn))
+    # fullmatch, inte match: "$" godtar en avslutande radbrytning.
+    return bool(_ANVANDARNAMN.fullmatch(namn))
 
 
 def slumpa_anvandarnamn(conn: sqlite3.Connection) -> str:
@@ -105,10 +119,14 @@ def skapa(conn: sqlite3.Connection, anvandarnamn: str, roll: str) -> tuple[str, 
     if _finns_namn(conn, namn):
         raise Kontofel(f"Det finns redan ett konto som heter ”{namn}”.")
     losenord = slumpa_losenord()
-    conn.execute(
-        "INSERT INTO forvaltare (anvandarnamn, losen_hash, roll) VALUES (?, ?, ?)",
-        (namn, hash_losen(losenord), roll),
-    )
+    try:
+        conn.execute(
+            "INSERT INTO forvaltare (anvandarnamn, losen_hash, roll) VALUES (?, ?, ?)",
+            (namn, hash_losen(losenord), roll),
+        )
+    except sqlite3.IntegrityError as fel:
+        # Samma namn skapat av någon annan mellan kontrollen och insättningen.
+        raise Kontofel(f"Det finns redan ett konto som heter ”{namn}”.") from fel
     return namn, losenord
 
 
@@ -120,8 +138,15 @@ def byt_roll(conn: sqlite3.Connection, konto_id: int, roll: str, aktor_id: int) 
     _inte_sig_sjalv(konto_id, aktor_id, "ändra rollen på")
     rad = _hamta(conn, konto_id)
     if roll != "admin":
-        _inte_sista_admin(conn, rad, "nedgradera")
-    conn.execute("UPDATE forvaltare SET roll = ? WHERE id = ?", (roll, konto_id))
+        _inte_sista_admin(conn, rad, "nedgradera")   # vänligt fel i normalfallet
+    cur = conn.execute(
+        "UPDATE forvaltare SET roll = ? WHERE id = ?"
+        f" AND (? = 'admin' OR {_INTE_SISTA_ADMIN_SQL})",
+        (roll, konto_id, roll),
+    )
+    if cur.rowcount == 0:                            # racet, eller kontot försvann
+        raise Kontofel("Det gick inte att ändra rollen — kontot är den sista "
+                       "administratören eller finns inte längre.")
     return rad["anvandarnamn"]
 
 
@@ -139,8 +164,13 @@ def nytt_losenord(conn: sqlite3.Connection, konto_id: int, aktor_id: int) -> tup
 def ta_bort(conn: sqlite3.Connection, konto_id: int, aktor_id: int) -> str:
     _inte_sig_sjalv(konto_id, aktor_id, "ta bort")
     rad = _hamta(conn, konto_id)
-    _inte_sista_admin(conn, rad, "ta bort")
-    conn.execute("DELETE FROM forvaltare WHERE id = ?", (konto_id,))
+    _inte_sista_admin(conn, rad, "ta bort")          # vänligt fel i normalfallet
+    cur = conn.execute(
+        f"DELETE FROM forvaltare WHERE id = ? AND {_INTE_SISTA_ADMIN_SQL}", (konto_id,)
+    )
+    if cur.rowcount == 0:                            # racet, eller kontot försvann
+        raise Kontofel("Det gick inte att ta bort kontot — det är den sista "
+                       "administratören eller finns inte längre.")
     return rad["anvandarnamn"]
 
 
@@ -156,7 +186,7 @@ def byt_eget_losenord(conn: sqlite3.Connection, konto_id: int,
         "SELECT losen_hash FROM forvaltare WHERE id = ?", (konto_id,)
     ).fetchone()
     if rad is None or not verifiera_losen(rad["losen_hash"], nuvarande):
-        raise Kontofel("Det nuvarande lösenordet stämmer inte.")
+        raise FelLosenord("Det nuvarande lösenordet stämmer inte.")
     ny_hash = hash_losen(nytt)
     conn.execute("UPDATE forvaltare SET losen_hash = ? WHERE id = ?", (ny_hash, konto_id))
     return ny_hash

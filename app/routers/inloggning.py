@@ -123,16 +123,30 @@ def byt_losenord(
     principal: Principal = Depends(krav_forvaltare),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
+    # Samma throttle som /login: den som kommit över en öppen session ska
+    # inte kunna gissa sig fram till det nuvarande lösenordet och låsa ute
+    # ägaren. Nyckeln delas med /login så båda vägarna räknas ihop.
+    nyckel = (request.client.host if request.client else "?", principal.namn)
+    sida = {"principal": principal, "klart": False,
+            "minsta": konton_tjanst.MINSTA_LOSENORD}
+    if _sparrad(nyckel):
+        return templates.TemplateResponse(
+            request, "auth/losenord.html",
+            {**sida, "fel": "För många misslyckade försök — vänta några minuter "
+                            "och försök igen."},
+            status_code=429,
+        )
     try:
         ny_hash = konton_tjanst.byt_eget_losenord(
             conn, principal.forvaltare_id, nuvarande, nytt, upprepat)
+    except konton_tjanst.FelLosenord as fel:
+        _registrera_misslyckande(nyckel)
+        return templates.TemplateResponse(
+            request, "auth/losenord.html", {**sida, "fel": str(fel)}, status_code=400)
     except konton_tjanst.Kontofel as fel:
         return templates.TemplateResponse(
-            request, "auth/losenord.html",
-            {"principal": principal, "fel": str(fel), "klart": False,
-             "minsta": konton_tjanst.MINSTA_LOSENORD},
-            status_code=400,
-        )
+            request, "auth/losenord.html", {**sida, "fel": str(fel)}, status_code=400)
+    _misslyckanden.pop(nyckel, None)
     conn.commit()
     # Sessionen bär en digest av hashen: uppdatera den här sessionen så den
     # överlever bytet, medan kontots övriga sessioner loggas ut.
