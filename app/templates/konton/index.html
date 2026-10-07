@@ -1,8 +1,45 @@
 {% extends "base.html" %}
 {% block titel %}Konton – Teaball{% endblock %}
 {% block innehall %}
-<p class="mb-3 text-sm text-stone-500">Förvaltarkonton i systemet. Konton skapas
-och ändras med <code class="text-xs">scripts/skapa_forvaltare.py</code>.</p>
+{% if nytt_losenord %}
+<div class="mb-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm">
+  <p class="mb-1 text-emerald-900">
+    <strong>{{ "Nytt konto" if nytt_losenord.nytt_konto else "Nytt lösenord för" }}
+      {{ nytt_losenord.anvandarnamn }}</strong> —
+    lämna över lösenordet nu; det visas bara den här gången.
+    Den som får det byter själv under ”Byt lösenord”.</p>
+  <div class="grid gap-1 sm:grid-cols-2">
+    <input readonly value="{{ nytt_losenord.anvandarnamn }}" data-markera aria-label="Användarnamn"
+           class="w-full rounded border border-emerald-200 bg-white px-2 py-1 font-mono text-xs">
+    <input readonly value="{{ nytt_losenord.losenord }}" data-markera aria-label="Lösenord"
+           class="w-full rounded border border-emerald-200 bg-white px-2 py-1 font-mono text-xs">
+  </div>
+</div>
+{% endif %}
+{% if fel %}
+<div class="mb-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{{ fel }}</div>
+{% endif %}
+
+<form method="post" action="/konton" class="mb-4 flex flex-wrap items-end gap-2 text-sm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+  <label class="grid gap-0.5 text-xs text-stone-500">Användarnamn
+    <input name="anvandarnamn" value="{{ forslag_namn }}" maxlength="50"
+           title="Bokstäver, siffror, punkt, bindestreck, understreck"
+           class="w-56 rounded-md border border-stone-300 px-2 py-1.5 font-mono text-sm">
+  </label>
+  <label class="grid gap-0.5 text-xs text-stone-500">Roll
+    <select name="roll" class="rounded-md border border-stone-300 px-2 py-1.5 text-sm">
+      {% for r in roller %}<option value="{{ r }}" {% if r == "intern" %}selected{% endif %}>{{ r }}</option>{% endfor %}
+    </select>
+  </label>
+  <button class="rounded-md bg-blue-900 px-3 py-1.5 text-sm text-white hover:bg-blue-800">Skapa konto</button>
+  <a href="/konton" class="text-xs text-stone-500 underline decoration-stone-300 underline-offset-2 hover:text-stone-800"
+     title="Slumpa ett nytt förslag">annat förslag</a>
+</form>
+<p class="-mt-2 mb-4 text-xs text-stone-400">
+  Det föreslagna användarnamnet är slumpat så att kontolistan inte behöver innehålla
+  några personuppgifter. Skriv över det om ni vill. Lösenordet slumpas alltid och visas en gång.
+</p>
 
 <div class="overflow-x-auto rounded-lg border border-stone-200 bg-white">
   <table class="w-full text-sm">
@@ -11,25 +48,55 @@ och ändras med <code class="text-xs">scripts/skapa_forvaltare.py</code>.</p>
         <th class="px-3 py-2 font-normal">Användarnamn</th>
         <th class="px-3 py-2 font-normal">Roll</th>
         <th class="px-3 py-2 font-normal">Senast inloggad (UTC)</th>
+        <th class="px-3 py-2 font-normal"></th>
       </tr>
     </thead>
     <tbody>
       {% for k in konton %}
+      {% set jag = k.id == principal.forvaltare_id %}
       <tr class="border-b border-stone-100 hover:bg-stone-50">
-        <td class="px-3 py-2">{{ k.anvandarnamn }}</td>
-        <td class="px-3 py-2"><span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">{{ k.roll }}</span></td>
+        <td class="px-3 py-2">{{ k.anvandarnamn }}{% if jag %} <span class="text-xs text-stone-400">(du)</span>{% endif %}</td>
+        <td class="px-3 py-2">
+          {% if jag %}
+          <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">{{ k.roll }}</span>
+          {% else %}
+          <form method="post" action="/konton/{{ k.id }}/roll" class="inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+            <select name="roll" data-autosubmit aria-label="Roll för {{ k.anvandarnamn }}"
+                    class="rounded border border-stone-200 px-1 py-0.5 text-xs text-stone-600">
+              {% for r in roller %}<option value="{{ r }}" {% if r == k.roll %}selected{% endif %}>{{ r }}</option>{% endfor %}
+            </select>
+            <noscript><button class="rounded border border-stone-200 px-1.5 py-0.5 text-xs text-stone-500">byt</button></noscript>
+          </form>
+          {% endif %}
+        </td>
         <td class="px-3 py-2 text-stone-600">{% if k.senast_inloggad %}{{ k.senast_inloggad[:16] }}{% else %}<span class="text-stone-400">aldrig</span>{% endif %}</td>
+        <td class="px-3 py-2 text-right whitespace-nowrap">
+          {% if jag %}
+          <a href="/losenord" class="rounded border border-stone-200 px-1.5 py-0.5 text-xs text-stone-500 hover:bg-stone-100">byt lösenord</a>
+          {% else %}
+          <form method="post" action="/konton/{{ k.id }}/losenord" class="inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+            <button class="rounded border border-stone-200 px-1.5 py-0.5 text-xs text-stone-500 hover:bg-stone-100"
+                    title="Slumpa ett nytt lösenord — kontots pågående sessioner loggas ut">nytt lösenord</button>
+          </form>
+          <a href="/konton/{{ k.id }}/ta-bort"
+             class="rounded px-1.5 py-0.5 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-800">ta bort</a>
+          {% endif %}
+        </td>
       </tr>
       {% else %}
-      <tr><td colspan="3" class="px-3 py-4 text-stone-400">Inga konton ännu.</td></tr>
+      <tr><td colspan="4" class="px-3 py-4 text-stone-400">Inga konton ännu.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 
 <p class="mt-3 text-xs text-stone-400">
-  Endast den senaste inloggningen sparas (tidigare tidpunkt skrivs över — ingen
-  historik) och listan visas bara för administratörer.
+  Rollbyte slår igenom på kontots nästa sidvisning. ”Nytt lösenord” och ”ta bort” loggar ut kontot direkt.
+  Den sista administratören kan inte tas bort eller nedgraderas, och du kan inte ändra ditt eget konto här.
+  Endast den senaste inloggningen sparas (tidigare tidpunkt skrivs över — ingen historik) och listan visas
+  bara för administratörer.
   Se <a href="/integritet" class="underline decoration-stone-300 underline-offset-2 hover:text-stone-600">Personuppgifter &amp; integritet</a>.
 </p>
 {% endblock %}
