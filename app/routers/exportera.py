@@ -1,5 +1,6 @@
 """Export downloads: E1, the all-views Excel workbook, the standalone tree
-HTML and the combined PDF report (tree + ranking). Admin + intern only: the
+HTML, the combined PDF report (tree + ranking) and the text exports
+(Confluence wiki-markup, plain markdown). Admin + intern only: the
 default outputs dump private comments and unshared workarounds, and the
 "safe" variants are opt-in query params — a blanket rule is the only
 auditable one. The extern role's sole export is /roadmap/export."""
@@ -15,6 +16,7 @@ from app.db import get_conn
 from app.services import analys as analys_tjanst
 from app.services import confluence as confluence_tjanst
 from app.services import exportera as tjanst
+from app.services import markdown as markdown_tjanst
 from app.web import templates
 
 router = APIRouter(prefix="/export")
@@ -139,10 +141,27 @@ def rapport_pdf(
     )
 
 
-# Confluence wiki-markup of a view, served inline as plain text so the browser
-# shows the raw markup to select, copy and paste into Confluence.
-CONFLUENCE_VYER = {"kravtrad": "Kravträd", "analys": "Analys",
-                   "roadmap": "Roadmap", "medlemmar": "Medlemmar"}
+# Text exports of a view: Confluence wiki-markup and plain markdown share the
+# same four views and the same query params, so one dispatcher serves both
+# service modules (they expose identical function signatures).
+TEXT_VYER = {"kravtrad": "Kravträd", "analys": "Analys",
+             "roadmap": "Roadmap", "medlemmar": "Medlemmar"}
+CONFLUENCE_VYER = TEXT_VYER
+
+
+def _vy_text(tjanst, vy: str, request: Request, conn: sqlite3.Connection) -> str:
+    if vy not in TEXT_VYER:
+        raise HTTPException(status_code=404)
+    datum = datetime.now(UTC).strftime("%Y-%m-%d")
+    if vy == "kravtrad":
+        return tjanst.kravtrad(conn, datum)
+    if vy == "analys":
+        return tjanst.analys(conn, request.query_params.get("arvda") == "1", datum)
+    if vy == "roadmap":
+        return tjanst.roadmap(
+            conn, request.query_params.get("visa_krav") == "1", datum,
+            dolj_formagor=request.query_params.get("dolj_formagor") == "1")
+    return tjanst.medlemmar(conn, datum)
 
 
 @router.get("/confluence/{vy}", response_class=PlainTextResponse)
@@ -152,17 +171,25 @@ def confluence(
     principal: Principal = Depends(krav_intern),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
-    if vy not in CONFLUENCE_VYER:
-        raise HTTPException(status_code=404)
-    datum = datetime.now(UTC).strftime("%Y-%m-%d")
-    if vy == "kravtrad":
-        text = confluence_tjanst.kravtrad(conn, datum)
-    elif vy == "analys":
-        text = confluence_tjanst.analys(conn, request.query_params.get("arvda") == "1", datum)
-    elif vy == "roadmap":
-        text = confluence_tjanst.roadmap(
-            conn, request.query_params.get("visa_krav") == "1", datum,
-            dolj_formagor=request.query_params.get("dolj_formagor") == "1")
-    else:
-        text = confluence_tjanst.medlemmar(conn, datum)
+    """Served inline as plain text so the browser shows the raw markup to
+    select, copy and paste into Confluence."""
+    text = _vy_text(confluence_tjanst, vy, request, conn)
     return PlainTextResponse(text, media_type="text/plain; charset=utf-8")
+
+
+@router.get("/markdown/{vy}", response_class=PlainTextResponse)
+def markdown(
+    vy: str,
+    request: Request,
+    principal: Principal = Depends(krav_intern),
+    conn: sqlite3.Connection = Depends(get_conn),
+):
+    """Served as a .md download: markdown is meant to land in a wiki, a repo
+    or a notes app, not to be read raw in the browser."""
+    text = _vy_text(markdown_tjanst, vy, request, conn)
+    return PlainTextResponse(
+        text,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition":
+                 f'attachment; filename="{vy}-{_datum()}.md"'},
+    )
