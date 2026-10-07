@@ -101,6 +101,7 @@ def test_extern_nav_visar_bara_kravtrad_och_roadmap(client, app_db):
     for adress in ("/bedomning", "/analys", "/medlemmar", "/export"):
         assert f'href="{adress}"' not in sida, adress
     assert "Confluence" not in sida
+    assert "Markdown" not in sida
 
 
 def test_admin_ser_redigeringskontroller(client, app_db):
@@ -161,7 +162,8 @@ def test_extern_far_403_pa_interna_vyer(client, app_db):
                    "/medlemmar", "/export", "/export/teaball.xlsx", "/export/json",
                    "/export/trad.csv", "/export/bedomningar.csv",
                    "/export/kravtrad.html", "/export/kravtrad.html?endast_synliga=1",
-                   "/export/rapport.pdf?endast_synliga=1", "/export/confluence/kravtrad"):
+                   "/export/rapport.pdf?endast_synliga=1", "/export/confluence/kravtrad",
+                   "/export/markdown/kravtrad"):
         assert client.get(adress, follow_redirects=False).status_code == 403, adress
 
 
