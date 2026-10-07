@@ -14,6 +14,15 @@ def hash_losen(losenord: str) -> str:
     return _hasher.hash(losenord)
 
 
+def verifiera_losen(losen_hash: str, losenord: str) -> bool:
+    """Ren hashkontroll utan databas — för byte av eget lösenord, där kontot
+    redan är känt via sessionen."""
+    try:
+        return _hasher.verify(losen_hash, losenord)
+    except VerifyMismatchError:
+        return False
+
+
 def verifiera(conn: sqlite3.Connection, anvandarnamn: str, losenord: str) -> Principal | None:
     rad = conn.execute(
         "SELECT id, anvandarnamn, losen_hash, roll FROM forvaltare WHERE anvandarnamn = ?",

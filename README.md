@@ -59,14 +59,29 @@ Driftsättningschecklista (första gången):
 
 ### Skapa förvaltarkonton
 
+Det första kontot skapas från kommandoraden (tjänsten heter `app` i
+utvecklingskomposen och `web` i `docker-compose.prod.yml`):
+
 ```bash
 docker compose exec app python scripts/skapa_forvaltare.py anna
-docker compose exec app python scripts/skapa_forvaltare.py bertil --roll intern
-docker compose exec app python scripts/skapa_forvaltare.py cecilia --roll extern
+docker compose -f docker-compose.prod.yml exec web python scripts/skapa_forvaltare.py anna
 ```
 
 Lösenordet frågas efter interaktivt och lagras argon2-hashat. Logga sedan in på
 `/login`.
+
+Resten sköts under **Konton** i appen (endast admin): skapa konto, byta roll,
+slumpa nytt lösenord, ta bort. Användarnamnet föreslås slumpat — två vardagliga
+ord som `stilla-lax` — så att kontolistan inte behöver innehålla några
+personuppgifter; skriv över förslaget om ni vill. Lösenordet slumpas alltid och
+visas en enda gång, för den som skapar kontot att lämna över; mottagaren byter
+sedan själv under **Byt lösenord** i sidhuvudet (alla roller). Tjänsten har
+ingen e-post och ska inte ha någon.
+
+Två spärrar skyddar mot att låsa ute sig: ingen kan ändra, nollställa eller ta
+bort sitt eget konto där, och den sista administratören kan varken tas bort
+eller nedgraderas. Skriptet ovan fungerar fortfarande som reservväg
+(`--roll intern|extern` sätter rollen).
 
 Kontot får en av tre roller:
 
@@ -79,12 +94,13 @@ Kontot får en av tre roller:
   Bedömningar, analys, medlemmar och export är spärrade; enda nedladdningen
   är roadmapens HTML-export, som redan är extern-säker.
 
-Utelämnad `--roll` lämnar ett befintligt kontos roll orörd — ett lösenordsbyte
-ändrar aldrig behörighet. Rollbyte slår igenom på nästa request, ingen ny
-inloggning krävs.
+Utelämnad `--roll` i skriptet lämnar ett befintligt kontos roll orörd — ett
+lösenordsbyte ändrar aldrig behörighet. Rollbyte slår igenom på nästa request,
+ingen ny inloggning krävs. Nytt lösenord (via skriptet eller **Konton**) och
+borttagning loggar ut kontots pågående sessioner direkt.
 
-Administratörer ser kontolistan med roll och senaste inloggning under
-**Konton** i appen; medlemslänkarnas senaste användning syns under
+Kontolistan under **Konton** visar roll och senaste inloggning;
+medlemslänkarnas senaste användning syns under
 **Medlemmar**. Endast den senaste tidpunkten sparas (skrivs över, ingen
 historik) — datasnålt nog att bara kräva en notis på `/integritet`.
 
