@@ -4,8 +4,8 @@
    smalare än förut: 6xl − kolumnen ≈ 4xl. #}
 {% block huvudbredd %}max-w-4xl lg:max-w-6xl{% endblock %}
 {% block huvudskript %}
-<script src="/static/vendor/Sortable.min.js" defer></script>
-<script src="/static/js/trad.js" defer></script>
+<script src="{{ static_url('vendor/Sortable.min.js') }}" defer></script>
+<script src="{{ static_url('js/trad.js') }}" defer></script>
 {% endblock %}
 {% block innehall %}
 <div class="mb-3 flex flex-wrap items-center justify-between gap-2">

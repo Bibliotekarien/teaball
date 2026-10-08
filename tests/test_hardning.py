@@ -119,3 +119,22 @@ def test_sakerhetsheaders(client, app_db):
     assert huvuden["x-frame-options"] == "DENY"
     statiska = client.get("/static/css/app.css").headers
     assert statiska.get("cache-control") != "no-store"
+
+
+def test_statiska_lankar_bar_innehallshash(client, app_db):
+    """Static assets may cache freely, so every link to them must change when
+    the file does — otherwise a deploy renders new templates with a stale
+    app.css from the browser cache (the oversized header logo, Oct 2026)."""
+    import re
+
+    from app.web import _statisk_version, static_url
+
+    sida = client.get("/login").text
+    lankar = re.findall(r'(?:href|src)="(/static/[^"]+)"', sida)
+    assert lankar, "inga statiska länkar på inloggningssidan"
+    for lank in lankar:
+        assert re.search(r"\?v=[0-9a-f]{10}$", lank), lank
+        assert client.get(lank).status_code == 200
+    assert static_url("css/app.css") in lankar
+    assert _statisk_version("css/app.css") != _statisk_version("js/app.js")
+    assert _statisk_version("finns-inte.css") == "0"
