@@ -149,6 +149,13 @@ gång** — kopiera och skicka den direkt. Endast en SHA-256-hash av token lagra
 sessioner. Medlemmen ser bara noder som är markerade synliga och bara sina egna
 svar; delade workarounds från andra visas anonymt.
 
+Medlemmen har också en egen **Roadmap**-flik (`/svara/roadmap`): samma urval
+som styrgruppens HTML-export — synliga noder grupperade per avgång, med namn,
+typ och status — kompletterat med medlemmens eget effektiva svar per rad, så
+att biblioteket ser om något det kallat go-live-krav ligger i en sen avgång.
+Inga andras svar, inga antal, ingen analys; inget redigeringsläge och inga
+exportlänkar.
+
 ## Backup (I4)
 
 ```bash

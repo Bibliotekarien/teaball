@@ -1,0 +1,38 @@
+{# Medlemmens roadmap-grupper. Egen mall i stället för roadmap/_grupper.html:
+   den bär redigeringsläge, dold-markering och avgångsväljare bakom villkor,
+   och en medlemsvy ska inte kunna råka rendera någon av dem. Här finns bara
+   namn, typ, status och medlemmens eget effektiva svar. #}
+<div id="roadmap-grupper">
+  {% for fas, rader in grupper %}
+  <h2 class="mb-1 mt-4 font-serif text-sm text-blue-900">{{ fas }}</h2>
+  <ol class="list-none rounded-lg border border-stone-200 bg-white">
+    {% for n in rader %}
+    {% set eff = effektiva.get(n.id) %}
+    <li class="flex flex-wrap items-center gap-2 border-b border-stone-100 py-1.5 pr-2"
+        style="padding-left: {{ n.djup * 16 + 10 }}px">
+      {% if n.typ == "förmåga" %}
+      <span class="min-w-0 flex-1 truncate text-sm {{ TYP_CLS[n.typ] }}">{{ n.namn }}</span>
+      {% else %}
+      <a href="/svara#gren-{{ n.id }}" class="min-w-0 flex-1 truncate text-sm {{ TYP_CLS[n.typ] }} hover:underline"
+         title="Gå till bedömningen">{{ n.namn }}</a>
+      {% endif %}
+      <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ n.typ }}</span>
+      {% if n.typ != "förmåga" %}
+      <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}" title="{{ STATUS[n.status].beskrivning }}">{{ STATUS[n.status].label }}</span>
+      {% endif %}
+      {% if not dolj_svar %}
+        {% if eff %}
+        <span class="rounded border px-1.5 py-0.5 text-xs {{ SVAR[eff.svar].pill }}"
+              title="{{ SVAR[eff.svar].label }}{% if eff.arvd %} — ärvt från {{ eff.kalla_namn }}{% endif %}">
+          {{ SVAR[eff.svar].kort }}{% if eff.arvd %} <span class="italic opacity-80">(ärvt)</span>{% endif %}</span>
+        {% elif n.typ != "förmåga" and n.status not in ej_rankbara %}
+        <span class="rounded border border-dashed border-stone-300 px-1.5 py-0.5 text-xs text-stone-400">ej bedömd</span>
+        {% endif %}
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="rounded-md border border-stone-200 bg-white p-4 text-sm text-stone-400">Roadmapen är tom.</p>
+  {% endfor %}
+</div>

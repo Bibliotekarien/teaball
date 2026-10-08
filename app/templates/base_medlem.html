@@ -15,6 +15,19 @@
     <h1 class="font-serif text-lg text-blue-900">Teaball</h1>
     <p class="text-xs text-stone-500">{% block undertitel %}Er bedömning{% endblock %}</p>
   </header>
+
+  {% if principal and principal.kind == "medlem" %}
+  <nav class="flex gap-1 overflow-x-auto border-b border-stone-200 bg-white px-3 sm:px-6">
+    {% for adress, etikett in [("/svara", "Er bedömning"), ("/svara/roadmap", "Roadmap")] %}
+    {% set aktiv = request.url.path == adress %}
+    <a href="{{ adress }}"
+       {% if aktiv %}aria-current="page"{% endif %}
+       class="whitespace-nowrap border-b-2 px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-700
+              {% if aktiv %}border-blue-900 font-medium text-blue-900
+              {% else %}border-transparent text-stone-500 hover:text-stone-800{% endif %}">{{ etikett }}</a>
+    {% endfor %}
+  </nav>
+  {% endif %}
   <main class="mx-auto max-w-4xl px-3 py-4 sm:px-6 sm:py-5">
     {% block innehall %}{% endblock %}
   </main>
