@@ -19,6 +19,7 @@ from app.auth.core import (
 from app.auth.csrf import krav_csrf
 from app.db import get_conn
 from app.services import bedomning as tjanst
+from app.services import roadmap as roadmap_tjanst
 from app.services import trad as trad_tjanst
 from app.web import is_htmx, templates
 
@@ -37,6 +38,41 @@ def _starta_medlemssession(request: Request, conn, rad) -> RedirectResponse:
     request.session[SESSION_MEDLEM] = rad["id"]
     request.session[SESSION_MEDLEM_HASH] = rad["token"]
     return RedirectResponse("/svara", status_code=303)
+
+
+# Registreras FÖRE /{token}: FastAPI matchar i registreringsordning, annars
+# tolkas "roadmap" som en ogiltig svarslänk. (Ett äkta token är 43 tecken
+# base64 och kan aldrig vara ordet "roadmap", så ingen länk skuggas.)
+@router.get("/roadmap")
+def roadmap(
+    request: Request,
+    visa_krav: str = "",
+    dolj_formagor: str = "",
+    dolj_svar: str = "",
+    principal: Principal = Depends(krav_medlem),
+    conn: sqlite3.Connection = Depends(get_conn),
+):
+    """Medlemmens roadmap: samma urval som styrgruppens HTML-export och
+    extern-rollen (endast synliga noder, transitivt), i medlemsvyns ram.
+    Ingen bedömningsdata utom medlemmens egna effektiva svar, som visas per
+    rad så att biblioteket ser om något de kallat go-live-krav ligger i en
+    sen avgång. Inget redigeringsläge, inga exportlänkar."""
+    _, effektiva = tjanst.svarskarta(conn, principal.medlem_id)
+    return templates.TemplateResponse(
+        request,
+        "svara/roadmap.html",
+        {
+            "principal": principal,
+            "grupper": roadmap_tjanst.roadmap_data(
+                conn, visa_krav=visa_krav == "1", endast_synliga=True,
+                dolj_formagor=dolj_formagor == "1"),
+            "effektiva": effektiva,
+            "ej_rankbara": tjanst.EJ_RANKBARA_STATUSAR,
+            "visa_krav": visa_krav == "1",
+            "dolj_formagor": dolj_formagor == "1",
+            "dolj_svar": dolj_svar == "1",
+        },
+    )
 
 
 @router.get("/{token}")

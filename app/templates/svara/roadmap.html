@@ -1,0 +1,28 @@
+{% extends "base_medlem.html" %}
+{% block titel %}Roadmap – Teaball{% endblock %}
+{% block undertitel %}Roadmap{% endblock %}
+{% block innehall %}
+<p class="mb-3 text-sm text-stone-600">
+  Så här planeras funktionerna in i avgångarna. Bredvid varje rad syns
+  <strong>{{ principal.namn }}</strong>s egen bedömning, så att ni ser om något ni
+  behöver till go-live ligger sent. Klicka på en rad för att ändra bedömningen.
+</p>
+<form method="get" action="/svara/roadmap" class="mb-3 text-sm">
+  <label class="flex cursor-pointer items-center gap-1.5 text-stone-600">
+    <input type="checkbox" name="visa_krav" value="1" data-autosubmit {% if visa_krav %}checked{% endif %}>
+    Visa även krav
+  </label>
+  <label class="mt-1 flex cursor-pointer items-center gap-1.5 text-stone-600">
+    <input type="checkbox" name="dolj_formagor" value="1" data-autosubmit {% if dolj_formagor %}checked{% endif %}>
+    Dölj förmågor — visa bara funktioner och krav
+  </label>
+  <label class="mt-1 flex cursor-pointer items-center gap-1.5 text-stone-600">
+    <input type="checkbox" name="dolj_svar" value="1" data-autosubmit {% if dolj_svar %}checked{% endif %}>
+    Dölj er bedömning
+  </label>
+  <noscript><button class="mt-1 rounded-md border border-stone-300 px-3 py-1 hover:bg-stone-100">Visa</button></noscript>
+</form>
+
+{% include "_forklaringar.html" %}
+{% include "svara/_roadmap_grupper.html" %}
+{% endblock %}

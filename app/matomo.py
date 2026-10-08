@@ -30,8 +30,10 @@ _client: httpx.AsyncClient | None = None
 _tasks: set[asyncio.Task] = set()
 
 # GET /svara/<token> is a 303 (never tracked), but mask defensively so the
-# secret can never reach analytics via any status/path combination.
-_TOKEN_RE = re.compile(r"^(/svara/)[^/]+$")
+# secret can never reach analytics via any status/path combination. The
+# member roadmap lives at /svara/roadmap and is a real page, not a token —
+# excluded so its page views are not folded into the masked bucket.
+_TOKEN_RE = re.compile(r"^(/svara/)(?!roadmap$)[^/]+$")
 
 
 def sanitize_path(path: str) -> str:
