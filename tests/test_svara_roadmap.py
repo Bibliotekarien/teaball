@@ -100,6 +100,27 @@ def test_roadmap_kraver_medlemssession(client, app_db, klient_fabrik):
     assert anonym.get("/svara/roadmapp", follow_redirects=False).status_code == 404
 
 
+def test_arvt_fran_dold_nod_lacker_inte_namnet(app_db, klient_fabrik):
+    """Medlemmen svarar på Import; Import döljs sedan av förvaltaren. Svaret
+    ärvs fortfarande ned i grenen (bedomning_effektiv), men ingen rad eller
+    tooltip får nämna den dolda noden. Invarianten bygger på att synlig_stig
+    är transitiv — därav låsningen här, mot framtida ändringar i roadmap_data
+    eller svarskarta."""
+    ids = seed_trad(app_db)
+    a = skapa_medlem(app_db, "Uppsala universitet")
+    satt_svar(app_db, a, ids["import"], "golive_krav")
+    # Dölj Import men inte dess barn — barnens synlig_stig blir ändå 0.
+    app_db.execute("UPDATE funktion SET synlig_externt = 0 WHERE id = ?", (ids["import"],))
+    app_db.commit()
+
+    klient = _medlemsklient(klient_fabrik, ge_token(app_db, a))
+    for qs in ("", "?visa_krav=1", "?dolj_formagor=1", "?visa_krav=1&dolj_formagor=1"):
+        sida = klient.get(f"/svara/roadmap{qs}").text
+        assert "Import" not in sida.replace("Import från", ""), qs   # inte ens i tooltip
+        assert "Import från Web of Science" not in sida, qs           # hela grenen dold
+        assert "Registrera avhandling" in sida, qs                    # syskonet kvar
+
+
 def test_matomo_maskar_token_men_inte_roadmap():
     assert matomo.sanitize_path("/svara/abc123XYZ") == "/svara/_token_"
     assert matomo.sanitize_path("/svara/roadmap") == "/svara/roadmap"
