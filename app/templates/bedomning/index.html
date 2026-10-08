@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block titel %}Bedömning – Teaball{% endblock %}
 {% block huvudskript %}
-<script src="/static/js/trad.js" defer></script>
+<script src="{{ static_url('js/trad.js') }}" defer></script>
 {% endblock %}
 {% block innehall %}
 <form method="get" action="/bedomning" class="mb-4 flex flex-wrap items-center gap-3 text-sm">

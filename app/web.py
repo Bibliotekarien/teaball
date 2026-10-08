@@ -1,5 +1,8 @@
 """Shared template setup and UI label maps (terminology per the prototype)."""
 
+import hashlib
+from functools import lru_cache
+
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
@@ -8,6 +11,28 @@ from app.auth.csrf import csrf_token
 
 templates = Jinja2Templates(directory=str(config.TEMPLATES_DIR))
 templates.env.globals["csrf_token"] = csrf_token
+
+
+@lru_cache(maxsize=None)
+def _statisk_version(relativ: str) -> str:
+    """Short content hash of a file under static/. Cached for the process
+    lifetime: the files only change with a deploy, which restarts the app."""
+    try:
+        return hashlib.sha256((config.STATIC_DIR / relativ).read_bytes()).hexdigest()[:10]
+    except OSError:
+        return "0"
+
+
+def static_url(relativ: str) -> str:
+    """URL for a static asset with a content-hash query string, so browsers
+    fetch the new file after a deploy instead of serving a stale copy from
+    cache. Static responses carry no Cache-Control, so without this a browser
+    is free to reuse an old app.css for days (heuristic freshness from
+    Last-Modified) and renders new templates with old styles."""
+    return f"/static/{relativ}?v={_statisk_version(relativ)}"
+
+
+templates.env.globals["static_url"] = static_url
 
 # Answer labels and colors follow formagekarta-prototyp.jsx (SVAR map).
 SVAR = {

@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block titel %}Roadmap – Teaball{% endblock %}
 {% block huvudskript %}
-<script src="/static/vendor/Sortable.min.js" defer></script>
-<script src="/static/js/roadmap.js" defer></script>
+<script src="{{ static_url('vendor/Sortable.min.js') }}" defer></script>
+<script src="{{ static_url('js/roadmap.js') }}" defer></script>
 {% endblock %}
 {% block innehall %}
 {# Filterparametrarna följer med alla länkar så valet överlever lägesbyten
