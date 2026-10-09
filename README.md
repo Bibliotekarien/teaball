@@ -32,8 +32,12 @@ Produktion körs med **`docker-compose.prod.yml`** enligt plattformens mönster
 stack `/opt/teaball/app`, service-användare `teaball` (UID 1505),
 inga host-portar — edge-Caddy joinar `teaball_proxy` och proxar
 `teaball.bibliotekarien.se` genom **Anubis** (PoW-gate för all trafik;
-htmx-anropen bär clearance-cookien). Databasen ligger i named-volymen
-`teaball-data`.
+htmx-anropen bär clearance-cookien; Anubis standardpolicy enligt
+plattformens `edge/ANUBIS.md`). Databasen ligger i named-volymen
+`teaball-data`. Teaball är **stängd för sökmotorer** — `/robots.txt`
+(serveras av appen) säger `Disallow: /`, eftersom allt utom inloggningen
+kräver konto. uvicorns accesslogg är på, med medlemmarnas token maskade
+(`app/accesslog.py`).
 
 Driftsättningschecklista (första gången):
 

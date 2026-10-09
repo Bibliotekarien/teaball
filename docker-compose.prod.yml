@@ -58,9 +58,13 @@ services:
     environment:
       BIND: ":8923"
       TARGET: "http://web:8000"
-      DIFFICULTY: "${ANUBIS_DIFFICULTY:-4}"
-      SERVE_ROBOTS_TXT: "true"
-      POLICY_FNAME: /data/cfg/botPolicy.yaml
+      # Anubis egen standardpolicy (ingen POLICY_FNAME), enligt
+      # bibliotekarien-platform edge/ANUBIS.md. Vår egen policy ersatte den och
+      # utmanade allt med "Mozilla" — samma mönster som stängde ute Google från
+      # de andra apparna. Ingen DIFFICULTY (standardpolicyns trösklar styr) och
+      # ingen SERVE_ROBOTS_TXT: robots.txt serveras av appen (app/main.py) —
+      # teaball är stängd för sökmotorer, men som ett nedskrivet beslut, inte
+      # för att Anubis råkar servera `Disallow: /`.
       OG_PASSTHROUGH: "true"
       OG_EXPIRY_TIME: 24h
       # Måste matcha det publika hostnamnet, annars accepteras inte
@@ -68,8 +72,6 @@ services:
       COOKIE_DOMAIN: ${ANUBIS_COOKIE_DOMAIN:?Sätt ANUBIS_COOKIE_DOMAIN i .env}
       METRICS_BIND: ":9090"
       CHALLENGE_TITLE: "Teaball"
-    volumes:
-      - ./anubis/botPolicy.yaml:/data/cfg/botPolicy.yaml:ro
     healthcheck:
       test: ["CMD", "anubis", "--healthcheck"]
       interval: 30s

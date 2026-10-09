@@ -4,11 +4,11 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from app import config, db, matomo
+from app import accesslog, config, db, matomo
 from app.web import templates
 from app.routers import (
     analys, bedomning, exportera, inloggning, konton, lista, medlemmar, roadmap,
@@ -41,6 +41,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    accesslog.install()
     app.add_middleware(
         SessionMiddleware,
         secret_key=config.SECRET_KEY,
@@ -63,6 +64,21 @@ def create_app() -> FastAPI:
     @app.get("/")
     def start():
         return RedirectResponse("/trad", status_code=303)
+
+    @app.get("/robots.txt", include_in_schema=False)
+    def robots():
+        """Teaball is closed to search engines — decided, not by accident:
+        everything but the login needs an account, and /svara/<token> are
+        members' secret links. Served by the app, not Anubis (whose robots.txt
+        is the same Disallow, but only by default; bibliotekarien-platform
+        edge/ANUBIS.md). Anubis lets /robots.txt through unchallenged."""
+        return PlainTextResponse(
+            "# Teaball är ett slutet verktyg för DiVA-konsortiet: allt utom\n"
+            "# inloggningen kräver konto, och /svara/<token> är medlemmarnas\n"
+            "# hemliga länkar. Inget att indexera.\n"
+            "User-agent: *\n"
+            "Disallow: /\n"
+        )
 
     @app.get("/health")
     def health():
