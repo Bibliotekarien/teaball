@@ -45,7 +45,8 @@ EXPOSE 8000
 # --proxy-headers: scheme/host from the edge (Secure cookies, Matomo URLs).
 # --forwarded-allow-ips '*': the proxy hop is Anubis/Caddy on the compose
 # network; the container publishes no host ports, so the header is trustworthy.
-# --no-access-log: raw member tokens appear in GET /svara/<token> paths — the
-# edge-Caddy access log covers request logging and masks that path.
+# The access log is on: members' tokens in GET /svara/<token> are masked by
+# app/accesslog.py before the line is written (the platform pattern — mask,
+# don't turn off; bibliotekarien-platform LOGGNING.md).
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", \
-     "--proxy-headers", "--forwarded-allow-ips", "*", "--no-access-log"]
+     "--proxy-headers", "--forwarded-allow-ips", "*"]
