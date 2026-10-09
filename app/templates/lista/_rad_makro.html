@@ -5,7 +5,7 @@
    letar upp efteråt. #}
 {% macro rad(n, request, detaljerad=false, skrivbar=false) %}
 <li id="rad-{{ n.id }}" class="group flex flex-wrap items-center gap-1.5 scroll-mt-2 border-b border-stone-100 px-2 py-1.5 hover:bg-stone-50">
-  {# Var noden hör hemma: förfäderna från roten, länkade in i kravträdet.
+  {# Var noden hör hemma: förfäderna från roten, länkade in i behovsträdet.
      Listan är sorterad på tid, så raden själv säger inget om platsen. w-full
      ger stigen en egen rad ovanför namnet. Rotnoder skrivs ut som (rotnivå),
      samma ord som föräldravalet, så alla rader får samma form. #}
@@ -19,7 +19,7 @@
   {# utgår ersätter typfärgen rakt av — samma resonemang som i trädet. #}
   <span class="min-w-0 flex-1 break-words text-sm {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}" title="{{ n.beskrivning or n.namn }}">{{ n.namn }}</span>
   {% if skrivbar %}
-  {# Redigera och ta bort öppnar samma formulär/bekräftelse som i kravträdet,
+  {# Redigera och ta bort öppnar samma formulär/bekräftelse som i behovsträdet,
      på radens plats. Utan JS leder länkarna till helsidesvarianterna. #}
   <span class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
     <a href="/lista/nod/{{ n.id }}/redigera" hx-get="/lista/nod/{{ n.id }}/redigera" hx-target="#rad-{{ n.id }}" hx-swap="outerHTML"
@@ -29,7 +29,7 @@
   </span>
   {% endif %}
   {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">dold</span>{% endif %}
-  <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ n.typ }}</span>
+  <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ TYP_LABEL[n.typ] }}</span>
   <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}" title="{{ STATUS[n.status].beskrivning }}">{{ STATUS[n.status].label }}</span>
   <span class="hidden w-14 text-right text-xs text-stone-400 sm:inline">{{ n.fas or "" }}</span>
   <span class="w-[4.6rem] shrink-0 text-right text-xs tabular-nums text-stone-400"

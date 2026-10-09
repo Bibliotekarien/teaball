@@ -2,7 +2,7 @@
 <html lang="sv">
 <head>
 <meta charset="utf-8">
-<title>Teaball – kravträd &amp; ranking</title>
+<title>Teaball – behovsträd &amp; ranking</title>
 <style>
 {% include "exportera/_export_stil.html" %}
 /* PDF specifics: A4 with page numbers; the @page margin carries the footer,
@@ -26,13 +26,13 @@ h1 { font-size: 1.4rem; }
 </head>
 <body>
 <main>
-  <h1>Teaball – kravträd &amp; blockerar-rankning</h1>
+  <h1>Teaball – behovsträd &amp; blockerar-rankning</h1>
   <p class="meta">Genererad {{ genererad }}.
     {%- if endast_synliga %} Endast noder som är synliga externt — dolda grenar är utelämnade.
     {%- else %} Fullständigt underlag — noder som inte visas för medlemmar är markerade <em>intern</em>.
     {%- endif %}</p>
 
-  <h2>Kravträd</h2>
+  <h2>Behovsträd</h2>
   {% include "exportera/_export_trad.html" %}
 
   <div class="sektion-rankning">

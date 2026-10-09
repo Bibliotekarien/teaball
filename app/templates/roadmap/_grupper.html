@@ -2,7 +2,7 @@
    a no-JS fas form; roadmap.js enhances cross-phase drops onto the same
    endpoint. Förmågerader är hierarkikontext: inget status-piller, ingen
    flytt (utan data-nod ignoreras de av SortableJS draggable-selektorn) —
-   deras avgång sätts i kravträdet om den alls behövs. #}
+   deras avgång sätts i behovsträdet om den alls behövs. #}
 <div id="roadmap-grupper" {% if redigera %}data-redigera="1"{% endif %}{% if visa_krav %} data-visa-krav="1"{% endif %}{% if dolj_formagor %} data-dolj-formagor="1"{% endif %}>
   {% if fel %}
   {# Samma utseende som #trad-fel i trad/_innehall.html. #}
@@ -18,7 +18,7 @@
       {% if redigera and n.typ != "förmåga" %}<span class="greppyta cursor-grab select-none px-1 text-stone-300" title="Dra till en annan avgång">⋮⋮</span>{% endif %}
       <span class="min-w-0 flex-1 truncate text-sm {{ TYP_CLS[n.typ] }}">{{ n.namn }}</span>
       {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400" title="Utelämnas ur exporten">dold</span>{% endif %}
-      <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ n.typ }}</span>
+      <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ TYP_LABEL[n.typ] }}</span>
       {% if n.typ != "förmåga" %}
       <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}" title="{{ STATUS[n.status].beskrivning }}">{{ STATUS[n.status].label }}</span>
       {% endif %}
@@ -46,6 +46,6 @@
     {% endif %}
   </ol>
   {% else %}
-  <p class="rounded-md border border-stone-200 bg-white p-4 text-sm text-stone-400">Kravträdet är tomt.</p>
+  <p class="rounded-md border border-stone-200 bg-white p-4 text-sm text-stone-400">Behovsträdet är tomt.</p>
   {% endfor %}
 </div>

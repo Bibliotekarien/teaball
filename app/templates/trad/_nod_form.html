@@ -41,7 +41,7 @@
     <label class="grid gap-0.5 text-xs text-stone-500">Typ
       <select name="typ" class="rounded-md border border-stone-300 px-2 py-1 text-sm">
         {% for t in typer %}
-        <option value="{{ t }}" {% if vald_typ == t %}selected{% endif %}>{{ t }}</option>
+        <option value="{{ t }}" {% if vald_typ == t %}selected{% endif %}>{{ TYP_LABEL[t] }}</option>
         {% endfor %}
       </select>
     </label>
@@ -67,7 +67,7 @@
       <textarea name="beskrivning" rows="2" maxlength="4000"
                 class="rounded-md border border-stone-300 px-2 py-1 text-sm">{{ nod.beskrivning or '' if nod else '' }}</textarea>
     </label>
-    <label class="grid gap-0.5 text-xs text-stone-500">Länk till kravdokumentation
+    <label class="grid gap-0.5 text-xs text-stone-500">Länk till behovsdokumentation
       <input name="lank_dokumentation" type="url" maxlength="500" placeholder="https://…"
              value="{{ nod.lank_dokumentation or '' if nod else '' }}"
              class="rounded-md border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700">

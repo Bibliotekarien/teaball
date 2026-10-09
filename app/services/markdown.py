@@ -17,6 +17,7 @@ i råtexten."""
 from app.services.analys import rankning, tackning
 from app.services.confluence import koda_url
 from app.services.roadmap import roadmap_data
+from app.services.trad import TYP_LABEL
 
 # Lokal kopia i stället för import från app.web så exportlagret slipper bero på
 # mallmotorn; speglar etiketterna i app/web.py STATUS.
@@ -77,13 +78,13 @@ def _dokument(rader) -> str:
 
 
 def kravtrad(conn, genererad: str) -> str:
-    rader = ["# Kravträd — Teaball", "", f"_Exporterad {genererad}._", ""]
+    rader = ["# Behovsträd — Teaball", "", f"_Exporterad {genererad}._", ""]
     rader += _tabellhuvud(["Namn", "Typ", "Status", "Avgång", "Synlig för medlemmar",
                            "Beskrivning", "Jira", "Dokumentation"])
     for r in conn.execute("SELECT * FROM funktion_trad ORDER BY vag"):
         rader.append(_rad([
             _namncell(r["namn"], r["djup"], r["typ"]),
-            _cell(r["typ"]),
+            _cell(TYP_LABEL[r["typ"]]),
             _cell(STATUS_ETIKETT.get(r["status"], r["status"])),
             _cell(r["fas"]),
             "ja" if r["synlig_stig"] else "nej",
@@ -130,7 +131,7 @@ def roadmap(conn, visa_krav: bool, genererad: str,
         for n in noder:
             rader.append(_rad([
                 _namncell(n["namn"], n["djup"], n["typ"]),
-                _cell(n["typ"]),
+                _cell(TYP_LABEL[n["typ"]]),
                 # Förmågor är hierarkikontext i roadmapen — ingen status.
                 "" if n["typ"] == "förmåga"
                 else _cell(STATUS_ETIKETT.get(n["status"], n["status"])),

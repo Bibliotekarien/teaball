@@ -8,7 +8,7 @@
       <ul class="space-y-1.5">
         {% for t, forklaring in TYP_BESKRIVNING.items() %}
         <li class="flex items-baseline gap-2">
-          <span class="w-20 shrink-0 text-xs {{ TYP_CLS[t] }}">{{ t }}</span>
+          <span class="w-20 shrink-0 text-xs {{ TYP_CLS[t] }}">{{ TYP_LABEL[t] }}</span>
           <span class="text-xs text-stone-500">{{ forklaring }}</span>
         </li>
         {% endfor %}

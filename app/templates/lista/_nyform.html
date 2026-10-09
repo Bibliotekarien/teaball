@@ -23,7 +23,7 @@
   <label class="grid gap-0.5 text-xs text-stone-500">Typ
     <select name="typ" class="rounded-md border border-stone-300 px-2 py-1 text-sm">
       {% for t in typer %}
-      <option value="{{ t }}" {% if t == 'funktion' %}selected{% endif %}>{{ t }}</option>
+      <option value="{{ t }}" {% if t == 'funktion' %}selected{% endif %}>{{ TYP_LABEL[t] }}</option>
       {% endfor %}
     </select>
   </label>

@@ -33,7 +33,7 @@ def test_kravtrad_html_fullstandig(client, app_db):
 
     export = client.get("/export/kravtrad.html")
     assert export.status_code == 200
-    assert 'attachment; filename="kravtrad-' in export.headers["content-disposition"]
+    assert 'attachment; filename="behovstrad-' in export.headers["content-disposition"]
     # The full variant keeps hidden branches but tags them "intern".
     assert "Import från Web of Science" in export.text
     assert "intern" in export.text
@@ -53,7 +53,7 @@ def test_kravtrad_html_endast_synliga(client, app_db):
 
     export = client.get("/export/kravtrad.html?endast_synliga=1")
     assert export.status_code == 200
-    assert 'filename="kravtrad-' in export.headers["content-disposition"]
+    assert 'filename="behovstrad-' in export.headers["content-disposition"]
     assert '-extern.html"' in export.headers["content-disposition"]
     # The hidden node and its whole subtree are gone (T5), siblings remain.
     assert "Import från Web of Science" not in export.text

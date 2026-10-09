@@ -13,6 +13,7 @@ from urllib.parse import quote
 
 from app.services.analys import rankning, tackning
 from app.services.roadmap import roadmap_data
+from app.services.trad import TYP_LABEL
 
 # Kept local rather than importing app.web so the export layer stays decoupled
 # from the template engine; mirrors the labels in app/web.py STATUS.
@@ -85,13 +86,13 @@ def _dokument(rader) -> str:
 
 
 def kravtrad(conn, genererad: str) -> str:
-    rader = ["h1. Kravträd — Teaball", f"_Exporterad {genererad}._", "",
+    rader = ["h1. Behovsträd — Teaball", f"_Exporterad {genererad}._", "",
              _rad(["Namn", "Typ", "Status", "Avgång", "Synlig för medlemmar",
                    "Jira", "Dokumentation"], header=True)]
     for r in conn.execute("SELECT * FROM funktion_trad ORDER BY vag"):
         rader.append(_rad([
             _namncell(r["namn"], r["djup"], r["typ"], r["beskrivning"]),
-            _cell(r["typ"]),
+            _cell(TYP_LABEL[r["typ"]]),
             _cell(STATUS_ETIKETT.get(r["status"], r["status"])),
             _cell(r["fas"]),
             "ja" if r["synlig_stig"] else "nej",
@@ -137,7 +138,7 @@ def roadmap(conn, visa_krav: bool, genererad: str,
         for n in noder:
             rader.append(_rad([
                 _namncell(n["namn"], n["djup"], n["typ"]),
-                _cell(n["typ"]),
+                _cell(TYP_LABEL[n["typ"]]),
                 # Förmågor är hierarkikontext i roadmapen — ingen status.
                 " " if n["typ"] == "förmåga"
                 else _cell(STATUS_ETIKETT.get(n["status"], n["status"])),

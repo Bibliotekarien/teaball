@@ -9,7 +9,7 @@
     skapades och när de senast ändrades. Innehållsändringar flyttar
     uppdaterad-stämpeln — omsortering i trädet gör det inte. Noder från före
     stämplarna (äldre än spårningen) visas med — och hamnar sist.{% if skrivbar %}
-    Redigera på raden öppnar samma formulär som i kravträdet.{% endif %}</p>
+    Redigera på raden öppnar samma formulär som i behovsträdet.{% endif %}</p>
 </div>
 
 {% include "_forklaringar.html" %}
@@ -28,7 +28,7 @@
     <span class="flex items-center gap-2 rounded-md border border-stone-300 bg-white px-2 py-1" title="Ingen ikryssad = alla. Flera kan väljas.">
       {% for t in typer %}
       <label class="flex cursor-pointer items-center gap-1">
-        <input type="checkbox" name="typ" value="{{ t }}" {% if t in filter.typ %}checked{% endif %}>{{ t }}</label>
+        <input type="checkbox" name="typ" value="{{ t }}" {% if t in filter.typ %}checked{% endif %}>{{ TYP_LABEL[t] }}</label>
       {% endfor %}
     </span>
   </fieldset>

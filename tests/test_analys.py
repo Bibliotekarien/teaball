@@ -111,4 +111,4 @@ def test_n7_gemensamma_namnare(app_db, client):
                       params={"funktion_id": ids["dubblett"],
                               "medlem_id": [m["uu"], m["kth"]]}).text
     assert "2 medlemmar kräver ”Dubblettdetektering”" in sida
-    assert "delas av alla 2 valda" in sida
+    assert "Alla 2 valda kräver dessa" in sida

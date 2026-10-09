@@ -16,7 +16,7 @@
       <a href="/svara#gren-{{ n.id }}" class="min-w-0 flex-1 truncate text-sm {{ TYP_CLS[n.typ] }} hover:underline"
          title="Gå till bedömningen">{{ n.namn }}</a>
       {% endif %}
-      <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ n.typ }}</span>
+      <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ TYP_LABEL[n.typ] }}</span>
       {% if n.typ != "förmåga" %}
       <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}" title="{{ STATUS[n.status].beskrivning }}">{{ STATUS[n.status].label }}</span>
       {% endif %}

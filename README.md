@@ -1,8 +1,8 @@
 # Teaball
 
-Kravdatabas och förmågekarta för ett system under omskrivning, med ca 50
-medlemsorganisationer. Verktyget håller en hierarkisk funktions-/kravstruktur,
-en roadmap och medlemmarnas bedömning av varje krav — så att gemensamma
+Behovsdatabas och förmågekarta för ett system under omskrivning, med ca 50
+medlemsorganisationer. Verktyget håller en hierarkisk funktions-/behovsstruktur,
+en roadmap och medlemmarnas bedömning av varje behov — så att gemensamma
 nämnare, blockerare för go-live och migreringsordning blir synliga.
 Kravspecifikationen finns i [`requirements.md`](requirements.md), designen
 följer prototypen i `formagekarta-prototyp.jsx`. (I de dokumenten bär
@@ -11,7 +11,7 @@ tjänsten arbetsnamnet *Förmågekartan* — den heter numera Teaball; dokumente
 
 **Stack:** Python/FastAPI + SQLite (all affärslogik som triggers/vyer i
 databasen) + serverrenderad Jinja2 med htmx. Ingen SPA, ingen build-kedja.
-Dra-och-släpp i kravträdet är en progressiv förbättring (SortableJS, vendorerad)
+Dra-och-släpp i behovsträdet är en progressiv förbättring (SortableJS, vendorerad)
 — allt fungerar även utan JavaScript.
 
 ## Installation (docker-compose, lokal/enkel drift)
@@ -89,7 +89,7 @@ Kontot får en av tre roller:
   nya konton, och alla konton som fanns före rollstödet blir admin.
 - **intern** — ser allt (även dolda noder, bedömningar med privata kommentarer,
   analys, export och medlemslistan) men kan inte ändra något.
-- **extern** — skrivskyddad och ser bara externt synligt innehåll: kravträdet
+- **extern** — skrivskyddad och ser bara externt synligt innehåll: behovsträdet
   och roadmapen filtrerade på `synlig_externt` (samma regel som medlemsvyn).
   Bedömningar, analys, medlemmar och export är spärrade; enda nedladdningen
   är roadmapens HTML-export, som redan är extern-säker.
@@ -152,7 +152,7 @@ svar; delade workarounds från andra visas anonymt.
 Medlemmen har också en egen **Roadmap**-flik (`/svara/roadmap`): samma urval
 som styrgruppens HTML-export — synliga noder grupperade per avgång, med namn,
 typ och status — kompletterat med medlemmens eget effektiva svar per rad, så
-att biblioteket ser om något det kallat go-live-krav ligger i en sen avgång.
+att biblioteket ser om något det kräver för go-live ligger i en sen avgång.
 Inga andras svar, inga antal, ingen analys; inget redigeringsläge och inga
 exportlänkar.
 

@@ -67,7 +67,7 @@ def trad_csv(
     return PlainTextResponse(
         tjanst.trad_csv(conn),
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="kravtrad-{_datum()}.csv"'},
+        headers={"Content-Disposition": f'attachment; filename="behovstrad-{_datum()}.csv"'},
     )
 
 
@@ -103,7 +103,7 @@ def kravtrad_html(
     return HTMLResponse(
         html,
         headers={"Content-Disposition":
-                 f'attachment; filename="kravtrad-{_datum()}{suffix}.html"'},
+                 f'attachment; filename="behovstrad-{_datum()}{suffix}.html"'},
     )
 
 
@@ -144,7 +144,7 @@ def rapport_pdf(
 # Text exports of a view: Confluence wiki-markup and plain markdown share the
 # same four views and the same query params, so one dispatcher serves both
 # service modules (they expose identical function signatures).
-TEXT_VYER = {"kravtrad": "Kravträd", "analys": "Analys",
+TEXT_VYER = {"kravtrad": "Behovsträd", "analys": "Analys",
              "roadmap": "Roadmap", "medlemmar": "Medlemmar"}
 CONFLUENCE_VYER = TEXT_VYER
 
@@ -187,9 +187,11 @@ def markdown(
     """Served as a .md download: markdown is meant to land in a wiki, a repo
     or a notes app, not to be read raw in the browser."""
     text = _vy_text(markdown_tjanst, vy, request, conn)
+    # URL-nyckeln heter kvar kravtrad; filnamnet följer UI-termen.
+    filnamn = "behovstrad" if vy == "kravtrad" else vy
     return PlainTextResponse(
         text,
         media_type="text/markdown; charset=utf-8",
         headers={"Content-Disposition":
-                 f'attachment; filename="{vy}-{_datum()}.md"'},
+                 f'attachment; filename="{filnamn}-{_datum()}.md"'},
     )

@@ -39,7 +39,7 @@ def test_roadmap_dolj_formagor(client, app_db):
 
 def test_roadmap_formaga_utan_undernoder_doljs(client, app_db):
     # "Export & spridning" saknar undernoder av typ funktion/krav och vore
-    # bara en tom rubrik i roadmapen — den visas ingenstans. I kravträdet
+    # bara en tom rubrik i roadmapen — den visas ingenstans. I behovsträdet
     # finns den kvar.
     seed_trad(app_db)
     logga_in(client, app_db)
@@ -263,9 +263,9 @@ def test_xlsx_export_alla_vyer(client, app_db):
     svar = client.get("/export/teaball.xlsx")
     assert svar.status_code == 200
     wb = load_workbook(io.BytesIO(svar.content))
-    assert wb.sheetnames == ["Kravträd", "Bedömningar", "Analys", "Migrering", "Roadmap"]
+    assert wb.sheetnames == ["Behovsträd", "Bedömningar", "Analys", "Migrering", "Roadmap"]
 
-    trad_blad = wb["Kravträd"]
+    trad_blad = wb["Behovsträd"]
     namn = [rad[0] for rad in trad_blad.iter_rows(min_row=2, values_only=True)]
     assert namn[0] == "Publicering"                       # tree order, roots unindented
     assert any(n.lstrip() == "Dubblettdetektering" and n.startswith("    ") for n in namn)
