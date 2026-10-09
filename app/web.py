@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 
 from app import config
 from app.auth.csrf import csrf_token
+from app.services.trad import TYP_LABEL
 
 templates = Jinja2Templates(directory=str(config.TEMPLATES_DIR))
 templates.env.globals["csrf_token"] = csrf_token
@@ -98,7 +99,7 @@ TYP_CLS = {
 TYP_BESKRIVNING = {
     "förmåga": "Ett sammanhållet område av vad systemet ska klara — rubriknivån i kartan.",
     "funktion": "Något systemet gör: en avgränsad byggsten inom en förmåga.",
-    "krav": "Ett testbart villkor som ska vara uppfyllt — det medlemmarna bedömer.",
+    "krav": "Ett behov som ska vara uppfyllt — det medlemmarna bedömer.",
 }
 
 # UI-termen är "avgång"; kolumnen och koden heter fortfarande fas.
@@ -108,6 +109,7 @@ templates.env.globals["SVAR"] = SVAR
 templates.env.globals["STATUS"] = STATUS
 templates.env.globals["TYP_CLS"] = TYP_CLS
 templates.env.globals["TYP_BESKRIVNING"] = TYP_BESKRIVNING
+templates.env.globals["TYP_LABEL"] = TYP_LABEL
 templates.env.globals["FASER"] = FASER
 
 

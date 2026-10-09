@@ -8,7 +8,7 @@
   <div class="rad" style="padding-left: {{ n.djup * 18 + 8 }}px">
     <div class="huvud">
       <span class="namn {{ {'förmåga': 'formaga', 'funktion': 'funktion', 'krav': 'krav'}[n.typ] }}">{{ n.namn }}</span>
-      <span class="badge typ">{{ n.typ }}</span>
+      <span class="badge typ">{{ TYP_LABEL[n.typ] }}</span>
       <span class="badge status-{{ n.status }}">{{ STATUS[n.status].label }}</span>
       {% if n.fas %}<span class="fas">avgång: {{ n.fas }}</span>{% endif %}
       {% if not endast_synliga and not n.synlig_stig %}<span class="badge intern">intern</span>{% endif %}

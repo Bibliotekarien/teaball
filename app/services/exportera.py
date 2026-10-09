@@ -17,6 +17,7 @@ from openpyxl.utils import get_column_letter
 
 from app.services import analys as analys_tjanst
 from app.services import roadmap as roadmap_tjanst
+from app.services.trad import TYP_LABEL
 
 # Spreadsheet formula injection: Excel/LibreOffice execute a cell whose text
 # starts with one of these. Member free-text (workaround, kommentar) and
@@ -147,12 +148,12 @@ def _rubrikrad(blad, rubriker, bredder, rad=1):
 
 
 def _blad_trad(blad, conn):
-    blad.title = "Kravträd"
+    blad.title = "Behovsträd"
     _rubrikrad(blad, ["Namn", "Typ", "Status", "Avgång", "Synlig för medlemmar", "Beskrivning"],
                [55, 10, 11, 10, 19, 50])
     # blad.max_row is O(rows) in openpyxl — track the row number ourselves.
     for radnr, r in enumerate(conn.execute("SELECT * FROM funktion_trad ORDER BY vag"), start=2):
-        blad.append(_sakra_rad(["    " * r["djup"] + r["namn"], r["typ"], r["status"], r["fas"],
+        blad.append(_sakra_rad(["    " * r["djup"] + r["namn"], TYP_LABEL[r["typ"]], r["status"], r["fas"],
                      "ja" if r["synlig_stig"] else "nej", r["beskrivning"]]))
         blad.cell(row=radnr, column=1).font = _FET if r["typ"] == "förmåga" else _VANLIG
         _fyll(blad.cell(row=radnr, column=3), STATUS_STIL[r["status"]])
@@ -213,7 +214,7 @@ def _blad_roadmap(blad, conn):
     for fas, rader in roadmap_tjanst.roadmap_data(conn, visa_krav=True):
         for n in rader:
             radnr += 1
-            blad.append(_sakra_rad([fas, "    " * n["djup"] + n["namn"], n["typ"], n["status"]]))
+            blad.append(_sakra_rad([fas, "    " * n["djup"] + n["namn"], TYP_LABEL[n["typ"]], n["status"]]))
             blad.cell(row=radnr, column=2).font = (
                 _FET if n["typ"] == "förmåga" else _VANLIG)
             _fyll(blad.cell(row=radnr, column=4), STATUS_STIL[n["status"]])

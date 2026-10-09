@@ -15,7 +15,7 @@ DATUM = "2026-08-27"
 def test_kravtrad_markup(conn):
     seed_trad(conn)
     ut = confluence.kravtrad(conn, DATUM)
-    assert ut.startswith("h1. Kravträd — Teaball")
+    assert ut.startswith("h1. Behovsträd — Teaball")
     assert f"_Exporterad {DATUM}._" in ut
     assert ("|| Namn || Typ || Status || Avgång || Synlig för medlemmar"
             " || Jira || Dokumentation ||") in ut
@@ -123,7 +123,7 @@ def test_confluence_route(client, app_db):
     svar = client.get("/export/confluence/kravtrad")
     assert svar.status_code == 200
     assert svar.headers["content-type"] == "text/plain; charset=utf-8"
-    assert svar.text.startswith("h1. Kravträd")
+    assert svar.text.startswith("h1. Behovsträd")
     # Unknown view is a 404, not a 500.
     assert client.get("/export/confluence/finns-ej").status_code == 404
 

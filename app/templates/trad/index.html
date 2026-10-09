@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block titel %}Kravträd – Teaball{% endblock %}
+{% block titel %}Behovsträd – Teaball{% endblock %}
 {# Sidomenyn (w-56 + gap) får plats bredvid trädet utan att trädet blir
    smalare än förut: 6xl − kolumnen ≈ 4xl. #}
 {% block huvudbredd %}max-w-4xl lg:max-w-6xl{% endblock %}
@@ -9,7 +9,7 @@
 {% endblock %}
 {% block innehall %}
 <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-  <p class="text-sm text-stone-500">Hela hierarkin. Typ är en etikett — krav kan ligga på vilken nivå som helst.
+  <p class="text-sm text-stone-500">Hela hierarkin. Typ är en etikett — behov kan ligga på vilken nivå som helst.
     På de två översta nivåerna visas grenens läge: driftsatta av grenens yttersta noder, och deras statusfördelning som en stapel.
     Noder med undernoder räknas som struktur, inte innehåll.</p>
   <span class="flex items-center gap-2">
@@ -42,7 +42,7 @@
     <span class="flex items-center gap-2 rounded-md border border-stone-300 bg-white px-2 py-1" title="Ingen ikryssad = alla. Flera kan väljas.">
       {% for t in ["förmåga", "funktion", "krav"] %}
       <label class="flex cursor-pointer items-center gap-1">
-        <input type="checkbox" name="typ" value="{{ t }}" {% if t in filter.typ %}checked{% endif %}>{{ t }}</label>
+        <input type="checkbox" name="typ" value="{{ t }}" {% if t in filter.typ %}checked{% endif %}>{{ TYP_LABEL[t] }}</label>
       {% endfor %}
     </span>
   </fieldset>

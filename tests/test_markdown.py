@@ -15,7 +15,7 @@ DATUM = "2026-10-07"
 def test_kravtrad_markdown(conn):
     seed_trad(conn)
     ut = markdown.kravtrad(conn, DATUM)
-    assert ut.startswith("# Kravträd — Teaball\n")
+    assert ut.startswith("# Behovsträd — Teaball\n")
     assert f"_Exporterad {DATUM}._" in ut
     assert ("| Namn | Typ | Status | Avgång | Synlig för medlemmar"
             " | Beskrivning | Jira | Dokumentation |\n"
@@ -40,7 +40,7 @@ def test_kravtrad_lankar_och_beskrivning(conn):
     assert "[Jira](https://jira.example/DIVA-1%7Cx%29y)" in ut
     assert "[Dokumentation](https://wiki.example/sso)" in ut
     # Noder utan länkar och beskrivning får tomma celler.
-    assert "| Utan länkar | krav |" in ut
+    assert "| Utan länkar | behov |" in ut
     assert "|  |  |  |\n" in ut
 
 
@@ -122,9 +122,9 @@ def test_markdown_route(client, app_db):
     assert svar.status_code == 200
     assert svar.headers["content-type"] == "text/markdown; charset=utf-8"
     disposition = svar.headers["content-disposition"]
-    assert disposition.startswith('attachment; filename="kravtrad-')
+    assert disposition.startswith('attachment; filename="behovstrad-')
     assert disposition.endswith('.md"')
-    assert svar.text.startswith("# Kravträd")
+    assert svar.text.startswith("# Behovsträd")
     # Roadmapens filter följer med precis som för Confluence.
     assert client.get("/export/markdown/roadmap?visa_krav=1").status_code == 200
     # Okänd vy är 404, inte 500.

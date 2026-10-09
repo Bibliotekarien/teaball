@@ -313,6 +313,18 @@ def test_ny_nod_har_forval_funktion_utreds(client, app_db):
     assert '<option value="driftsatt" selected>driftsatt</option>' in form
 
 
+def test_typen_krav_visas_som_behov(client, app_db):
+    # UI-termen är "behov"; värdet i formulär, filter och databas är kvar krav.
+    seed_trad(app_db)
+    logga_in(client, app_db)
+    form = client.get("/trad/nod/ny").text
+    assert '<option value="krav" >behov</option>' in form
+    sida = client.get("/trad").text
+    assert 'name="typ" value="krav" >behov</label>' in sida
+    assert ">behov</span>" in sida
+    assert ">krav<" not in sida
+
+
 def test_ogiltig_lank_avvisas(client, app_db):
     logga_in(client, app_db)
     token = _token(client)

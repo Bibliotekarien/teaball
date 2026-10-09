@@ -40,7 +40,7 @@
     {% for n in rader %}
     <div class="rad" style="padding-left: {{ n.djup * 18 + 8 }}px">
       <span class="namn {{ {'förmåga': 'formaga', 'funktion': 'funktion', 'krav': 'krav'}[n.typ] }}">{{ n.namn }}</span>
-      <span class="badge typ">{{ n.typ }}</span>
+      <span class="badge typ">{{ TYP_LABEL[n.typ] }}</span>
       {% if n.typ != 'förmåga' %}<span class="badge status-{{ n.status }}">{{ n.status }}</span>{% endif %}
     </div>
     {% endfor %}

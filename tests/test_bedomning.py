@@ -141,7 +141,7 @@ def test_raknare_och_dolj_bedomda(client, app_db):
     assert "Export &amp; spridning" not in sida      # driftsatt utan något kvar
 
     # När allt är bedömt: grön räknare och ett eget tomt-läge i stället för
-    # "Kravträdet är tomt".
+    # "Behovsträdet är tomt".
     client.post(f"/bedomning/{medlem}/{ids['registrera']}/svar",
                 data={"svar": "behovs_ej", "csrf_token": token})
     sida = client.get(f"/bedomning?medlem_id={medlem}&dolj_bedomda=1").text
@@ -171,11 +171,11 @@ def test_dolj_driftsatta(client, app_db):
     assert ">Import</span>" not in sida
     assert "Export &amp; spridning" not in sida
 
-    # När allt är driftsatt: eget tomt-läge i stället för "Kravträdet är tomt".
+    # När allt är driftsatt: eget tomt-läge i stället för "Behovsträdet är tomt".
     app_db.execute("UPDATE funktion SET status = 'driftsatt'")
     app_db.commit()
     sida = client.get(f"/bedomning?medlem_id={medlem}&dolj_driftsatta=1").text
-    assert "Allt i kravträdet är driftsatt" in sida
+    assert "Allt i behovsträdet är driftsatt" in sida
 
 
 def test_formagor_ar_hierarki_utan_piller(client, app_db):

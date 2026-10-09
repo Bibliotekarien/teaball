@@ -11,6 +11,10 @@ import sqlite3
 # prefix is written to be shown to the user as-is.
 REGELPREFIX = ("CYKEL: ", "AVGÅNG: ")
 
+# UI-termen är "behov"; typvärdet i databasen, URL:er, filter och CSV-formatet
+# heter fortfarande krav (samma linje som fas → avgång).
+TYP_LABEL = {"förmåga": "förmåga", "funktion": "funktion", "krav": "behov"}
+
 
 def regeltext(fel: sqlite3.IntegrityError) -> str:
     """The user-facing message from a rule trigger's RAISE, or a generic

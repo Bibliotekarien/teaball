@@ -43,7 +43,7 @@
 
   <span class="flex shrink-0 items-center gap-1.5">
     {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">dold</span>{% endif %}
-    <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ n.typ }}</span>
+    <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ TYP_LABEL[n.typ] }}</span>
     {% if n.djup < 2 %}
     {# Grennivåerna (djup 0–1) sammanfattar undergrenen i stället för att visa
        egen status (statusvärdet finns kvar men bär ingen information här):

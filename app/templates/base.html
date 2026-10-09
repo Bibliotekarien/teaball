@@ -17,7 +17,7 @@
       <img src="{{ static_url('img/apple-touch-icon.png') }}" alt="" width="44" height="44" class="h-11 w-11 shrink-0">
       <div>
         <h1 class="font-serif text-lg text-blue-900">Teaball</h1>
-        <p class="text-xs text-stone-500">{% block undertitel %}Kravdatabas{% endblock %}</p>
+        <p class="text-xs text-stone-500">{% block undertitel %}Behovsdatabas{% endblock %}</p>
       </div>
     </div>
     {% if principal %}
@@ -36,9 +36,9 @@
   <nav class="flex gap-1 overflow-x-auto border-b border-stone-200 bg-white px-4 sm:px-6">
     {# Varje roll ser bara flikar den faktiskt når: extern två, intern sex,
        admin dessutom kontolistan. #}
-    {% set flikar = [("/trad", "Kravträd"), ("/roadmap", "Roadmap")]
+    {% set flikar = [("/trad", "Behovsträd"), ("/roadmap", "Roadmap")]
        if principal.roll == "extern" else
-       ([("/trad", "Kravträd"), ("/lista", "Lista"), ("/bedomning", "Bedömning"),
+       ([("/trad", "Behovsträd"), ("/lista", "Lista"), ("/bedomning", "Bedömning"),
          ("/analys", "Analys"), ("/roadmap", "Roadmap"),
          ("/medlemmar", "Medlemmar"), ("/export", "Export")]
         + ([("/konton", "Konton")] if principal.roll == "admin" else [])) %}
@@ -52,7 +52,7 @@
   </nav>
   {% endif %}
 
-  {# huvudbredd: vyer med en sidokolumn (kravträdet) breddar sig på stora skärmar. #}
+  {# huvudbredd: vyer med en sidokolumn (behovsträdet) breddar sig på stora skärmar. #}
   <main class="mx-auto {% block huvudbredd %}max-w-4xl{% endblock %} px-4 py-5 sm:px-6">
     {% block innehall %}{% endblock %}
   </main>
