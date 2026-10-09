@@ -152,7 +152,7 @@ svar; delade workarounds från andra visas anonymt.
 Medlemmen har också en egen **Roadmap**-flik (`/svara/roadmap`): samma urval
 som styrgruppens HTML-export — synliga noder grupperade per avgång, med namn,
 typ och status — kompletterat med medlemmens eget effektiva svar per rad, så
-att biblioteket ser om något det kallat go-live-behov ligger i en sen avgång.
+att biblioteket ser om något det kräver för go-live ligger i en sen avgång.
 Inga andras svar, inga antal, ingen analys; inget redigeringsläge och inga
 exportlänkar.
 

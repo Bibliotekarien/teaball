@@ -46,14 +46,14 @@
       <button class="rounded-md border border-stone-300 px-3 py-1 hover:bg-stone-100">Visa gemensamma behov</button>
     </form>
     {% if valda_medlemmar %}
-    <p class="mb-1 text-xs text-stone-500">{{ delade | length }} go-live-behov delas av alla {{ valda_medlemmar | length }} valda{% if arvda %} (inkl. ärvda svar){% endif %}:</p>
+    <p class="mb-1 text-xs text-stone-500">Alla {{ valda_medlemmar | length }} valda kräver dessa {{ delade | length }} för go-live{% if arvda %} (inkl. ärvda svar){% endif %}:</p>
     <ul class="ml-4 list-disc text-sm">
       {% for d in delade %}
       <li>{{ d.namn }}
         <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[d.status].cls }}" title="{{ STATUS[d.status].beskrivning }}">{{ STATUS[d.status].label }}</span>
         <span class="text-xs text-stone-400">avgång: {{ d.fas or "–" }}</span></li>
       {% else %}
-      <li class="list-none text-stone-400">Inga gemensamma go-live-behov.</li>
+      <li class="list-none text-stone-400">Inget som alla valda kräver för go-live.</li>
       {% endfor %}
     </ul>
     {% endif %}
