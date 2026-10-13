@@ -1,0 +1,27 @@
+version: 2
+
+updates:
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+
+  # En PR för ghcr.io/techarohq/anubis är signalen att köra Anubis-checklistan
+  # i bibliotekarien-platform/edge/ANUBIS.md (edge-CSP/blob-worker,
+  # robots-mallen, policykontrollen) i alla appar samtidigt. Merga inte en
+  # ensam image-bump. Ingen ignore: varje ny version ska ge en påminnelse.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
