@@ -1,0 +1,27 @@
+name: tests
+
+# Anropar de delade kontrollerna i bibliotekarien-platform. All logik bor där,
+# så en ändring av hur tester körs sker på ett ställe och inte i sju repon.
+# Se bibliotekarien-platform/.github/README.md.
+#
+# Pythonversionen kommer från .python-version (3.12, samma som Dockerfilens
+# python:3.12-slim): den delade workflowen kör uv sync --locked, och uv läser
+# den filen. Ingen ruff: teaball har varken ruff som dev-beroende eller
+# ruff-konfiguration.
+
+on:
+  pull_request:
+  # Inte redundant mot pull_request: merge-resultatet kan skilja sig från
+  # PR-huvudet, och det är merge-resultatet som deployas.
+  push:
+    branches: [main]
+
+# Utan permissions: får workflowen repots standardbehörighet, som kan vara
+# skrivrätt. Den anropade workflowen i bibliotekarien-platform läser bara
+# (dess egen permissions: är contents: read), så mer än så behövs inte.
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    uses: Bibliotekarien/bibliotekarien-platform/.github/workflows/python-tests.yml@main
