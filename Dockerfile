@@ -20,11 +20,14 @@ RUN apt-get update \
 # Beroendena installeras exakt från uv.lock — samma versioner som CI provar
 # (uv sync --locked i den delade python-tests.yml). --locked avbryter bygget
 # om låsfilen inte stämmer med pyproject.toml i stället för att lösa om.
-# uv är låst på version; bumpa medvetet. UV_PYTHON_DOWNLOADS=never håller
-# imagens egen Python 3.12 som tolk. venv:en ligger först i PATH, så CMD:ns
-# uvicorn, healthcheckens python3 och `docker compose exec web python
-# scripts/...` alla kör med de låsta paketen.
-RUN pip install --no-cache-dir uv==0.12.19
+# UV_PYTHON_DOWNLOADS=never håller imagens egen Python 3.12 som tolk.
+# venv:en ligger först i PATH, så CMD:ns uvicorn, healthcheckens python3 och
+# `docker compose exec web python scripts/...` alla kör med de låsta paketen.
+#
+# uv-binären kopieras från den officiella imagen, låst som tagg@digest
+# (OCI-index): oföränderlig, ingen pip i kedjan, och Dependabots docker-post
+# bumpar den som andra images.
+COPY --from=ghcr.io/astral-sh/uv:0.12.19@sha256:04d046b13e60d6bcec73cbc5e1cad25d680dea90c8573340950a0ac2d1aef424 /uv /usr/local/bin/uv
 
 # Beroendelagret cachas tills pyproject.toml/uv.lock ändras.
 COPY pyproject.toml uv.lock ./
@@ -39,14 +42,17 @@ COPY scripts ./scripts
 COPY data ./data
 
 # Projektet självt (package = false i pyproject: inget att installera i dag,
-# men steget kontrollerar låsfilen igen och följer plattformsmönstret).
+# men steget kontrollerar låsfilen igen och följer grib-ranker:s mönster).
 RUN uv sync --locked --no-dev
 
 # Service user per platform convention (SERVER_LAYOUT.md UID allocation).
+# Appen skriver bara i /data (DB_PATH i båda compose-filerna). Kod och venv
+# ägs av root och är bara läsbara för appuser, så en komprometterad process
+# kan inte skriva om installerade paket.
 RUN mkdir -p /data \
     && groupadd --gid 1505 appuser \
     && useradd --uid 1505 --gid 1505 --no-create-home appuser \
-    && chown -R appuser:appuser /data /srv/teaball
+    && chown -R appuser:appuser /data
 USER appuser
 
 EXPOSE 8000
