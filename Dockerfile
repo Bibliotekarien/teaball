@@ -1,3 +1,9 @@
+# uv från den officiella imagen, låst som tagg@digest (OCI-index):
+# oföränderlig och ingen pip i kedjan. Ett eget FROM-steg och inte
+# COPY --from=<image>, eftersom Dependabots docker-post bara läser FROM-rader;
+# så bumpas uv som andra images.
+FROM ghcr.io/astral-sh/uv:0.12.19@sha256:04d046b13e60d6bcec73cbc5e1cad25d680dea90c8573340950a0ac2d1aef424 AS uv
+
 # Pinnad på digest (3.12-slim, hämtad 2026-08-25) — bumpa medvetet, inte via
 # oannonserad :latest-glidning. Samma policy som Anubis-imagen i prod-composen.
 FROM python:3.12-slim@sha256:7a8b475003c4fe15a2cd4e55e5cfc2f3560bdc9333d624f24cdd6d4340fd7a17
@@ -24,10 +30,8 @@ RUN apt-get update \
 # venv:en ligger först i PATH, så CMD:ns uvicorn, healthcheckens python3 och
 # `docker compose exec web python scripts/...` alla kör med de låsta paketen.
 #
-# uv-binären kopieras från den officiella imagen, låst som tagg@digest
-# (OCI-index): oföränderlig, ingen pip i kedjan, och Dependabots docker-post
-# bumpar den som andra images.
-COPY --from=ghcr.io/astral-sh/uv:0.12.19@sha256:04d046b13e60d6bcec73cbc5e1cad25d680dea90c8573340950a0ac2d1aef424 /uv /usr/local/bin/uv
+# uv-binären kommer från steget "uv" överst (se kommentaren där).
+COPY --from=uv /uv /usr/local/bin/uv
 
 # Beroendelagret cachas tills pyproject.toml/uv.lock ändras.
 COPY pyproject.toml uv.lock ./
