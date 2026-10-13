@@ -7,6 +7,11 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    # Minor/patch samlas i en PR per vecka och ekosystem. Huvudversioner
+    # kommer var för sig och läses innan merge.
+    groups:
+      uv-minor-patch:
+        update-types: [minor, patch]
 
   - package-ecosystem: docker
     directory: /
