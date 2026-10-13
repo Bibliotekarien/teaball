@@ -47,11 +47,14 @@ services:
     restart: unless-stopped
 
   anubis:
-    # Pinnad på digest (v1.27.0, samma som room40/markrounding) — med :latest
-    # kan Anubis-versionen bytas oannonserat vid pull. Edge-Caddyfilens CSP för
+    # Pinnad som tagg@digest (samma version som övriga appar) — med :latest
+    # kan Anubis-versionen bytas oannonserat vid pull. Taggen säger vilken
+    # release som avses, digesten är vad som hämtas. Edge-Caddyfilens CSP för
     # teaball.bibliotekarien.se är kopplad till hur den här versionen
-    # laddar sin PoW-worker (blob:); bumpa version och CSP ihop.
-    image: ghcr.io/techarohq/anubis@sha256:8828275668b7bc675679f100970f9714f731388fbbf66ae94de8aca952e3fc4a
+    # laddar sin PoW-worker (blob:); bumpa version och CSP ihop, i takt med de
+    # andra apparna (bibliotekarien-platform edge/ANUBIS.md, "Uppgradera
+    # Anubis").
+    image: ghcr.io/techarohq/anubis:v1.28.1@sha256:1744c03a918160a28b0d2e8c1656de6585f4071b30b4c3b0d51d02282c9b7c25
     container_name: teaball-anubis
     depends_on: [web]
     networks: [proxy]
