@@ -167,20 +167,20 @@ def test_lista_breadcrumb(client, app_db):
     rader = lista_delen(client.get("/lista").text)
 
     dubblett = rader.split(f'id="rad-{ids["dubblett"]}"', 1)[1].split("</li>", 1)[0]
-    lankar = [f'<a href="/trad#nod-{ids[n]}"' for n in ("publicering", "import", "wos")]
+    lankar = [f'<a href="/trad#rad-{ids[n]}"' for n in ("publicering", "import", "wos")]
     for lank in lankar:
         assert lank in dubblett
     assert dubblett.index(lankar[0]) < dubblett.index(lankar[1]) < dubblett.index(lankar[2])
     assert dubblett.count('<span aria-hidden="true">/</span>') == 2  # mellan länkarna, inte efter sista
-    assert f'/trad#nod-{ids["dubblett"]}' not in dubblett  # noden själv ingår inte
+    assert f'/trad#rad-{ids["dubblett"]}' not in dubblett  # noden själv ingår inte
     assert "(rotnivå)" not in dubblett
 
     rot = rader.split(f'id="rad-{ids["export"]}"', 1)[1].split("</li>", 1)[0]
     assert "(rotnivå)" in rot
-    assert "/trad#nod-" not in rot
+    assert "/trad#rad-" not in rot
 
     rad = client.get(f"/lista/nod/{ids['wos']}/rad", headers={"HX-Request": "true"}).text
-    assert f'<a href="/trad#nod-{ids["import"]}"' in rad
+    assert f'<a href="/trad#rad-{ids["import"]}"' in rad
     assert ">Import</a>" in rad
 
 

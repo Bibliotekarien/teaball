@@ -112,6 +112,7 @@ def test_acceptance_9_4_roadmap_export(client, app_db):
     assert "Publicering" not in export.text
     assert "Import från Web of Science" not in export.text
     assert "Export &amp; spridning" in export.text
+    assert f'Export &amp; spridning <span class="nodnr">({ids["export"]})</span>' in export.text
     # ... and the export is script-free (R2).
     assert "<script" not in export.text
     # ... but admins still see the branch in the roadmap view.
@@ -267,15 +268,22 @@ def test_xlsx_export_alla_vyer(client, app_db):
 
     trad_blad = wb["Behovsträd"]
     namn = [rad[0] for rad in trad_blad.iter_rows(min_row=2, values_only=True)]
-    assert namn[0] == "Publicering"                       # tree order, roots unindented
-    assert any(n.lstrip() == "Dubblettdetektering" and n.startswith("    ") for n in namn)
+    # Tree order, roots unindented, nodnummer after the name.
+    assert namn[0] == f"Publicering ({ids['publicering']})"
+    assert any(n.lstrip() == f"Dubblettdetektering ({ids['dubblett']})"
+               and n.startswith("    ") for n in namn)
 
     bed_blad = wb["Bedömningar"]
     rad = next(bed_blad.iter_rows(min_row=2, values_only=True))
     assert rad[0] == "Uppsala universitet" and rad[3] == "Go-live"
+    assert rad[2] == f"Dubblettdetektering ({ids['dubblett']})"
 
     analys_blad = wb["Analys"]
     assert "1 av 1" in analys_blad.cell(row=1, column=1).value
+    assert analys_blad.cell(row=3, column=1).value == f"Dubblettdetektering ({ids['dubblett']})"
+
+    roadmap_namn = [rad[1] for rad in wb["Roadmap"].iter_rows(min_row=2, values_only=True)]
+    assert any(n.lstrip() == f"Registrera avhandling ({ids['registrera']})" for n in roadmap_namn)
 
 
 def test_import_fran_csv(conn):

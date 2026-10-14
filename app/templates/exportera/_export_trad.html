@@ -7,7 +7,7 @@
   {% for n in noder %}
   <div class="rad" style="padding-left: {{ n.djup * 18 + 8 }}px">
     <div class="huvud">
-      <span class="namn {{ {'förmåga': 'formaga', 'funktion': 'funktion', 'krav': 'krav'}[n.typ] }}">{{ n.namn }}</span>
+      <span class="namn {{ {'förmåga': 'formaga', 'funktion': 'funktion', 'krav': 'krav'}[n.typ] }}">{{ n.namn }} <span class="nodnr">({{ n.id }})</span></span>
       <span class="badge typ">{{ TYP_LABEL[n.typ] }}</span>
       <span class="badge status-{{ n.status }}">{{ STATUS[n.status].label }}</span>
       {% if n.fas %}<span class="fas">avgång: {{ n.fas }}</span>{% endif %}

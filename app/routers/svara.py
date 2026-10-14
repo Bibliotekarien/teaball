@@ -130,7 +130,7 @@ def _kontrollera_synlig(conn, funktion_id: int) -> None:
 
 def _gren_eller_redirect(request, conn, principal: Principal, funktion_id: int):
     if not is_htmx(request):
-        return RedirectResponse(f"/svara#gren-{funktion_id}", status_code=303)
+        return RedirectResponse(f"/svara#rad-{funktion_id}", status_code=303)
     rotter = trad_tjanst.hamta_trad(conn, endast_synliga=True)
     nod = trad_tjanst.hitta_nod(rotter, funktion_id)
     if nod is None:
@@ -228,7 +228,7 @@ def spara_workaround(
     conn.commit()
     if is_htmx(request):
         return Response(status_code=204)
-    return RedirectResponse(f"/svara#gren-{funktion_id}", status_code=303)
+    return RedirectResponse(f"/svara#rad-{funktion_id}", status_code=303)
 
 
 @router.post("/{funktion_id}/kommentar")
@@ -244,4 +244,4 @@ def spara_kommentar(
     conn.commit()
     if is_htmx(request):
         return Response(status_code=204)
-    return RedirectResponse(f"/svara#gren-{funktion_id}", status_code=303)
+    return RedirectResponse(f"/svara#rad-{funktion_id}", status_code=303)

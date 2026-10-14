@@ -12,7 +12,7 @@
      samma ord som föräldravalet, så alla rader får samma form. #}
   <span class="flex w-full flex-wrap items-center gap-x-1 -mb-1 text-[11px] leading-tight text-stone-400">
     {% for f in n.stig %}
-    {% if not loop.first %}<span aria-hidden="true">/</span>{% endif %}<a href="/trad#nod-{{ f.id }}" class="hover:text-stone-700 hover:underline">{{ f.namn }}</a>
+    {% if not loop.first %}<span aria-hidden="true">/</span>{% endif %}<a href="/trad#rad-{{ f.id }}" class="hover:text-stone-700 hover:underline">{{ f.namn }}</a>
     {% else %}
     <span class="italic">(rotnivå)</span>
     {% endfor %}

@@ -13,16 +13,17 @@ DATUM = "2026-10-07"
 
 
 def test_kravtrad_markdown(conn):
-    seed_trad(conn)
+    ids = seed_trad(conn)
     ut = markdown.kravtrad(conn, DATUM)
     assert ut.startswith("# Behovsträd — Teaball\n")
     assert f"_Exporterad {DATUM}._" in ut
     assert ("| Namn | Typ | Status | Avgång | Synlig för medlemmar"
             " | Beskrivning | Jira | Dokumentation |\n"
             "| --- | --- | --- | --- | --- | --- | --- | --- |") in ut
-    # Förmåga i fetstil; ett barn indraget en mittpunktsnivå.
-    assert "| **Publicering** | förmåga | Driftsatt |" in ut
-    assert "| · Registrera avhandling | funktion |" in ut
+    # Förmåga i fetstil; ett barn indraget en mittpunktsnivå. Nodnumret står
+    # efter namnet, utanför fetstilen, så noden kan citeras i löptext.
+    assert f"| **Publicering** ({ids['publicering']}) | förmåga | Driftsatt |" in ut
+    assert f"| · Registrera avhandling ({ids['registrera']}) | funktion |" in ut
     assert ut.endswith("|\n")
 
 
@@ -31,7 +32,7 @@ def test_kravtrad_lankar_och_beskrivning(conn):
                    beskrivning="Stöd för SAML mot lärosätenas IdP:er.",
                    lank_jira="https://jira.example/DIVA-1|x)y",
                    lank_dokumentation="https://wiki.example/sso")
-    skapa_funktion(conn, "Utan länkar", typ="krav")
+    utan = skapa_funktion(conn, "Utan länkar", typ="krav")
     conn.commit()
     ut = markdown.kravtrad(conn, DATUM)
     # Beskrivningen får en egen kolumn — markdown kan inte fälla ihop celler.
@@ -40,7 +41,7 @@ def test_kravtrad_lankar_och_beskrivning(conn):
     assert "[Jira](https://jira.example/DIVA-1%7Cx%29y)" in ut
     assert "[Dokumentation](https://wiki.example/sso)" in ut
     # Noder utan länkar och beskrivning får tomma celler.
-    assert "| Utan länkar | behov |" in ut
+    assert f"| Utan länkar ({utan}) | behov |" in ut
     assert "|  |  |  |\n" in ut
 
 
@@ -62,6 +63,7 @@ def test_analys_markdown_med_varning(conn):
     assert ut.startswith("# Analys — blockerar-rankning\n")
     assert "> 1 av 1 medlemmar" in ut
     assert "| Nod | Status | Avgång |" in ut
+    assert f"| Dubblettdetektering ({ids['dubblett']}) | Idé |" in ut
     # golive på en 'idé/senare'-nod ger N2-varningen.
     assert "⚠ blockerar go-live" in ut
 
@@ -95,7 +97,7 @@ def test_roadmap_markdown(conn):
     assert "## Medlem 1" in ut and "## Senare" in ut and "## Utan avgång" in ut
     assert "| Namn | Typ | Status |\n| --- | --- | --- |" in ut
     # Förmågeraden är hierarkikontext utan status; funktionerna behåller sin.
-    assert "| **Publicering** | förmåga |  |" in ut
+    assert f"| **Publicering** ({ids['publicering']}) | förmåga |  |" in ut
     assert "Driftsatt" not in ut and "driftsatt" not in ut
     utan_formagor = markdown.roadmap(conn, visa_krav=True, genererad=DATUM,
                                      dolj_formagor=True)

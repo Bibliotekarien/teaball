@@ -16,6 +16,18 @@ REGELPREFIX = ("CYKEL: ", "AVGÅNG: ")
 TYP_LABEL = {"förmåga": "förmåga", "funktion": "funktion", "krav": "behov"}
 
 
+def nodnummer(nod_id) -> str:
+    """Nodens nummer som exporterna skriver det efter namnet: "(12)". Numret
+    är nodens id — stabilt över namnbyten och flyttar — så den som citerar
+    en nod i löptext kan hänvisa entydigt och hitta den igen (/trad#rad-12)."""
+    return f"({nod_id})"
+
+
+def nodnamn(namn, nod_id) -> str:
+    """"Import (12)" — namnet följt av nodnummer, för exporter i ren text."""
+    return f"{namn} {nodnummer(nod_id)}"
+
+
 def regeltext(fel: sqlite3.IntegrityError) -> str:
     """The user-facing message from a rule trigger's RAISE, or a generic
     fallback for IntegrityErrors that aren't ours (FK violations etc.)."""

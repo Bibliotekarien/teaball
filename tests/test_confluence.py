@@ -13,33 +13,34 @@ DATUM = "2026-08-27"
 
 
 def test_kravtrad_markup(conn):
-    seed_trad(conn)
+    ids = seed_trad(conn)
     ut = confluence.kravtrad(conn, DATUM)
     assert ut.startswith("h1. Behovsträd — Teaball")
     assert f"_Exporterad {DATUM}._" in ut
     assert ("|| Namn || Typ || Status || Avgång || Synlig för medlemmar"
             " || Jira || Dokumentation ||") in ut
-    # förmåga is bolded; a child is indented one middot level.
-    assert "| *Publicering* | förmåga | Driftsatt |" in ut
-    assert "| · Registrera avhandling | funktion |" in ut
+    # förmåga is bolded; a child is indented one middot level. The nodnummer
+    # follows the name, outside the bold, so it can be cited in text.
+    assert f"| *Publicering* ({ids['publicering']}) | förmåga | Driftsatt |" in ut
+    assert f"| · Registrera avhandling ({ids['registrera']}) | funktion |" in ut
 
 
 def test_kravtrad_lankar_och_beskrivning(conn):
-    skapa_funktion(conn, "Inloggning via SSO", typ="funktion",
-                   beskrivning="Stöd för SAML mot lärosätenas IdP:er.",
-                   lank_jira="https://jira.example/DIVA-1|x]y",
-                   lank_dokumentation="https://wiki.example/sso")
-    skapa_funktion(conn, "Utan länkar", typ="krav")
+    sso = skapa_funktion(conn, "Inloggning via SSO", typ="funktion",
+                         beskrivning="Stöd för SAML mot lärosätenas IdP:er.",
+                         lank_jira="https://jira.example/DIVA-1|x]y",
+                         lank_dokumentation="https://wiki.example/sso")
+    utan = skapa_funktion(conn, "Utan länkar", typ="krav")
     conn.commit()
     ut = confluence.kravtrad(conn, DATUM)
     # The description folds into an {expand} in the name cell.
-    assert ("| Inloggning via SSO \\\\ {expand:Beskrivning}"
+    assert (f"| Inloggning via SSO ({sso}) \\\\ {{expand:Beskrivning}}"
             "Stöd för SAML mot lärosätenas IdP:er.{expand} |") in ut
     # Link cells; '|' and ']' in a URL are percent-encoded, not escaped.
     assert "| [Jira|https://jira.example/DIVA-1%7Cx%5Dy] |" in ut
     assert "| [Dokumentation|https://wiki.example/sso] |" in ut
     # Nodes without links get empty cells, and no empty expand appears.
-    assert "| Utan länkar |" in ut
+    assert f"| Utan länkar ({utan}) |" in ut
     assert "{expand:Beskrivning}{expand}" not in ut
 
 
@@ -60,6 +61,7 @@ def test_analys_markup_med_varning(conn):
     assert ut.startswith("h1. Analys — blockerar-rankning")
     assert "{info}1 av 1 medlemmar" in ut
     assert "|| Nod || Status || Avgång ||" in ut
+    assert f"| Dubblettdetektering ({ids['dubblett']}) | Idé |" in ut
     # golive on an 'idé/senare' node raises the N2 warning, rendered as (!).
     assert "(!) blockerar go-live" in ut
 
@@ -97,7 +99,7 @@ def test_roadmap_markup(conn):
     assert "h2. Medlem 1" in ut and "h2. Senare" in ut and "h2. Utan avgång" in ut
     assert "|| Namn || Typ || Status ||" in ut
     # Förmågeraden är hierarkikontext utan status; funktionerna behåller sin.
-    assert "| *Publicering* | förmåga |   |" in ut
+    assert f"| *Publicering* ({ids['publicering']}) | förmåga |   |" in ut
     assert "Driftsatt" not in ut and "driftsatt" not in ut
     utan_formagor = confluence.roadmap(conn, visa_krav=True, genererad=DATUM,
                                        dolj_formagor=True)
