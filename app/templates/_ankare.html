@@ -1,0 +1,10 @@
+{# Ankarlänk till en nodrad (#rad-<id>), delad av alla vyer som visar noder.
+   Osynlig tills raden hovras (raden bär klassen group) eller länken får
+   fokus, så den inte stör läsningen men går att kopiera/dela. inline-block
+   så utgår-överstrykningen från namnet inte ärvs in i tecknet. Hoppet
+   blinkar raden via :target i CSS:en; i trädvyerna öppnar trad.js
+   kompakterade grenar ned till målet. #}
+{% macro ankare(id, namn) -%}
+<a href="#rad-{{ id }}" class="nodankare ml-1 inline-block rounded px-0.5 text-stone-300 no-underline opacity-0 transition-opacity hover:text-blue-800 focus:opacity-100 group-hover:opacity-100"
+   title="Länk till den här noden" aria-label="Länk till {{ namn }}">#</a>
+{%- endmacro %}
