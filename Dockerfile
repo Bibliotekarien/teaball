@@ -1,9 +1,18 @@
+# uv från den officiella imagen, låst som tagg@digest (OCI-index):
+# oföränderlig och ingen pip i kedjan. Ett eget FROM-steg och inte
+# COPY --from=<image>, eftersom Dependabots docker-post bara läser FROM-rader;
+# så bumpas uv som andra images.
+FROM ghcr.io/astral-sh/uv:0.12.19@sha256:04d046b13e60d6bcec73cbc5e1cad25d680dea90c8573340950a0ac2d1aef424 AS uv
+
 # Pinnad på digest (3.12-slim, hämtad 2026-08-25) — bumpa medvetet, inte via
 # oannonserad :latest-glidning. Samma policy som Anubis-imagen i prod-composen.
 FROM python:3.12-slim@sha256:7a8b475003c4fe15a2cd4e55e5cfc2f3560bdc9333d624f24cdd6d4340fd7a17
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    UV_NO_CACHE=1 \
+    UV_PYTHON_DOWNLOADS=never \
+    PATH="/srv/teaball/.venv/bin:$PATH"
 
 WORKDIR /srv/teaball
 
@@ -14,17 +23,19 @@ RUN apt-get update \
        libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
-# Runtime dependencies mirror [project.dependencies] in pyproject.toml.
-RUN pip install --no-cache-dir \
-    "fastapi>=0.115" \
-    "uvicorn[standard]>=0.30" \
-    "jinja2>=3.1" \
-    "python-multipart>=0.0.9" \
-    "argon2-cffi>=23.1" \
-    "itsdangerous>=2.2" \
-    "openpyxl>=3.1.5" \
-    "httpx>=0.27" \
-    "weasyprint>=63"
+# Beroendena installeras exakt från uv.lock — samma versioner som CI provar
+# (uv sync --locked i den delade python-tests.yml). --locked avbryter bygget
+# om låsfilen inte stämmer med pyproject.toml i stället för att lösa om.
+# UV_PYTHON_DOWNLOADS=never håller imagens egen Python 3.12 som tolk.
+# venv:en ligger först i PATH, så CMD:ns uvicorn, healthcheckens python3 och
+# `docker compose exec web python scripts/...` alla kör med de låsta paketen.
+#
+# uv-binären kommer från steget "uv" överst (se kommentaren där).
+COPY --from=uv /uv /usr/local/bin/uv
+
+# Beroendelagret cachas tills pyproject.toml/uv.lock ändras.
+COPY pyproject.toml uv.lock ./
+RUN uv sync --locked --no-dev --no-install-project
 
 COPY app ./app
 COPY db ./db
@@ -34,11 +45,18 @@ COPY scripts ./scripts
 # container. .dockerignore keeps local dev databases in data/ out of the image.
 COPY data ./data
 
+# Projektet självt (package = false i pyproject: inget att installera i dag,
+# men steget kontrollerar låsfilen igen och följer grib-ranker:s mönster).
+RUN uv sync --locked --no-dev
+
 # Service user per platform convention (SERVER_LAYOUT.md UID allocation).
+# Appen skriver bara i /data (DB_PATH i båda compose-filerna). Kod och venv
+# ägs av root och är bara läsbara för appuser, så en komprometterad process
+# kan inte skriva om installerade paket.
 RUN mkdir -p /data \
     && groupadd --gid 1505 appuser \
     && useradd --uid 1505 --gid 1505 --no-create-home appuser \
-    && chown -R appuser:appuser /data /srv/teaball
+    && chown -R appuser:appuser /data
 USER appuser
 
 EXPOSE 8000
