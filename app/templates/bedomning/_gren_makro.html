@@ -1,3 +1,4 @@
+{% from "_ankare.html" import ankare %}
 {# Assessment tree node (B3–B6, B8). Imported WITH CONTEXT: reads direkta,
    effektiva, delade, bas, visa_dold, skrivbar and request from the render
    context. bas = URL prefix for saves: /bedomning/<medlem_id> (proxy) or
@@ -25,7 +26,7 @@
 {% set eget = direkta.get(n.id) %}
 {% set eff = effektiva.get(n.id) %}
 {% set delade_har = delade.get(n.id, []) %}
-<div class="flex flex-col gap-2 border-b border-stone-100 py-2 pr-2 hover:bg-stone-50 sm:flex-row sm:items-start">
+<div id="rad-{{ n.id }}" class="group flex scroll-mt-2 flex-col gap-2 border-b border-stone-100 py-2 pr-2 hover:bg-stone-50 sm:flex-row sm:items-start">
   <div class="flex min-w-0 flex-1 items-start gap-2">
     {% if n.barn %}
     <svg class="chevron mt-1 h-3.5 w-3.5 shrink-0 text-stone-400 transition-transform" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M6 3.5 11 8l-5 4.5v-9z"/></svg>
@@ -35,7 +36,7 @@
     <div class="min-w-0 flex-1 pt-0.5">
       {# utgår replaces the type styling outright — two text-color utilities on
          one element would leave the winner to stylesheet order. #}
-      <span class="text-sm {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}">{{ n.namn }}</span>
+      <span class="text-sm {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}">{{ n.namn }}</span>{{ ankare(n.id, n.namn) }}
       {% if visa_dold and not n.synlig_stig %}
       <span class="ml-1 rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400" title="Visas inte för medlemmar">dold för medlemmar</span>
       {% endif %}

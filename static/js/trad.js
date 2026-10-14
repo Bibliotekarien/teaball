@@ -99,7 +99,9 @@
   // Öppnar grenen ned till noden och stryker kedjan ur minnet, så noden är
   // synlig både nu och efter nästa swap. Returnerar nodens <li> (eller null).
   function oppnaGrenTill(id) {
-    var li = document.getElementById("nod-" + id);
+    return oppnaKedja(document.getElementById("nod-" + id));
+  }
+  function oppnaKedja(li) {
     var kompakterade = lasKompakterade();
     for (var el = li; el; el = el.parentElement && el.parentElement.closest("li[data-nod]")) {
       var d = el.querySelector(":scope > details");
@@ -110,6 +112,21 @@
     return li;
   }
 
+  // Ankarlänk till en rad (#rad-<id>, nodernas #-länkar, eller en delad
+  // URL): raden kan ligga i en kompakterad gren, och minnet stänger dessutom
+  // grenen igen vid första aterstall. Öppna kedjan ned till målet, stryk den
+  // ur minnet och scrolla dit — webbläsarens eget hopp gick till en dold rad.
+  function visaAnkarmal() {
+    var id;
+    try { id = decodeURIComponent(location.hash.slice(1)); } catch (fel) { return; }
+    var mal = id && document.getElementById(id);
+    if (!mal || !mal.closest("[data-kompaktminne]")) return;
+    oppnaKedja(mal.closest("li[data-nod]"));
+    mal.scrollIntoView({ block: "start" });
+  }
+  window.addEventListener("hashchange", visaAnkarmal);
+  var forstaAterstall = true;
+
   function aterstall() {
     var kompakterade = filterAktivt() ? new Set() : lasKompakterade();
     // Sätt open bara när det ändras: en tilldelning av samma värde räknas
@@ -119,6 +136,13 @@
       var oppen = !kompakterade.has(nodId(d));
       if (d.open !== oppen) d.open = oppen;
     });
+
+    // Sidan öppnad med ett ankare: först nu, när minnet applicerats, vet vi
+    // om målet hamnade i en stängd gren.
+    if (forstaAterstall) {
+      forstaAterstall = false;
+      visaAnkarmal();
+    }
 
     // Efter vissa åtgärder scrollas en rad högst upp i viewporten (scrollMal,
     // se nedan) — swappen byter ut hela trädet och blicken tappar annars sin

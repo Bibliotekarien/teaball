@@ -45,7 +45,7 @@ def test_roadmap_visar_avgangar_och_egna_svar(app_db, klient_fabrik):
     assert "Umeå" not in sida
     # Obedömda bedömbara noder markeras; raderna länkar till bedömningen.
     assert "ej bedömd" in sida
-    assert f'href="/svara#gren-{ids["registrera"]}"' in sida
+    assert f'href="/svara#rad-{ids["registrera"]}"' in sida
 
 
 def test_roadmap_doljer_dolda_grenar_och_forvaltarkontroller(app_db, klient_fabrik):

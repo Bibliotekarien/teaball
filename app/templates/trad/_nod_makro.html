@@ -1,3 +1,4 @@
+{% from "_ankare.html" import ankare %}
 {# Recursive tree node. The row sits inside <summary> when the node has
    children, so expand/collapse is pure <details> — no JavaScript (T1/I2). #}
 {% macro rad(n, request, detaljerad=false, skrivbar=false) %}
@@ -18,7 +19,7 @@
   {% endif %}
   {# utgår replaces the type styling outright — two text-color utilities on one
      element would leave the winner to stylesheet order. #}
-  <span class="min-w-0 flex-1 break-words text-sm {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}" title="{{ n.beskrivning or n.namn }}">{{ n.namn }}</span>
+  <span class="min-w-0 flex-1 break-words text-sm {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}" title="{{ n.beskrivning or n.namn }}">{{ n.namn }}{{ ankare(n.id, n.namn) }}</span>
 
   {% if skrivbar %}
   <span class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">

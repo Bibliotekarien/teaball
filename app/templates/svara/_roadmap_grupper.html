@@ -1,21 +1,26 @@
+{% from "_ankare.html" import ankare %}
 {# Medlemmens roadmap-grupper. Egen mall i stället för roadmap/_grupper.html:
    den bär redigeringsläge, dold-markering och avgångsväljare bakom villkor,
    och en medlemsvy ska inte kunna råka rendera någon av dem. Här finns bara
    namn, typ, status och medlemmens eget effektiva svar. #}
 <div id="roadmap-grupper">
+  {# Unika ankar-id:n — se roadmap/_grupper.html. #}
+  {% set ankrade = namespace(id=[]) %}
   {% for fas, rader in grupper %}
   <h2 class="mb-1 mt-4 font-serif text-sm text-blue-900">{{ fas }}</h2>
   <ol class="list-none rounded-lg border border-stone-200 bg-white">
     {% for n in rader %}
     {% set eff = effektiva.get(n.id) %}
-    <li class="flex flex-wrap items-center gap-2 border-b border-stone-100 py-1.5 pr-2"
+    <li {% if n.id not in ankrade.id %}id="rad-{{ n.id }}" {% set ankrade.id = ankrade.id + [n.id] %}{% endif %}class="group flex scroll-mt-2 flex-wrap items-center gap-2 border-b border-stone-100 py-1.5 pr-2"
         style="padding-left: {{ n.djup * 16 + 10 }}px">
+      <span class="flex min-w-0 flex-1 items-center">
       {% if n.typ == "förmåga" %}
-      <span class="min-w-0 flex-1 truncate text-sm {{ TYP_CLS[n.typ] }}">{{ n.namn }}</span>
+      <span class="min-w-0 truncate text-sm {{ TYP_CLS[n.typ] }}">{{ n.namn }}</span>
       {% else %}
-      <a href="/svara#gren-{{ n.id }}" class="min-w-0 flex-1 truncate text-sm {{ TYP_CLS[n.typ] }} hover:underline"
+      <a href="/svara#rad-{{ n.id }}" class="min-w-0 truncate text-sm {{ TYP_CLS[n.typ] }} hover:underline"
          title="Gå till bedömningen">{{ n.namn }}</a>
       {% endif %}
+      {{- ankare(n.id, n.namn) }}</span>
       <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ TYP_LABEL[n.typ] }}</span>
       {% if n.typ != "förmåga" %}
       <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}" title="{{ STATUS[n.status].beskrivning }}">{{ STATUS[n.status].label }}</span>

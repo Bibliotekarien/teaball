@@ -1,3 +1,4 @@
+{% from "_ankare.html" import ankare %}
 {# En rad i listvyn. Eget makro så raden kan renderas fristående (GET
    /lista/nod/<id>/rad — avbryt i inline-redigeringen byter tillbaka bara den
    raden i stället för att ladda om hela listan och tappa sorteringen). id:t
@@ -17,7 +18,7 @@
     {% endfor %}
   </span>
   {# utgår ersätter typfärgen rakt av — samma resonemang som i trädet. #}
-  <span class="min-w-0 flex-1 break-words text-sm {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}" title="{{ n.beskrivning or n.namn }}">{{ n.namn }}</span>
+  <span class="min-w-0 flex-1 break-words text-sm {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}" title="{{ n.beskrivning or n.namn }}">{{ n.namn }}{{ ankare(n.id, n.namn) }}</span>
   {% if skrivbar %}
   {# Redigera och ta bort öppnar samma formulär/bekräftelse som i behovsträdet,
      på radens plats. Utan JS leder länkarna till helsidesvarianterna. #}

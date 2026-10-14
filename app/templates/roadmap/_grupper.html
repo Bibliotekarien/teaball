@@ -1,3 +1,4 @@
+{% from "_ankare.html" import ankare %}
 {# Phase groups. In edit mode every funktion/krav row gets a drag handle and
    a no-JS fas form; roadmap.js enhances cross-phase drops onto the same
    endpoint. Förmågerader är hierarkikontext: inget status-piller, ingen
@@ -8,15 +9,20 @@
   {# Samma utseende som #trad-fel i trad/_innehall.html. #}
   <div id="roadmap-fel" class="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{{ fel }}</div>
   {% endif %}
+  {# Förmågor återkommer som kontext i varje avgång där de har undernoder —
+     bara första förekomsten bär ankar-id:t (id:n måste vara unika), och
+     länken på övriga förekomster pekar dit. #}
+  {% set ankrade = namespace(id=[]) %}
   {% for fas, rader in grupper %}
   <h2 class="mb-1 mt-4 font-serif text-sm text-blue-900">{{ fas }}</h2>
   <ol class="fas-lista list-none rounded-lg border border-stone-200 bg-white{% if redigera %} min-h-[14px]{% endif %}"
       data-fas="{{ '' if fas == 'utan avgång' else fas }}">
     {% for n in rader %}
-    <li class="flex items-center gap-2 border-b border-stone-100 py-1.5 pr-2"
+    <li {% if n.id not in ankrade.id %}id="rad-{{ n.id }}" {% set ankrade.id = ankrade.id + [n.id] %}{% endif %}class="group flex scroll-mt-2 items-center gap-2 border-b border-stone-100 py-1.5 pr-2"
         style="padding-left: {{ n.djup * 22 + 10 }}px"{% if n.typ != "förmåga" %} data-nod="{{ n.id }}"{% endif %}>
       {% if redigera and n.typ != "förmåga" %}<span class="greppyta cursor-grab select-none px-1 text-stone-300" title="Dra till en annan avgång">⋮⋮</span>{% endif %}
-      <span class="min-w-0 flex-1 truncate text-sm {{ TYP_CLS[n.typ] }}">{{ n.namn }}</span>
+      {# Ankaret utanför namnet: truncate skulle annars klippa bort det. #}
+      <span class="flex min-w-0 flex-1 items-center"><span class="min-w-0 truncate text-sm {{ TYP_CLS[n.typ] }}">{{ n.namn }}</span>{{ ankare(n.id, n.namn) }}</span>
       {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400" title="Utelämnas ur exporten">dold</span>{% endif %}
       <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ TYP_LABEL[n.typ] }}</span>
       {% if n.typ != "förmåga" %}
