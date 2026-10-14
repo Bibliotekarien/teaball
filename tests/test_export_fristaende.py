@@ -36,6 +36,9 @@ def test_kravtrad_html_fullstandig(client, app_db):
     assert 'attachment; filename="behovstrad-' in export.headers["content-disposition"]
     # The full variant keeps hidden branches but tags them "intern".
     assert "Import från Web of Science" in export.text
+    # Nodnumret står efter namnet, inne i namnspannet så en kopiering av
+    # namnet tar med numret.
+    assert f'Import från Web of Science <span class="nodnr">({ids["wos"]})</span></span>' in export.text
     assert "intern" in export.text
     assert "Dubbletter ska flaggas vid import." in export.text
     assert 'href="https://jira.example/DIVA-1"' in export.text

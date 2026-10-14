@@ -30,7 +30,7 @@ def _gren_eller_redirect(request, conn, medlem_id: int, funktion_id: int):
     back to the anchor."""
     if not is_htmx(request):
         return RedirectResponse(
-            f"/bedomning?medlem_id={medlem_id}#gren-{funktion_id}", status_code=303
+            f"/bedomning?medlem_id={medlem_id}#rad-{funktion_id}", status_code=303
         )
     rotter = trad_tjanst.hamta_trad(conn)
     nod = trad_tjanst.hitta_nod(rotter, funktion_id)
@@ -141,7 +141,7 @@ def spara_workaround(
     if is_htmx(request):
         return Response(status_code=204)  # autosave: nothing else changes visually
     return RedirectResponse(
-        f"/bedomning?medlem_id={medlem_id}#gren-{funktion_id}", status_code=303
+        f"/bedomning?medlem_id={medlem_id}#rad-{funktion_id}", status_code=303
     )
 
 
@@ -159,5 +159,5 @@ def spara_kommentar(
     if is_htmx(request):
         return Response(status_code=204)
     return RedirectResponse(
-        f"/bedomning?medlem_id={medlem_id}#gren-{funktion_id}", status_code=303
+        f"/bedomning?medlem_id={medlem_id}#rad-{funktion_id}", status_code=303
     )

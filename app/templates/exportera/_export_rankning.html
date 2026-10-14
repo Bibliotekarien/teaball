@@ -6,7 +6,7 @@
 {% for r in rankning %}
 <div class="kort">
   <div class="huvud">
-    <span class="namn">{{ r.namn }}</span>
+    <span class="namn">{{ r.namn }} <span class="nodnr">({{ r.id }})</span></span>
     <span class="badge status-{{ r.status }}">{{ STATUS[r.status].label }}</span>
     {% if r.fas %}<span class="fas">avgång: {{ r.fas }}</span>{% endif %}
     {% if r.varning %}

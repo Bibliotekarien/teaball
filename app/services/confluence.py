@@ -13,7 +13,7 @@ from urllib.parse import quote
 
 from app.services.analys import rankning, tackning
 from app.services.roadmap import roadmap_data
-from app.services.trad import TYP_LABEL
+from app.services.trad import TYP_LABEL, nodnamn, nodnummer
 
 # Kept local rather than importing app.web so the export layer stays decoupled
 # from the template engine; mirrors the labels in app/web.py STATUS.
@@ -68,12 +68,14 @@ def _rad(celler, header: bool = False) -> str:
     return d + " " + f" {d} ".join(celler) + " " + d
 
 
-def _namncell(namn, djup: int, typ: str, beskrivning=None) -> str:
-    """Tree name cell: middot indent per level, förmåga names bolded. A
+def _namncell(namn, nod_id, djup: int, typ: str, beskrivning=None) -> str:
+    """Tree name cell: middot indent per level, förmåga names bolded, the
+    nodnummer after the name (outside the bold) so it can be cited. A
     beskrivning goes under the name in the same cell, folded away in an
     {expand} macro so the table stays compact until the reader clicks."""
     text = _cell(namn)
-    cell = "· " * djup + (_bold(text) if typ == "förmåga" else text)
+    cell = ("· " * djup + (_bold(text) if typ == "förmåga" else text)
+            + " " + nodnummer(nod_id))
     if beskrivning:
         # \\ is a line break inside the cell; _cell has already escaped braces,
         # so the description cannot terminate the macro.
@@ -91,7 +93,7 @@ def kravtrad(conn, genererad: str) -> str:
                    "Jira", "Dokumentation"], header=True)]
     for r in conn.execute("SELECT * FROM funktion_trad ORDER BY vag"):
         rader.append(_rad([
-            _namncell(r["namn"], r["djup"], r["typ"], r["beskrivning"]),
+            _namncell(r["namn"], r["id"], r["djup"], r["typ"], r["beskrivning"]),
             _cell(TYP_LABEL[r["typ"]]),
             _cell(STATUS_ETIKETT.get(r["status"], r["status"])),
             _cell(r["fas"]),
@@ -116,7 +118,7 @@ def analys(conn, arvda: bool, genererad: str) -> str:
     for r in rankning(conn, arvda):
         varning = "(!) blockerar go-live men är idé/utreds/senare" if r["varning"] else " "
         rader.append(_rad([
-            _cell(r["namn"]),
+            _cell(nodnamn(r["namn"], r["id"])),
             _cell(STATUS_ETIKETT.get(r["status"], r["status"])),
             _cell(r["fas"]),
             _cell(r["golive"]), _cell(r["kan_vanta"]), _cell(r["behovs_ej"]),
@@ -137,7 +139,7 @@ def roadmap(conn, visa_krav: bool, genererad: str,
                   _rad(["Namn", "Typ", "Status"], header=True)]
         for n in noder:
             rader.append(_rad([
-                _namncell(n["namn"], n["djup"], n["typ"]),
+                _namncell(n["namn"], n["id"], n["djup"], n["typ"]),
                 _cell(TYP_LABEL[n["typ"]]),
                 # Förmågor är hierarkikontext i roadmapen — ingen status.
                 " " if n["typ"] == "förmåga"

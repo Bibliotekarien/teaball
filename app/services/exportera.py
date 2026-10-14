@@ -17,7 +17,7 @@ from openpyxl.utils import get_column_letter
 
 from app.services import analys as analys_tjanst
 from app.services import roadmap as roadmap_tjanst
-from app.services.trad import TYP_LABEL
+from app.services.trad import TYP_LABEL, nodnamn
 
 # Spreadsheet formula injection: Excel/LibreOffice execute a cell whose text
 # starts with one of these. Member free-text (workaround, kommentar) and
@@ -153,7 +153,7 @@ def _blad_trad(blad, conn):
                [55, 10, 11, 10, 19, 50])
     # blad.max_row is O(rows) in openpyxl — track the row number ourselves.
     for radnr, r in enumerate(conn.execute("SELECT * FROM funktion_trad ORDER BY vag"), start=2):
-        blad.append(_sakra_rad(["    " * r["djup"] + r["namn"], TYP_LABEL[r["typ"]], r["status"], r["fas"],
+        blad.append(_sakra_rad(["    " * r["djup"] + nodnamn(r["namn"], r["id"]), TYP_LABEL[r["typ"]], r["status"], r["fas"],
                      "ja" if r["synlig_stig"] else "nej", r["beskrivning"]]))
         blad.cell(row=radnr, column=1).font = _FET if r["typ"] == "förmåga" else _VANLIG
         _fyll(blad.cell(row=radnr, column=3), STATUS_STIL[r["status"]])
@@ -173,7 +173,7 @@ def _blad_bedomningar(blad, conn):
         """
     )
     for radnr, r in enumerate(rows, start=2):
-        blad.append(_sakra_rad([r["medlem"], r["kategori"], r["funktion"], SVAR_ETIKETT[r["svar"]],
+        blad.append(_sakra_rad([r["medlem"], r["kategori"], nodnamn(r["funktion"], r["funktion_id"]), SVAR_ETIKETT[r["svar"]],
                      r["workaround"], "ja" if r["workaround_delas"] else "nej",
                      r["kommentar"], r["besvarat_av"], r["besvarat"]]))
         _fyll(blad.cell(row=radnr, column=4), SVAR_STIL[r["svar"]])
@@ -189,7 +189,7 @@ def _blad_analys(blad, conn):
     _rubrikrad(blad, ["Nod", "Status", "Avgång", "Go-live", "Kan vänta", "Behövs ej",
                       "Totalt", "Varning"], [45, 11, 10, 9, 10, 10, 8, 42], rad=2)
     for radnr, r in enumerate(analys_tjanst.rankning(conn, arvda=False), start=3):
-        blad.append(_sakra_rad([r["namn"], r["status"], r["fas"], r["golive"], r["kan_vanta"],
+        blad.append(_sakra_rad([nodnamn(r["namn"], r["id"]), r["status"], r["fas"], r["golive"], r["kan_vanta"],
                      r["behovs_ej"], r["totalt"],
                      "⚠ blockerar go-live men är idé/senare" if r["varning"] else None]))
         _fyll(blad.cell(row=radnr, column=2), STATUS_STIL[r["status"]])
@@ -214,7 +214,7 @@ def _blad_roadmap(blad, conn):
     for fas, rader in roadmap_tjanst.roadmap_data(conn, visa_krav=True):
         for n in rader:
             radnr += 1
-            blad.append(_sakra_rad([fas, "    " * n["djup"] + n["namn"], TYP_LABEL[n["typ"]], n["status"]]))
+            blad.append(_sakra_rad([fas, "    " * n["djup"] + nodnamn(n["namn"], n["id"]), TYP_LABEL[n["typ"]], n["status"]]))
             blad.cell(row=radnr, column=2).font = (
                 _FET if n["typ"] == "förmåga" else _VANLIG)
             _fyll(blad.cell(row=radnr, column=4), STATUS_STIL[n["status"]])

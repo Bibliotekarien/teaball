@@ -17,7 +17,7 @@ i råtexten."""
 from app.services.analys import rankning, tackning
 from app.services.confluence import koda_url
 from app.services.roadmap import roadmap_data
-from app.services.trad import TYP_LABEL
+from app.services.trad import TYP_LABEL, nodnamn, nodnummer
 
 # Lokal kopia i stället för import från app.web så exportlagret slipper bero på
 # mallmotorn; speglar etiketterna i app/web.py STATUS.
@@ -67,10 +67,12 @@ def _tabellhuvud(rubriker) -> list[str]:
     return [_rad(rubriker), _rad(["---"] * len(rubriker))]
 
 
-def _namncell(namn, djup: int, typ: str) -> str:
-    """Namncell i trädet: mittpunktsindrag per nivå, förmågor i fetstil."""
+def _namncell(namn, nod_id, djup: int, typ: str) -> str:
+    """Namncell i trädet: mittpunktsindrag per nivå, förmågor i fetstil och
+    nodnumret efter namnet (utanför fetstilen) så noden kan citeras."""
     text = _cell(namn)
-    return "· " * djup + (_bold(text) if typ == "förmåga" else text)
+    return ("· " * djup + (_bold(text) if typ == "förmåga" else text)
+            + " " + nodnummer(nod_id))
 
 
 def _dokument(rader) -> str:
@@ -83,7 +85,7 @@ def kravtrad(conn, genererad: str) -> str:
                            "Beskrivning", "Jira", "Dokumentation"])
     for r in conn.execute("SELECT * FROM funktion_trad ORDER BY vag"):
         rader.append(_rad([
-            _namncell(r["namn"], r["djup"], r["typ"]),
+            _namncell(r["namn"], r["id"], r["djup"], r["typ"]),
             _cell(TYP_LABEL[r["typ"]]),
             _cell(STATUS_ETIKETT.get(r["status"], r["status"])),
             _cell(r["fas"]),
@@ -109,7 +111,7 @@ def analys(conn, arvda: bool, genererad: str) -> str:
     for r in rankning(conn, arvda):
         varning = "⚠ blockerar go-live men är idé/utreds/senare" if r["varning"] else ""
         rader.append(_rad([
-            _cell(r["namn"]),
+            _cell(nodnamn(r["namn"], r["id"])),
             _cell(STATUS_ETIKETT.get(r["status"], r["status"])),
             _cell(r["fas"]),
             _cell(r["golive"]), _cell(r["kan_vanta"]), _cell(r["behovs_ej"]),
@@ -130,7 +132,7 @@ def roadmap(conn, visa_krav: bool, genererad: str,
         rader += _tabellhuvud(["Namn", "Typ", "Status"])
         for n in noder:
             rader.append(_rad([
-                _namncell(n["namn"], n["djup"], n["typ"]),
+                _namncell(n["namn"], n["id"], n["djup"], n["typ"]),
                 _cell(TYP_LABEL[n["typ"]]),
                 # Förmågor är hierarkikontext i roadmapen — ingen status.
                 "" if n["typ"] == "förmåga"
