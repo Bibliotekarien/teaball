@@ -455,3 +455,24 @@ def test_sidomeny_lankar_till_de_tva_oversta_nivaerna(client, app_db):
 
     # Inga noder att visa ⇒ ingen meny alls.
     assert "data-tradmeny" not in client.get("/trad?q=finnsinte").text
+
+
+def test_trad_dolj_dolda(client, app_db):
+    ids = seed_trad(app_db)
+    app_db.execute("UPDATE funktion SET synlig_externt = 0 WHERE id = ?", (ids["import"],))
+    app_db.commit()
+    logga_in(client, app_db)
+
+    sida = client.get("/trad").text
+    assert f'id="rad-{ids["wos"]}"' in sida and 'name="dolj_dolda"' in sida
+    sida = client.get("/trad?dolj_dolda=1").text
+    token = csrf_fran(sida)  # inte _token: en ren GET /trad nollställer filtret
+    for nod in ("import", "wos", "dubblett"):
+        assert f'id="rad-{ids[nod]}"' not in sida
+    assert f'id="rad-{ids["registrera"]}"' in sida
+
+    # POST-svar återanvänder sessionens filter, så trädet förblir filtrerat.
+    svar = client.post(f"/trad/nod/{ids['registrera']}/ordna",
+                       data={"riktning": "ner", "csrf_token": token},
+                       headers={"HX-Request": "true"})
+    assert f'id="rad-{ids["wos"]}"' not in svar.text

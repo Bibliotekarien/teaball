@@ -23,7 +23,7 @@ from app.web import is_htmx, templates
 router = APIRouter(prefix="/lista", dependencies=[Depends(krav_csrf)])
 audit = logging.getLogger("teaball.audit")
 
-TOMT_FILTER = {"q": "", "typ": [], "status": [], "fas": "",
+TOMT_FILTER = {"q": "", "typ": [], "status": [], "fas": "", "dolj_dolda": False,
                "sortera": "skapad", "riktning": "fallande"}
 
 
@@ -41,6 +41,7 @@ def _listsvar(request, conn, principal, fel: str | None = None,
         "rader": tjanst.hamta_lista(
             conn, filter["q"] or None, filter["typ"] or None,
             filter["status"] or None, filter["fas"] or None,
+            endast_synliga=filter.get("dolj_dolda", False),
             sortera=filter["sortera"], stigande=filter["riktning"] == "stigande",
         ),
         "fel": fel,
@@ -63,7 +64,7 @@ def _listsvar(request, conn, principal, fel: str | None = None,
 @router.get("")
 def visa_lista(
     request: Request,
-    q: str = "", fas: str = "", vy: str = "",
+    q: str = "", fas: str = "", vy: str = "", dolj_dolda: str = "",
     sortera: str = "", riktning: str = "",
     typ: list[str] = Query([]), status: list[str] = Query([]),
     principal: Principal = Depends(krav_intern),
@@ -72,7 +73,7 @@ def visa_lista(
     if vy in ("kompakt", "detaljerad"):
         request.session["lista_vy"] = vy
     filter = {
-        "q": q, "typ": typ, "status": status, "fas": fas,
+        "q": q, "typ": typ, "status": status, "fas": fas, "dolj_dolda": bool(dolj_dolda),
         "sortera": sortera if sortera in LISTSORTERING else "skapad",
         "riktning": "stigande" if riktning == "stigande" else "fallande",
     }

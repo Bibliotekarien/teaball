@@ -92,6 +92,25 @@ def test_lista_filter_som_kravtradet(client, app_db):
     assert rad("publicering") in rader and rad("registrera") not in rader
 
 
+def test_lista_dolj_dolda(client, app_db):
+    ids = seed_trad(app_db)
+    # Synligheten ärvs: en dold Import döljer hela grenen under den.
+    app_db.execute("UPDATE funktion SET synlig_externt = 0 WHERE id = ?", (ids["import"],))
+    app_db.commit()
+    logga_in(client, app_db)
+
+    rader = lista_delen(client.get("/lista").text)
+    assert f'id="rad-{ids["wos"]}"' in rader  # standard: dolda syns, med etikett
+    rader = lista_delen(client.get("/lista?dolj_dolda=1").text)
+    for nod in ("import", "wos", "dubblett"):
+        assert f'id="rad-{ids[nod]}"' not in rader
+    assert f'id="rad-{ids["registrera"]}"' in rader
+    # Rutan speglar filtret, och det kombineras med de andra.
+    assert 'name="dolj_dolda" value="1" checked' in client.get("/lista?dolj_dolda=1").text
+    rader = lista_delen(client.get("/lista?dolj_dolda=1&typ=krav").text)
+    assert f'id="rad-{ids["dubblett"]}"' not in rader
+
+
 def test_lista_vyvaxling(client, app_db):
     seed_trad(app_db)
     skapa_funktion(app_db, "Med detaljer", typ="funktion",

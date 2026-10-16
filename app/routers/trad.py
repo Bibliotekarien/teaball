@@ -35,7 +35,7 @@ def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | N
     #trad-rot and survives the swap. Without it an edit while filtering swaps
     in the whole unfiltered tree under an untouched filter form."""
     filter = filter or request.session.get("trad_filter") \
-        or {"q": "", "typ": [], "status": [], "fas": ""}
+        or {"q": "", "typ": [], "status": [], "fas": "", "dolj_dolda": False}
     if not is_htmx(request) and fel is None and request.method == "POST":
         return RedirectResponse("/trad", status_code=303)
     ctx = {
@@ -43,7 +43,9 @@ def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | N
         "rotter": tjanst.hamta_trad(
             conn, filter["q"] or None, filter["typ"] or None,
             filter["status"] or None, filter["fas"] or None,
-            endast_synliga=principal.roll == "extern",
+            # "Dölj dolda" gives staff the member selection — including the
+            # subtree counts, so the bars then show what members see.
+            endast_synliga=principal.roll == "extern" or filter.get("dolj_dolda", False),
         ),
         "fel": fel,
         "filter": filter,
@@ -63,14 +65,14 @@ def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | N
 @router.get("")
 def visa_trad(
     request: Request,
-    q: str = "", fas: str = "", vy: str = "",
+    q: str = "", fas: str = "", vy: str = "", dolj_dolda: str = "",
     typ: list[str] = Query([]), status: list[str] = Query([]),
     principal: Principal = Depends(krav_forvaltare),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     if vy in ("kompakt", "detaljerad"):
         request.session["trad_vy"] = vy
-    filter = {"q": q, "typ": typ, "status": status, "fas": fas}
+    filter = {"q": q, "typ": typ, "status": status, "fas": fas, "dolj_dolda": bool(dolj_dolda)}
     # Remembered for POST responses (see _tradsvar). A bare GET /trad clears
     # it — exactly what the then-empty filter form shows.
     request.session["trad_filter"] = filter
