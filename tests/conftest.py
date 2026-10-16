@@ -93,7 +93,7 @@ def logga_in(client, conn, namn="anna", losenord="hemligt-losen", roll="admin"):
 
 
 def skapa_funktion(conn, namn, foralder_id=None, typ="krav", status="planerad",
-                   fas="Medlem 1", synlig_externt=1, sortering=0, beskrivning=None,
+                   fas="Avgång 1", synlig_externt=1, sortering=0, beskrivning=None,
                    lank_dokumentation=None, lank_jira=None):
     """Default fas is filled in because default status is planerad and the
     avgång trigger requires one; pass fas=None only with an exempt status."""

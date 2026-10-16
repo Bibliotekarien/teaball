@@ -27,7 +27,7 @@ def test_forvaltarvyerna_har_ankare(client, app_db):
         for nod_id in ids.values():
             _har_ankare(sida, nod_id)
 
-    # Roadmapen: Publicering står som kontext i både Medlem 1 och senare —
+    # Roadmapen: Publicering står som kontext i både Avgång 1 och senare —
     # länken finns på båda raderna, id:t bara på den första.
     sida = client.get("/roadmap").text
     assert sida.count(f'href="#rad-{ids["publicering"]}"') == 2

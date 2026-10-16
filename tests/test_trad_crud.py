@@ -36,7 +36,7 @@ def test_skapa_och_redigera_nod(client, app_db):
     svar = client.post(
         "/trad/nod",
         data={"namn": "Publicering", "typ": "förmåga", "status": "driftsatt",
-              "fas": "Medlem 1", "synlig_externt": "1", "csrf_token": token},
+              "fas": "Avgång 1", "synlig_externt": "1", "csrf_token": token},
         follow_redirects=False,
     )
     assert svar.status_code == 303
@@ -190,7 +190,7 @@ def test_ny_nod_hamnar_forst_och_formularet_aterstalls(client, app_db):
     svar = client.post(
         "/trad/nod",
         data={"namn": "Ny rot", "typ": "förmåga", "status": "planerad",
-              "fas": "Medlem 1", "csrf_token": token},
+              "fas": "Avgång 1", "csrf_token": token},
         follow_redirects=False,
     )
     assert svar.status_code == 303

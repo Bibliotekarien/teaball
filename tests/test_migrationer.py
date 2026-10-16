@@ -114,7 +114,7 @@ def test_migration_tar_sakerhetskopia_fore(tmp_path):
     db.init_db(conn)
 
     # The copy is named for the highest pending version in the batch.
-    kopior = list(tmp_path.glob("gammal.fore-0006-*.db"))
+    kopior = list(tmp_path.glob("gammal.fore-0007-*.db"))
     assert len(kopior) == 1
     gammal = sqlite3.connect(kopior[0])
     gammal.row_factory = sqlite3.Row
@@ -191,4 +191,27 @@ def test_0003_roll_utanfor_vokabularet_avvisas(tmp_path):
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute("INSERT INTO forvaltare (anvandarnamn, losen_hash, roll)"
                      " VALUES ('x', 'hash', 'chef')")
+    conn.close()
+
+
+def test_0007_medlem_1_blir_avgang_1_utan_ny_stampel(tmp_path):
+    """Som i drift: allt t.o.m. 0006 tillämpat och triggrarna på plats när
+    0007 körs. Namnbytet får inte flytta uppdaterad-stämpeln."""
+    conn = db.connect(tmp_path / "drift.db")
+    db.init_db(conn)
+    conn.execute("INSERT INTO funktion (namn, typ, status, fas, uppdaterad)"
+                 " VALUES ('Gammal', 'funktion', 'planerad', 'Medlem 1', '2026-01-01 00:00:00')")
+    conn.execute("INSERT INTO funktion (namn, typ, status, fas) VALUES ('Annan', 'funktion', 'planerad', 'senare')")
+    conn.execute("DELETE FROM schema_migration WHERE version = 7")
+    conn.commit()
+
+    db.init_db(conn)
+    gammal = conn.execute("SELECT fas, uppdaterad FROM funktion WHERE namn = 'Gammal'").fetchone()
+    assert gammal["fas"] == "Avgång 1"
+    assert gammal["uppdaterad"] == "2026-01-01 00:00:00"
+    assert conn.execute("SELECT fas FROM funktion WHERE namn = 'Annan'").fetchone()[0] == "senare"
+    # Triggern är återskapad: en riktig ändring stämplar igen.
+    conn.execute("UPDATE funktion SET beskrivning = 'ny' WHERE namn = 'Gammal'")
+    assert conn.execute("SELECT uppdaterad FROM funktion WHERE namn = 'Gammal'"
+                        ).fetchone()[0] != "2026-01-01 00:00:00"
     conn.close()

@@ -1,6 +1,6 @@
 """Roadmap grouping (spec 5.4, terminology since renamed fas → "avgång" in the
 UI): funktioner (and optionally krav) grouped by fas, ordered by the tree
-within each fas. "Medlem 1" comes first, then the other avgångar
+within each fas. "Avgång 1" comes first, then the other avgångar
 alphabetically, then "senare", and last the nodes without an avgång.
 
 Förmågor are hierarchy, not deliverables: they are never grouped under their
@@ -8,7 +8,7 @@ own fas but rendered as ancestor context inside every avgång where they have
 funktion/krav rows — so each row can be read against its place in the
 förmåge-hierarkin. A förmåga without such descendants appears nowhere."""
 
-FASTA_FASER = ["Medlem 1"]
+FASTA_FASER = ["Avgång 1"]
 SISTA_FASER = ["senare"]
 UTAN_FAS = "utan avgång"
 
