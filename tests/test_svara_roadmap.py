@@ -34,7 +34,7 @@ def test_roadmap_visar_avgangar_och_egna_svar(app_db, klient_fabrik):
     assert svar.status_code == 200
     sida = svar.text
     # Avgångarna och raderna, med namn, typ och status.
-    assert ">Medlem 1</h2>" in sida and ">senare</h2>" in sida
+    assert ">Avgång 1</h2>" in sida and ">senare</h2>" in sida
     assert "Registrera avhandling" in sida and "Import från Web of Science" in sida
     assert ">Planerad<" in sida
     # A:s eget direkta svar och det ärvda, märkt som ärvt.

@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app import db  # noqa: E402
 
 KATEGORIER = ["universitet", "högskola", "myndighet", "museum"]
-FASER = ["Medlem 1", "senare"]
+FASER = ["Avgång 1", "senare"]
 STATUSAR = ["driftsatt", "planerad", "idé", "utreds", "utgår"]
 SVAR = ["golive_krav", "kan_vanta", "behovs_ej"]
 
@@ -32,7 +32,7 @@ def seed(conn, slump: random.Random | None = None) -> tuple[int, int]:
     for f in range(1, 11):
         formaga = conn.execute(
             "INSERT INTO funktion (namn, typ, status, fas, sortering)"
-            " VALUES (?, 'förmåga', 'driftsatt', 'Medlem 1', ?)",
+            " VALUES (?, 'förmåga', 'driftsatt', 'Avgång 1', ?)",
             (f"Förmåga {f}", f * 10),
         ).lastrowid
         nod_ider.append(formaga)

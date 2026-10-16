@@ -51,13 +51,13 @@ def test_roadmap_formaga_utan_undernoder_doljs(client, app_db):
 def test_roadmap_formagor_som_kontext(client, app_db):
     seed_trad(app_db)
     logga_in(client, app_db)
-    # Publicering har funktioner i både Medlem 1 (registrera, import) och
+    # Publicering har funktioner i både Avgång 1 (registrera, import) och
     # senare (wos) — förmågan visas som hierarkikontext under båda avgångarna.
     sida = client.get("/roadmap").text
     assert sida.count(">Publicering</span>") == 2
 
     # Förmågans EGEN avgång skapar ingen grupp: en förmåga i "Zon" med sin
-    # enda funktion i Medlem 1 syns bara där.
+    # enda funktion i Avgång 1 syns bara där.
     ensam = skapa_funktion(app_db, "Ensam förmåga", typ="förmåga", fas="Zon",
                            status="planerad")
     skapa_funktion(app_db, "Ensam funktion", ensam, typ="funktion")
@@ -82,16 +82,16 @@ def test_roadmap_formagor_utan_statuspiller_och_flytt(client, app_db):
 
 
 def test_roadmap_avgangsordning(conn):
-    # Medlem 1 först, övriga avgångar alfabetiskt, senare alltid näst sist
+    # Avgång 1 först, övriga avgångar alfabetiskt, senare alltid näst sist
     # och restgruppen "utan avgång" allra sist.
     for namn, fas in [("A", "Zon"), ("B", None), ("C", "senare"),
-                      ("D", "Medlem 1"), ("E", "Alfa")]:
+                      ("D", "Avgång 1"), ("E", "Alfa")]:
         # B utan avgång behöver en status utan avgångskrav.
         skapa_funktion(conn, namn, typ="funktion", fas=fas,
                        status="planerad" if fas else "utreds")
     conn.commit()
     assert [fas for fas, _ in roadmap_data(conn)] == [
-        "Medlem 1", "Alfa", "Zon", "senare", "utan avgång"]
+        "Avgång 1", "Alfa", "Zon", "senare", "utan avgång"]
 
 
 def test_acceptance_9_4_roadmap_export(client, app_db):
@@ -178,7 +178,7 @@ def test_roadmap_flytt_till_utan_avgang_stoppas_for_planerad(client, app_db):
     assert 'id="roadmap-fel"' in svar.text and "måste ha en avgång" in svar.text
     assert 'id="roadmap-grupper"' in svar.text
     assert app_db.execute("SELECT fas FROM funktion WHERE id = ?",
-                          (ids["publicering"],)).fetchone()[0] == "Medlem 1"
+                          (ids["publicering"],)).fetchone()[0] == "Avgång 1"
 
     # Utan JS: helsida med samma banner och 400.
     svar = client.post(

@@ -88,7 +88,7 @@ def test_lista_filter_som_kravtradet(client, app_db):
     rader = lista_delen(client.get("/lista?typ=krav").text)
     assert rad("dubblett") in rader and rad("publicering") not in rader
     # Statusfilter + avgång.
-    rader = lista_delen(client.get("/lista?status=driftsatt&fas=Medlem+1").text)
+    rader = lista_delen(client.get("/lista?status=driftsatt&fas=Avg%C3%A5ng+1").text)
     assert rad("publicering") in rader and rad("registrera") not in rader
 
 
@@ -244,7 +244,7 @@ def test_lista_redigera_inline(client, app_db):
     partial = client.post(
         f"/lista/nod/{ids['wos']}",
         data={"namn": "Import från WoS", "foralder_id": str(ids["export"]),
-              "typ": "funktion", "status": "planerad", "fas": "Medlem 1",
+              "typ": "funktion", "status": "planerad", "fas": "Avgång 1",
               "lank_jira": "https://jira.example/WOS-1", "synlig_externt": "1"},
         headers={"HX-Request": "true", "X-CSRF-Token": token}).text
     assert 'id="lista-rot"' in partial and 'id="lista-fel"' not in partial
@@ -253,7 +253,7 @@ def test_lista_redigera_inline(client, app_db):
     rad = app_db.execute("SELECT * FROM funktion WHERE id = ?", (ids["wos"],)).fetchone()
     assert rad["foralder_id"] == ids["export"]
     assert rad["lank_jira"] == "https://jira.example/WOS-1"
-    assert rad["status"] == "planerad" and rad["fas"] == "Medlem 1"
+    assert rad["status"] == "planerad" and rad["fas"] == "Avgång 1"
 
     # Utan htmx: 303 tillbaka till listan.
     svar = client.post(f"/lista/nod/{ids['wos']}",

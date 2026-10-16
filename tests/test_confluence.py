@@ -96,7 +96,7 @@ def test_roadmap_markup(conn):
     conn.execute("UPDATE funktion SET fas = NULL WHERE id = ?", (ids["dubblett"],))
     ut = confluence.roadmap(conn, visa_krav=True, genererad=DATUM)
     assert "h1. Roadmap — Teaball" in ut
-    assert "h2. Medlem 1" in ut and "h2. Senare" in ut and "h2. Utan avgång" in ut
+    assert "h2. Avgång 1" in ut and "h2. Senare" in ut and "h2. Utan avgång" in ut
     assert "|| Namn || Typ || Status ||" in ut
     # Förmågeraden är hierarkikontext utan status; funktionerna behåller sin.
     assert f"| *Publicering* ({ids['publicering']}) | förmåga |   |" in ut

@@ -94,7 +94,7 @@ def test_roadmap_markdown(conn):
     conn.execute("UPDATE funktion SET fas = NULL WHERE id = ?", (ids["dubblett"],))
     ut = markdown.roadmap(conn, visa_krav=True, genererad=DATUM)
     assert "# Roadmap — Teaball" in ut
-    assert "## Medlem 1" in ut and "## Senare" in ut and "## Utan avgång" in ut
+    assert "## Avgång 1" in ut and "## Senare" in ut and "## Utan avgång" in ut
     assert "| Namn | Typ | Status |\n| --- | --- | --- |" in ut
     # Förmågeraden är hierarkikontext utan status; funktionerna behåller sin.
     assert f"| **Publicering** ({ids['publicering']}) | förmåga |  |" in ut

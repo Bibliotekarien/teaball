@@ -103,7 +103,7 @@ TYP_BESKRIVNING = {
 }
 
 # UI-termen är "avgång"; kolumnen och koden heter fortfarande fas.
-FASER = ["Medlem 1", "senare"]
+FASER = ["Avgång 1", "senare"]
 
 templates.env.globals["SVAR"] = SVAR
 templates.env.globals["STATUS"] = STATUS

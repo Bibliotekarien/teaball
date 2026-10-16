@@ -133,7 +133,7 @@ def roadmap(conn, visa_krav: bool, genererad: str,
     for fas, noder in roadmap_data(conn, visa_krav=visa_krav,
                                    dolj_formagor=dolj_formagor):
         # Bara första bokstaven höjs — capitalize() skulle gemena resten och
-        # förvanska egennamn som "Medlem 1". Avgångsnamnet är fri admin-text
+        # förvanska egennamn i avgångsnamnet. Det är fri admin-text
         # och escapas som en cell, annars blir {x} eller [x] markup i rubriken.
         rader += ["", f"h2. {_cell(fas[:1].upper() + fas[1:])}",
                   _rad(["Namn", "Typ", "Status"], header=True)]
