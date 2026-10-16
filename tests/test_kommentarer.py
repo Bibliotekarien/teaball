@@ -1,0 +1,178 @@
+"""Interna kommentarer på noderna (migration 0006): skrivande under noden,
+kommentarsvyn grupperad per nod, avbockning (behandlad/dold) och att
+kommentarerna aldrig når extern roll eller bär något namn."""
+
+import sqlite3
+
+import pytest
+
+from tests.conftest import csrf_fran, klient_fabrik  # noqa: F401  (fixture)
+from tests.conftest import logga_in, seed_trad
+
+HTMX = {"HX-Request": "true"}
+
+
+def _token(client, adress="/kommentarer"):
+    return csrf_fran(client.get(adress).text)
+
+
+def _skriv(client, nod_id, text, token, htmx=True):
+    huvuden = HTMX | {"X-CSRF-Token": token} if htmx else {}
+    return client.post(f"/kommentarer/nod/{nod_id}",
+                       data={"text": text, "csrf_token": token},
+                       headers=huvuden, follow_redirects=False)
+
+
+def _status(client, kommentar_id, status, token, fran="vy"):
+    return client.post(f"/kommentarer/{kommentar_id}/status",
+                       data={"status": status, "fran": fran, "csrf_token": token},
+                       headers=HTMX | {"X-CSRF-Token": token})
+
+
+def test_tabellen_saknar_forfattare_och_foljer_noden(conn, trad):
+    kolumner = {r["name"] for r in conn.execute("PRAGMA table_info(kommentar)")}
+    assert kolumner == {"id", "funktion_id", "text", "status", "skapad", "hanterad"}
+
+    conn.execute("INSERT INTO kommentar (funktion_id, text) VALUES (?, 'x')", (trad["wos"],))
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("INSERT INTO kommentar (funktion_id, text) VALUES (?, '  ')", (trad["wos"],))
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("INSERT INTO kommentar (funktion_id, text, status) VALUES (?, 'x', 'klar')",
+                     (trad["wos"],))
+
+    from app.services import trad as tjanst
+    tjanst.ta_bort_nod(conn, trad["import"])
+    assert conn.execute("SELECT COUNT(*) FROM kommentar").fetchone()[0] == 0
+
+
+def test_skriva_under_noden_och_se_i_listan(client, app_db):
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    token = _token(client)
+
+    svar = _skriv(client, ids["wos"], "Kolla mot\nnya API:t", token)
+    assert svar.status_code == 200
+    # Blocket kommer tillbaka utfällt med kommentaren, räknaren följer med OOB.
+    assert 'id="kommentarer-' + str(ids["wos"]) + '"' in svar.text
+    assert "Kolla mot\nnya API:t" in svar.text
+    assert 'id="kommentarantal-' + str(ids["wos"]) + '" hx-swap-oob="true"' in svar.text
+    assert "1&nbsp;kommentar (1&nbsp;öppen)" in svar.text
+
+    lista = client.get("/lista").text
+    assert "1&nbsp;kommentar (1&nbsp;öppen)" in lista
+    trad = client.get("/trad").text
+    assert "1&nbsp;kommentar (1&nbsp;öppen)" in trad
+    # Hopfällt syns inte texten i vyerna — bara räknaren.
+    assert "nya API:t" not in lista and "nya API:t" not in trad
+
+
+def test_tom_kommentar_avvisas(client, app_db):
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    svar = _skriv(client, ids["wos"], "   ", _token(client))
+    assert "Kommentaren är tom." in svar.text
+    assert app_db.execute("SELECT COUNT(*) FROM kommentar").fetchone()[0] == 0
+
+
+def test_kommentarsvyn_grupperar_och_bockar_av(client, app_db):
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    token = _token(client)
+    _skriv(client, ids["dubblett"], "Första på dubbletter", token)
+    _skriv(client, ids["registrera"], "Om avhandlingar", token)
+    _skriv(client, ids["dubblett"], "Andra på dubbletter", token)
+
+    vy = client.get("/kommentarer").text
+    # Grupper i trädordning: Registrera avhandling kommer före Dubblettdetektering.
+    assert vy.index(f'id="grupp-{ids["registrera"]}"') < vy.index(f'id="grupp-{ids["dubblett"]}"')
+    # Inom gruppen äldst först.
+    assert vy.index("Första på dubbletter") < vy.index("Andra på dubbletter")
+    assert vy.count('<section id="grupp-') == 2
+
+    forsta = app_db.execute("SELECT id FROM kommentar WHERE text = 'Första på dubbletter'").fetchone()[0]
+    svar = _status(client, forsta, "behandlad", token).text
+    # Svaret är vyn med samma flik (öppna): den behandlade är borta därifrån.
+    assert "Första på dubbletter" not in svar and "Andra på dubbletter" in svar
+    rad = app_db.execute("SELECT status, hanterad FROM kommentar WHERE id = ?", (forsta,)).fetchone()
+    assert rad["status"] == "behandlad" and rad["hanterad"] is not None
+
+    behandlade = client.get("/kommentarer?visa=behandlade").text
+    assert "Första på dubbletter" in behandlade and "Andra på dubbletter" not in behandlade
+
+    # Öppna igen nollar hanterad.
+    _status(client, forsta, "öppen", token)
+    assert app_db.execute("SELECT hanterad FROM kommentar WHERE id = ?", (forsta,)).fetchone()[0] is None
+
+
+def test_behandlad_syns_under_noden_dold_gor_det_inte(client, app_db):
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    token = _token(client)
+    _skriv(client, ids["wos"], "Behandlas", token)
+    _skriv(client, ids["wos"], "Döljs", token)
+    behandlas, doljs = (r[0] for r in app_db.execute(
+        "SELECT id FROM kommentar ORDER BY id").fetchall())
+    _status(client, behandlas, "behandlad", token, fran="nod")
+    svar = _status(client, doljs, "dold", token, fran="nod").text
+    # fran=nod: svaret är nodblocket, inte vyn.
+    assert f'id="kommentarer-{ids["wos"]}"' in svar and 'id="kommentarer-rot"' not in svar
+
+    block = client.get(f"/kommentarer/nod/{ids['wos']}?oppen=1", headers=HTMX).text
+    assert "Behandlas" in block and "Döljs" not in block
+    assert "1&nbsp;kommentar</a>" in client.get("/lista").text
+
+    dolda = client.get("/kommentarer?visa=dolda").text
+    assert "Döljs" in dolda and "Behandlas" not in dolda
+
+    # Hopfällning ger ett tomt block.
+    hopfallt = client.get(f"/kommentarer/nod/{ids['wos']}?oppen=0", headers=HTMX).text
+    assert "Behandlas" not in hopfallt
+
+
+def test_utan_js_egen_sida_och_redirect(client, app_db):
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    sida = client.get(f"/kommentarer/nod/{ids['wos']}")
+    assert sida.status_code == 200 and "Ny intern kommentar" in sida.text
+    svar = _skriv(client, ids["wos"], "Utan htmx", csrf_fran(sida.text), htmx=False)
+    assert svar.status_code == 303
+    assert svar.headers["location"] == f"/kommentarer/nod/{ids['wos']}"
+
+
+def test_intern_laser_men_skriver_inte(client, app_db):
+    ids = seed_trad(app_db)
+    app_db.execute("INSERT INTO kommentar (funktion_id, text) VALUES (?, 'Intern läser')", (ids["wos"],))
+    app_db.commit()
+    logga_in(client, app_db, namn="ingrid", roll="intern")
+    vy = client.get("/kommentarer")
+    assert vy.status_code == 200 and "Intern läser" in vy.text
+    assert "✓&nbsp;Behandlad" not in vy.text
+    assert 'href="/kommentarer"' in vy.text  # fliken
+
+    token = csrf_fran(vy.text)
+    assert _skriv(client, ids["wos"], "nej", token).status_code == 403
+    kid = app_db.execute("SELECT id FROM kommentar").fetchone()[0]
+    assert _status(client, kid, "behandlad", token).status_code == 403
+
+
+def test_extern_ser_aldrig_kommentarer(client, app_db):
+    ids = seed_trad(app_db)
+    app_db.execute("INSERT INTO kommentar (funktion_id, text) VALUES (?, 'Hemlig')", (ids["wos"],))
+    app_db.commit()
+    logga_in(client, app_db, namn="erik", roll="extern")
+    assert client.get("/kommentarer").status_code == 403
+    assert client.get(f"/kommentarer/nod/{ids['wos']}?oppen=1", headers=HTMX).status_code == 403
+    trad = client.get("/trad").text
+    assert "kommentarantal-" not in trad and "kommentarer-" not in trad
+    assert 'href="/kommentarer"' not in trad
+
+
+def test_statusbyte_okand_status_och_saknad_kommentar(client, app_db):
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    token = _token(client)
+    _skriv(client, ids["wos"], "x", token)
+    kid = app_db.execute("SELECT id FROM kommentar").fetchone()[0]
+    assert _status(client, kid, "klar", token).status_code == 400
+    assert _status(client, kid + 99, "dold", token).status_code == 404
+    assert _skriv(client, 9999, "x", token).status_code == 404

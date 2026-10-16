@@ -34,11 +34,12 @@
 
   {% if principal and principal.kind == "forvaltare" %}
   <nav class="flex gap-1 overflow-x-auto border-b border-stone-200 bg-white px-4 sm:px-6">
-    {# Varje roll ser bara flikar den faktiskt når: extern två, intern sex,
+    {# Varje roll ser bara flikar den faktiskt når: extern två, intern åtta,
        admin dessutom kontolistan. #}
     {% set flikar = [("/trad", "Behovsträd"), ("/roadmap", "Roadmap")]
        if principal.roll == "extern" else
-       ([("/trad", "Behovsträd"), ("/lista", "Lista"), ("/bedomning", "Bedömning"),
+       ([("/trad", "Behovsträd"), ("/lista", "Lista"), ("/kommentarer", "Kommentarer"),
+         ("/bedomning", "Bedömning"),
          ("/analys", "Analys"), ("/roadmap", "Roadmap"),
          ("/medlemmar", "Medlemmar"), ("/export", "Export")]
         + ([("/konton", "Konton")] if principal.roll == "admin" else [])) %}

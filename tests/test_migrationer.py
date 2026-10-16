@@ -114,7 +114,7 @@ def test_migration_tar_sakerhetskopia_fore(tmp_path):
     db.init_db(conn)
 
     # The copy is named for the highest pending version in the batch.
-    kopior = list(tmp_path.glob("gammal.fore-0005-*.db"))
+    kopior = list(tmp_path.glob("gammal.fore-0006-*.db"))
     assert len(kopior) == 1
     gammal = sqlite3.connect(kopior[0])
     gammal.row_factory = sqlite3.Row

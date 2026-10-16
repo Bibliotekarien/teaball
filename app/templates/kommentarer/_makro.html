@@ -1,0 +1,97 @@
+{# Interna kommentarer under en nod — delat av listvyn och behovsträdet.
+   raknare: brickan på nodraden; fäller ut blocket. Syns bara när raden
+   markerats med kommentarsantal (services/kommentarer.markera_antal), dvs.
+   aldrig för extern roll. Utan kommentarer visas den bara för admin och då
+   som en hover-länk, så rader utan kommentarer inte får brus.
+   block: platsen under raden (id kommentarer-<id>) som brickan swappar in
+   listan i. Hopfällt är det tomt. Utan JS leder brickan till nodens egen
+   kommentarssida. Ingen författare visas — sådan lagras inte. #}
+{% macro raknare(nod_id, antal, skrivbar=false, oob=false) %}
+{% set totalt = antal.values()|sum %}
+{% set oppna = antal.get("öppen", 0) %}
+<span id="kommentarantal-{{ nod_id }}"{% if oob %} hx-swap-oob="true"{% endif %}
+      class="shrink-0{% if not totalt %} opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100{% endif %}">
+  {% if totalt or skrivbar %}
+  <a href="/kommentarer/nod/{{ nod_id }}" hx-get="/kommentarer/nod/{{ nod_id }}?oppen=1"
+     hx-target="#kommentarer-{{ nod_id }}" hx-swap="outerHTML"
+     title="{% if totalt %}Interna kommentarer: {{ oppna }} öppna, {{ totalt - oppna }} behandlade. Klicka för att visa.{% else %}Skriv en intern kommentar{% endif %}"
+     class="rounded px-1.5 py-0.5 text-xs {{ 'bg-amber-100 text-amber-900 hover:bg-amber-200' if oppna else ('bg-stone-100 text-stone-500 hover:bg-stone-200' if totalt else 'text-stone-400 hover:bg-stone-200 hover:text-stone-700') }}">
+    {%- if totalt %}{{ totalt }}&nbsp;{{ 'kommentar' if totalt == 1 else 'kommentarer' }}{% if oppna %} ({{ oppna }}&nbsp;{{ 'öppen' if oppna == 1 else 'öppna' }}){% endif %}{% else %}kommentera{% endif -%}
+  </a>
+  {% endif %}
+</span>
+{% endmacro %}
+
+{% macro statusknapp(k, status, etikett, fran, request, mal) %}
+<form method="post" action="/kommentarer/{{ k.id }}/status"
+      hx-post="/kommentarer/{{ k.id }}/status" hx-target="{{ mal }}" hx-swap="outerHTML" class="inline">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+  <input type="hidden" name="fran" value="{{ fran }}">
+  <button name="status" value="{{ status }}"
+          class="rounded border border-stone-300 bg-white px-1.5 py-0.5 text-xs text-stone-600 hover:bg-stone-100">{{ etikett|safe }}</button>
+</form>
+{% endmacro %}
+
+{# Knapparna per status: öppen bockas av eller döljs; behandlad kan döljas
+   eller öppnas igen; dold kan bara öppnas igen (eller bockas av, i vyn). #}
+{% macro knappar(k, fran, request, mal) %}
+<span class="flex shrink-0 items-center gap-1">
+  {% if k.status == "öppen" %}
+  {{ statusknapp(k, "behandlad", "✓&nbsp;Behandlad", fran, request, mal) }}
+  {{ statusknapp(k, "dold", "Dölj", fran, request, mal) }}
+  {% elif k.status == "behandlad" %}
+  {{ statusknapp(k, "dold", "Dölj", fran, request, mal) }}
+  {{ statusknapp(k, "öppen", "Öppna&nbsp;igen", fran, request, mal) }}
+  {% else %}
+  {{ statusknapp(k, "behandlad", "Visa som behandlad", fran, request, mal) }}
+  {{ statusknapp(k, "öppen", "Öppna&nbsp;igen", fran, request, mal) }}
+  {% endif %}
+</span>
+{% endmacro %}
+
+{% macro statusbricka(status) %}
+{% if status == "öppen" %}<span class="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] text-amber-900">öppen</span>
+{% elif status == "behandlad" %}<span class="rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] text-emerald-900">behandlad</span>
+{% else %}<span class="rounded bg-stone-200 px-1.5 py-0.5 text-[11px] text-stone-600">dold</span>{% endif %}
+{% endmacro %}
+
+{% macro block(nod_id, request, oppen=false, kommentarer=[], skrivbar=false, fel=none) %}
+<div id="kommentarer-{{ nod_id }}" class="{{ 'w-full pb-2 pt-1' if oppen else 'w-full' }}">
+  {% if oppen %}
+  <div class="max-w-prose rounded-md border border-amber-200 bg-amber-50/60 p-2 text-xs">
+    <div class="mb-1 flex items-center justify-between">
+      <span class="font-medium text-stone-600">Interna kommentarer</span>
+      <a href="/kommentarer" hx-get="/kommentarer/nod/{{ nod_id }}?oppen=0" hx-target="#kommentarer-{{ nod_id }}" hx-swap="outerHTML"
+         class="rounded px-1 text-stone-500 hover:bg-stone-200 hover:text-stone-800">dölj&nbsp;listan</a>
+    </div>
+    {% if kommentarer %}
+    <ul class="grid gap-1.5">
+      {% for k in kommentarer %}
+      <li class="flex flex-wrap items-start gap-1.5 rounded bg-white px-2 py-1 ring-1 ring-stone-200">
+        {{ statusbricka(k.status) }}
+        <span class="min-w-0 flex-1 whitespace-pre-line break-words {{ 'text-stone-500' if k.status == 'behandlad' else 'text-stone-800' }}">{{ k.text }}</span>
+        <span class="shrink-0 tabular-nums text-stone-400" title="Skriven {{ k.skapad }} UTC{% if k.hanterad %} · hanterad {{ k.hanterad }} UTC{% endif %}">{{ k.skapad[:10] }}</span>
+        {% if skrivbar %}{{ knappar(k, "nod", request, "#kommentarer-" ~ nod_id) }}{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-stone-500">Inga kommentarer att visa.</p>
+    {% endif %}
+    {% if skrivbar %}
+    <form method="post" action="/kommentarer/nod/{{ nod_id }}"
+          hx-post="/kommentarer/nod/{{ nod_id }}" hx-target="#kommentarer-{{ nod_id }}" hx-swap="outerHTML"
+          class="mt-2 grid gap-1">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+      {% if fel %}<p class="text-rose-700">{{ fel }}</p>{% endif %}
+      <label class="sr-only" for="kommentar-text-{{ nod_id }}">Ny intern kommentar</label>
+      <textarea id="kommentar-text-{{ nod_id }}" name="text" rows="2" maxlength="4000" required
+                placeholder="Ny intern kommentar — syns inte för medlemmar"
+                class="rounded-md border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"></textarea>
+      <button class="justify-self-start rounded-md bg-blue-900 px-3 py-1 text-xs text-white hover:bg-blue-800">Spara kommentar</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}

@@ -257,6 +257,17 @@
     if (vald && vald.value) oppnaGrenTill(vald.value);
   });
 
+  // Kommentarsblocket för en gren ligger inne i grenens <details> (inte i
+  // summary, se _nod_makro.html), så i en kompakterad gren fälls listan ut
+  // osynligt. Öppna grenen när blocket swappats in utfällt.
+  document.addEventListener("htmx:afterSwap", function (h) {
+    var mal = h.detail.target;
+    if (!mal || !/^kommentarer-\d+$/.test(mal.id)) return;
+    var block = document.getElementById(mal.id);
+    var detaljer = block && block.parentElement && block.parentElement.closest("li[data-nod] > details");
+    if (detaljer && block.children.length && !detaljer.open) detaljer.open = true;
+  });
+
   document.querySelectorAll("[data-trad-alla]").forEach(function (knapp) {
     knapp.classList.remove("hidden");
   });

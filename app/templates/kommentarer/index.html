@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block titel %}Kommentarer – Teaball{% endblock %}
+{% block innehall %}
+<div class="mb-3">
+  <p class="text-sm text-stone-500">Interna kommentarer på noderna, grupperade per nod i
+    trädordning. Kommentarerna syns aldrig för medlemmar eller extern roll och
+    bär inget namn.{% if skrivbar %} Bocka av en kommentar som behandlad när den är
+    åtgärdad — då ligger den kvar under noden i listan och behovsträdet — eller
+    dölj den helt.{% endif %} Nya kommentarer skrivs under noden i listan eller trädet.</p>
+</div>
+{% include "kommentarer/_innehall.html" %}
+{% endblock %}
