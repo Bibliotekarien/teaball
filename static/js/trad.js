@@ -268,8 +268,11 @@
     if (detaljer && block.children.length && !detaljer.open) detaljer.open = true;
   });
 
-  document.querySelectorAll("[data-trad-alla]").forEach(function (knapp) {
-    knapp.classList.remove("hidden");
+  // Alla-knapparna ligger i en egen grupp (skiljelinjen hör till gruppen),
+  // dold utan JS. hidden → grid: gruppens kolumnlayout sitter i grid-cols-2.
+  document.querySelectorAll("[data-trad-alla-grupp]").forEach(function (grupp) {
+    grupp.classList.remove("hidden");
+    grupp.classList.add("grid");
   });
 
   if (window.htmx) {

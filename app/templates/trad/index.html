@@ -74,14 +74,20 @@
 
 {# Vypanelen ligger utanför #trad-rot så den överlever htmx-swappar. Vyvalet
    är en vanlig länk (sessionen minns valet i routern); alla-knapparna kräver
-   JS och är dolda tills trad.js visar dem — CSP:n tillåter ingen inline-JS. #}
+   JS och är dolda tills trad.js visar dem — CSP:n tillåter ingen inline-JS.
+   Vyvalet är ett läge, alla-knapparna engångskommandon på grenarna — därför
+   egen grupp under en skiljelinje, sida vid sida och lättare stil (utan ram),
+   så de inte läses som fler vylägen. #}
 <div role="group" aria-label="Visningsval för trädet"
-     class="fixed bottom-4 right-4 z-20 grid gap-1 rounded-lg border border-stone-200 bg-white p-1.5 text-sm shadow-lg print:hidden">
+     class="fixed bottom-4 right-4 z-20 grid gap-1.5 rounded-lg border border-stone-200 bg-white p-1.5 text-sm shadow-lg print:hidden">
   <a href="/trad?vy={{ 'kompakt' if detaljerad else 'detaljerad' }}"
      class="rounded-md border border-stone-300 px-3 py-1.5 text-left hover:bg-stone-100">{{ 'Kompakt vy' if detaljerad else 'Detaljerad vy' }}</a>
-  <button type="button" data-trad-alla="expandera"
-          class="hidden rounded-md border border-stone-300 px-3 py-1.5 text-left hover:bg-stone-100">Expandera alla</button>
-  <button type="button" data-trad-alla="kompaktera"
-          class="hidden rounded-md border border-stone-300 px-3 py-1.5 text-left hover:bg-stone-100">Kompaktera alla</button>
+  <div role="group" aria-label="Fäll ut eller ihop alla grenar" data-trad-alla-grupp
+       class="hidden grid-cols-2 gap-1 border-t border-stone-200 pt-1.5">
+    <button type="button" data-trad-alla="expandera"
+            class="rounded-md px-2 py-1 text-xs text-stone-600 hover:bg-stone-100 hover:text-stone-900">Expandera alla</button>
+    <button type="button" data-trad-alla="kompaktera"
+            class="rounded-md px-2 py-1 text-xs text-stone-600 hover:bg-stone-100 hover:text-stone-900">Kompaktera alla</button>
+  </div>
 </div>
 {% endblock %}

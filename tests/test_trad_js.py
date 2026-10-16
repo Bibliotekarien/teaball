@@ -35,3 +35,19 @@ def test_kompaktminnet_hoppar_over_swappar_utan_grenar():
     # skapa-formuläret; den får inte utlösa en trädgenomgång.
     assert "htmx.onLoad(aterstall)" not in TRAD_JS
     assert 'el.querySelector("details")' in TRAD_JS
+
+
+def test_alla_knapparna_ligger_i_egen_grupp_som_js_visar(client, app_db):
+    # Vyvalet (ett läge) och alla-knapparna (engångskommandon) är grafiskt
+    # åtskilda: knapparna ligger i en egen grupp under en skiljelinje, dold
+    # utan JS. trad.js visar gruppen — inte bara knapparna, då linjen följer
+    # gruppen.
+    from tests.conftest import logga_in
+
+    logga_in(client, app_db)
+    sida = client.get("/trad").text
+    grupp = sida.split("data-trad-alla-grupp", 1)[1].split("</div>", 1)[0]
+    assert 'data-trad-alla="expandera"' in grupp and 'data-trad-alla="kompaktera"' in grupp
+    assert "Kompakt vy" not in grupp and "Detaljerad vy" not in grupp
+    assert '[data-trad-alla-grupp]' in TRAD_JS
+    assert 'grupp.classList.remove("hidden")' in TRAD_JS
