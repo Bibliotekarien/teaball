@@ -1,29 +1,49 @@
 {# Interna kommentarer under en nod — delat av listvyn och behovsträdet.
-   raknare: brickan på nodraden; fäller ut blocket. Syns bara när raden
-   markerats med kommentarsantal (services/kommentarer.markera_antal), dvs.
-   aldrig för extern roll. Alla interna kan skriva, så utan kommentarer visas
-   den som hover-länken "kommentera" — rader utan kommentarer får inget brus.
-   Att hantera (bocka av, dölja, öppna igen) är admins: skrivbar styr bara
-   statusknapparna.
+   raknare: kommentarstoggeln i nodradens knapprad (syns bara vid hover/
+   fokus, som de andra knapparna — i raden själv var den för iögonfallande).
+   Renderas bara när raden markerats med kommentarsantal
+   (services/kommentarer.markera_antal), dvs. aldrig för extern roll. Alla
+   interna kan skriva, så knappraden finns även för intern — då med bara den
+   här knappen. Att hantera (bocka av, dölja, öppna igen) är admins:
+   skrivbar styr bara statusknapparna.
    block: platsen under raden (id kommentarer-<id>) som brickan swappar in
    listan i. Hopfällt är det tomt. Utan JS leder brickan till nodens egen
    kommentarssida. Ingen författare visas — sådan lagras inte. #}
-{# oppen: blocket är utfällt — då fäller brickan ihop det i stället (toggle),
-   och den hålls synlig även utan kommentarer så den går att klicka igen.
-   Läget följer med out-of-band i varje blocksvar, så brickan alltid pekar åt
-   rätt håll. #}
+{# oppen: blocket är utfällt — då fäller knappen ihop det i stället (toggle).
+   Läget följer med out-of-band i varje blocksvar, så knappen alltid pekar åt
+   rätt håll. Öppna kommentarer markeras bara med textfärg. #}
 {% macro raknare(nod_id, antal, oob=false, oppen=false) %}
 {% set totalt = antal.values()|sum %}
 {% set oppna = antal.get("öppen", 0) %}
-<span id="kommentarantal-{{ nod_id }}"{% if oob %} hx-swap-oob="true"{% endif %}
-      class="shrink-0{% if not totalt and not oppen %} opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100{% endif %}">
+<span id="kommentarantal-{{ nod_id }}"{% if oob %} hx-swap-oob="true"{% endif %} class="flex shrink-0">
   <a href="/kommentarer/nod/{{ nod_id }}" hx-get="/kommentarer/nod/{{ nod_id }}?oppen={{ 0 if oppen else 1 }}"
      hx-target="#kommentarer-{{ nod_id }}" hx-swap="outerHTML"
      aria-expanded="{{ 'true' if oppen else 'false' }}" aria-controls="kommentarer-{{ nod_id }}"
      title="{% if oppen %}Dölj kommentarerna{% elif totalt %}Interna kommentarer: {{ oppna }} öppna, {{ totalt - oppna }} behandlade. Klicka för att visa.{% else %}Skriv en intern kommentar{% endif %}"
-     class="rounded px-1.5 py-0.5 text-xs {{ 'bg-amber-100 text-amber-900 hover:bg-amber-200' if oppna else ('bg-stone-100 text-stone-500 hover:bg-stone-200' if totalt else 'text-stone-400 hover:bg-stone-200 hover:text-stone-700') }}">
-    {%- if totalt %}{{ totalt }}&nbsp;{{ 'kommentar' if totalt == 1 else 'kommentarer' }}{% if oppna %} ({{ oppna }}&nbsp;{{ 'öppen' if oppna == 1 else 'öppna' }}){% endif %}{% else %}kommentera{% endif %}&nbsp;<span aria-hidden="true">{{ '▴' if oppen else '▾' }}</span>
+     class="rounded px-1 text-xs hover:bg-stone-200 hover:text-stone-700 {{ 'text-amber-700' if oppna else 'text-stone-400' }}">
+    {#- Antalet står i det gula pillret på raden; här räcker verbet. #}
+    {%- if totalt %}kommentarer{% else %}kommentera{% endif %}&nbsp;<span aria-hidden="true">{{ '▴' if oppen else '▾' }}</span>
   </a>
+</span>
+{% endmacro %}
+
+{# pill: det gula antalspillret bland radens brickor — syns alltid när noden
+   har (öppna eller behandlade) kommentarer, så de inte göms bakom hover.
+   Klick växlar listan precis som knappen i knappraden; båda följer med OOB
+   i blocksvaret. Utan kommentarer renderas ett tomt platshållar-span, så
+   OOB-swappen har något att ersätta när den första kommentaren skrivs. #}
+{% macro pill(nod_id, antal, oob=false, oppen=false) %}
+{% set totalt = antal.values()|sum %}
+{% set oppna = antal.get("öppen", 0) %}
+<span id="kommentarpill-{{ nod_id }}"{% if oob %} hx-swap-oob="true"{% endif %} class="flex shrink-0">
+  {% if totalt %}
+  <a href="/kommentarer/nod/{{ nod_id }}" hx-get="/kommentarer/nod/{{ nod_id }}?oppen={{ 0 if oppen else 1 }}"
+     hx-target="#kommentarer-{{ nod_id }}" hx-swap="outerHTML"
+     aria-expanded="{{ 'true' if oppen else 'false' }}" aria-controls="kommentarer-{{ nod_id }}"
+     aria-label="{{ totalt }} {{ 'intern kommentar' if totalt == 1 else 'interna kommentarer' }}, {{ oppna }} {{ 'öppen' if oppna == 1 else 'öppna' }}"
+     title="Interna kommentarer: {{ oppna }} öppna, {{ totalt - oppna }} behandlade. Klicka för att {{ 'dölja' if oppen else 'visa' }}."
+     class="flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs tabular-nums text-amber-900 hover:bg-amber-200"><svg class="h-3 w-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v6a1.5 1.5 0 0 1-1.5 1.5H7l-3 3v-3h-.5A1.5 1.5 0 0 1 2 9.5v-6z"/></svg>{{ totalt }}</a>
+  {% endif %}
 </span>
 {% endmacro %}
 

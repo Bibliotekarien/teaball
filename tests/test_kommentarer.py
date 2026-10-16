@@ -52,17 +52,19 @@ def test_skriva_under_noden_och_se_i_listan(client, app_db):
 
     svar = _skriv(client, ids["wos"], "Kolla mot\nnya API:t", token)
     assert svar.status_code == 200
-    # Blocket kommer tillbaka utfällt med kommentaren, räknaren följer med OOB.
+    # Blocket kommer tillbaka utfällt med kommentaren; toggeln och det gula
+    # antalspillret följer med OOB.
     assert 'id="kommentarer-' + str(ids["wos"]) + '"' in svar.text
     assert "Kolla mot\nnya API:t" in svar.text
     assert 'id="kommentarantal-' + str(ids["wos"]) + '" hx-swap-oob="true"' in svar.text
-    assert "1&nbsp;kommentar (1&nbsp;öppen)" in svar.text
+    assert 'id="kommentarpill-' + str(ids["wos"]) + '" hx-swap-oob="true"' in svar.text
+    assert 'aria-label="1 intern kommentar, 1 öppen"' in svar.text
 
     lista = client.get("/lista").text
-    assert "1&nbsp;kommentar (1&nbsp;öppen)" in lista
+    assert 'aria-label="1 intern kommentar, 1 öppen"' in lista
     trad = client.get("/trad").text
-    assert "1&nbsp;kommentar (1&nbsp;öppen)" in trad
-    # Hopfällt syns inte texten i vyerna — bara räknaren.
+    assert 'aria-label="1 intern kommentar, 1 öppen"' in trad
+    # Hopfällt syns inte texten i vyerna — bara pillret.
     assert "nya API:t" not in lista and "nya API:t" not in trad
 
 
@@ -119,7 +121,8 @@ def test_behandlad_syns_under_noden_dold_gor_det_inte(client, app_db):
 
     block = client.get(f"/kommentarer/nod/{ids['wos']}?oppen=1", headers=HTMX).text
     assert "Behandlas" in block and "Döljs" not in block
-    assert "1&nbsp;kommentar&nbsp;<span" in client.get("/lista").text
+    # Pillret räknar bara det som syns under noden: den behandlade, inte den dolda.
+    assert 'aria-label="1 intern kommentar, 0 öppna"' in client.get("/lista").text
 
     dolda = client.get("/kommentarer?visa=dolda").text
     assert "Döljs" in dolda and "Behandlas" not in dolda
@@ -171,7 +174,10 @@ def test_extern_ser_aldrig_kommentarer(client, app_db):
     assert client.get(f"/kommentarer/nod/{ids['wos']}?oppen=1", headers=HTMX).status_code == 403
     trad = client.get("/trad").text
     assert "kommentarantal-" not in trad and "kommentarer-" not in trad
+    assert "kommentarpill-" not in trad
     assert 'href="/kommentarer"' not in trad
+    # Extern har ingen knapprad alls (inga ändringar, inga kommentarer).
+    assert "knapprad" not in trad
 
 
 def test_statusbyte_okand_status_och_saknad_kommentar(client, app_db):
@@ -185,6 +191,30 @@ def test_statusbyte_okand_status_och_saknad_kommentar(client, app_db):
     assert _skriv(client, 9999, "x", token).status_code == 404
 
 
+def test_toggeln_i_knappraden_och_gult_pill_pa_raden(client, app_db):
+    ids = seed_trad(app_db)
+    app_db.execute("INSERT INTO kommentar (funktion_id, text) VALUES (?, 'a')", (ids["wos"],))
+    app_db.execute("INSERT INTO kommentar (funktion_id, text, status)"
+                   " VALUES (?, 'b', 'behandlad')", (ids["wos"],))
+    app_db.commit()
+
+    for roll, namn in (("admin", "anna"), ("intern", "ingrid")):
+        logga_in(client, app_db, namn=namn, roll=roll)
+        for adress in ("/trad", "/lista"):
+            sida = client.get(adress).text
+            rad = sida.split(f'id="rad-{ids["wos"]}"', 1)[1]
+            # Knappraden kommer före pillret i båda vyerna.
+            knapprad = rad.split('class="knapprad', 1)[1].split('id="kommentarpill-', 1)[0]
+            # Toggeln sitter i knappraden — även för intern, som inte får ändra noden.
+            assert f'id="kommentarantal-{ids["wos"]}"' in knapprad
+            assert "kommentarer&nbsp;" in knapprad
+            assert ("redigera" in knapprad) == (roll == "admin")
+            # Det gula pillret med antalet (öppna + behandlade) syns på raden.
+            assert 'aria-label="2 interna kommentarer, 1 öppen"' in rad
+            assert "bg-amber-100" in rad
+        client.post("/logout", data={"csrf_token": csrf_fran(sida)})
+
+
 def test_brickan_vaxlar_mellan_utfallt_och_hopfallt(client, app_db):
     ids = seed_trad(app_db)
     logga_in(client, app_db)
@@ -193,12 +223,13 @@ def test_brickan_vaxlar_mellan_utfallt_och_hopfallt(client, app_db):
     assert f'hx-get="/kommentarer/nod/{nod}?oppen=1"' in client.get("/trad").text
     assert f'hx-get="/kommentarer/nod/{nod}?oppen=1"' in client.get("/lista").text
 
-    # Utfällt: den OOB-swappade brickan fäller ihop vid nästa klick ...
+    # Utfällt: den OOB-swappade toggeln fäller ihop vid nästa klick.
     utfallt = client.get(f"/kommentarer/nod/{nod}?oppen=1", headers=HTMX).text
     bricka = utfallt.split(f'id="kommentarantal-{nod}"', 1)[1]
     assert '?oppen=0"' in bricka and 'aria-expanded="true"' in bricka
-    # ... och hålls synlig även utan kommentarer (annars bara vid hover).
-    assert "opacity-0" not in bricka.split(">", 1)[0]
+    # Utan kommentarer är pillret en tom platshållare (OOB-mål för första).
+    pill = utfallt.split(f'id="kommentarpill-{nod}"', 1)[1].split("</span>", 1)[0]
+    assert "<a " not in pill
 
     # Hopfällt igen: tillbaka till att fälla ut.
     hopfallt = client.get(f"/kommentarer/nod/{nod}?oppen=0", headers=HTMX).text

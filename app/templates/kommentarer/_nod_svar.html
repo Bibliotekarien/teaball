@@ -1,4 +1,6 @@
 {% import "kommentarer/_makro.html" as k %}
-{# htmx-svaret för nodblocket: blocket på sin plats + radens räknare OOB. #}
+{# htmx-svaret för nodblocket: blocket på sin plats + radens toggel och
+   antalspiller OOB, så båda följer läge och antal. #}
 {{ k.block(nod.id, request, oppen, kommentarer, skrivbar, fel) }}
 {{ k.raknare(nod.id, antal, oob=true, oppen=oppen) }}
+{{ k.pill(nod.id, antal, oob=true, oppen=oppen) }}
