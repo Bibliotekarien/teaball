@@ -125,3 +125,19 @@ def test_matomo_maskar_token_men_inte_roadmap():
     assert matomo.sanitize_path("/svara/abc123XYZ") == "/svara/_token_"
     assert matomo.sanitize_path("/svara/roadmap") == "/svara/roadmap"
     assert matomo.sanitize_path("/svara") == "/svara"
+
+
+def test_langa_nodnamn_kortas_inte_av(client, app_db, klient_fabrik):
+    """Båda roadmaparna visar hela namnet — radbrytning, aldrig truncate."""
+    ids = seed_trad(app_db)
+    langt = "Import från Web of Science med dubblettkontroll mot befintliga poster " * 2
+    app_db.execute("UPDATE funktion SET namn = ? WHERE id = ?", (langt.strip(), ids["wos"]))
+    a = skapa_medlem(app_db, "Uppsala universitet")
+    app_db.commit()
+
+    logga_in(client, app_db)
+    medlem = _medlemsklient(klient_fabrik, ge_token(app_db, a))
+    for sida in (client.get("/roadmap").text, medlem.get("/svara/roadmap").text):
+        rad = sida.split(f'id="rad-{ids["wos"]}"', 1)[1].split("</li>", 1)[0]
+        assert langt.strip() in rad
+        assert "truncate" not in rad and "break-words" in rad
