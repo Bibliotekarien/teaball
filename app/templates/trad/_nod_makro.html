@@ -5,7 +5,7 @@
 {% macro rad(n, request, detaljerad=false, skrivbar=false) %}
 {# scroll-mt-2: lite luft ovanför raden när trad.js scrollar hit efter spara,
    ta bort eller dölj/visa (då till raden ovanför den berörda). #}
-<div id="rad-{{ n.id }}" class="group flex flex-wrap items-center gap-1.5 scroll-mt-2 border-b border-stone-100 py-1.5 pr-2 hover:bg-stone-50">
+<div id="rad-{{ n.id }}" class="group relative flex flex-wrap items-center gap-1.5 scroll-mt-2 border-b border-stone-200 py-1.5 pr-2 hover:bg-stone-50">
   {# Fast bredd (w-5) så namn och detaljblock kan indragsalignas med kända mått,
      oberoende av glyfbredden på ⋮⋮. Distansen utan handtag behåller måtten. #}
   {% if skrivbar %}
@@ -23,7 +23,12 @@
   <span class="min-w-0 flex-1 break-words text-sm {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}" title="{{ n.beskrivning or n.namn }}">{{ n.namn }}{{ ankare(n.id, n.namn) }}</span>
 
   {% if skrivbar %}
-  <span class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+  {# Knappraden svävar högerställd i radens överkant (samma som i listan):
+     den tar ingen plats i raden, så namnet får hela bredden och ingenting
+     hoppar när den visas vid hover/fokus. Dold är den också oklickbar
+     (pointer-events-none) — den överlappar raden ovanför — men fortfarande
+     nåbar med tabb, och fokus tänder den. #}
+  <span class="knapprad absolute right-2 top-0 z-10 flex -translate-y-1/2 items-center gap-1 rounded-md border border-stone-200 bg-white px-1 py-0.5 shadow-sm pointer-events-none opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 print:hidden">
     <form method="post" action="/trad/nod/{{ n.id }}/ordna" hx-post="/trad/nod/{{ n.id }}/ordna" hx-target="#trad-rot" hx-swap="outerHTML" class="flex">
       <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
       <button name="riktning" value="upp" title="Flytta upp" class="rounded px-1 text-xs text-stone-400 hover:bg-stone-200 hover:text-stone-700">↑</button>
