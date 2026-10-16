@@ -59,6 +59,12 @@
     <input name="fas" value="{{ filter.fas }}" list="faser" placeholder="alla"
            class="w-24 rounded-md border border-stone-300 px-2 py-1 text-sm">
   </label>
+  {# Extern ser redan bara synliga noder — rutan vore ett tomt val. #}
+  {% if principal.roll != "extern" %}
+  <label class="flex cursor-pointer items-center gap-1 self-end rounded-md border border-stone-300 bg-white px-2 py-1 text-xs text-stone-600"
+         title="Visa bara det medlemmarna ser">
+    <input type="checkbox" name="dolj_dolda" value="1" {% if filter.dolj_dolda %}checked{% endif %}>Dölj dolda</label>
+  {% endif %}
   <datalist id="faser">{% for f in FASER %}<option value="{{ f }}">{% endfor %}</datalist>
   <button class="rounded-md border border-stone-300 px-3 py-1 hover:bg-stone-100">Filtrera</button>
 </form>
