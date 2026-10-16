@@ -13,6 +13,7 @@ from fastapi.responses import RedirectResponse
 from app.auth.core import Principal, krav_admin, krav_forvaltare
 from app.auth.csrf import krav_csrf
 from app.db import get_conn
+from app.services import kommentarer
 from app.services import trad as tjanst
 from app.web import is_htmx, templates
 
@@ -38,15 +39,20 @@ def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | N
         or {"q": "", "typ": [], "status": [], "fas": "", "dolj_dolda": False}
     if not is_htmx(request) and fel is None and request.method == "POST":
         return RedirectResponse("/trad", status_code=303)
+    rotter = tjanst.hamta_trad(
+        conn, filter["q"] or None, filter["typ"] or None,
+        filter["status"] or None, filter["fas"] or None,
+        # "Dölj dolda" gives staff the member selection — including the
+        # subtree counts, so the bars then show what members see.
+        endast_synliga=principal.roll == "extern" or filter.get("dolj_dolda", False),
+    )
+    # Internal comments never reach the extern role: unmarked rows render
+    # without the comment counter and block.
+    if principal.roll != "extern":
+        kommentarer.markera_antal(conn, rotter)
     ctx = {
         "principal": principal,
-        "rotter": tjanst.hamta_trad(
-            conn, filter["q"] or None, filter["typ"] or None,
-            filter["status"] or None, filter["fas"] or None,
-            # "Dölj dolda" gives staff the member selection — including the
-            # subtree counts, so the bars then show what members see.
-            endast_synliga=principal.roll == "extern" or filter.get("dolj_dolda", False),
-        ),
+        "rotter": rotter,
         "fel": fel,
         "filter": filter,
         "skrivbar": principal.roll == "admin",

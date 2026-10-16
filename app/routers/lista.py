@@ -16,6 +16,7 @@ from app.auth.core import Principal, krav_admin, krav_intern
 from app.auth.csrf import krav_csrf
 from app.db import get_conn
 from app.routers.trad import STATUSAR, TYPER
+from app.services import kommentarer
 from app.services import trad as tjanst
 from app.services.trad import LISTSORTERING
 from app.web import is_htmx, templates
@@ -36,14 +37,16 @@ def _listsvar(request, conn, principal, fel: str | None = None,
     filter = filter or request.session.get("lista_filter") or dict(TOMT_FILTER)
     if not is_htmx(request) and fel is None and request.method == "POST":
         return RedirectResponse("/lista", status_code=303)
+    rader = tjanst.hamta_lista(
+        conn, filter["q"] or None, filter["typ"] or None,
+        filter["status"] or None, filter["fas"] or None,
+        endast_synliga=filter.get("dolj_dolda", False),
+        sortera=filter["sortera"], stigande=filter["riktning"] == "stigande",
+    )
+    kommentarer.markera_antal(conn, rader)
     ctx = {
         "principal": principal,
-        "rader": tjanst.hamta_lista(
-            conn, filter["q"] or None, filter["typ"] or None,
-            filter["status"] or None, filter["fas"] or None,
-            endast_synliga=filter.get("dolj_dolda", False),
-            sortera=filter["sortera"], stigande=filter["riktning"] == "stigande",
-        ),
+        "rader": rader,
         "fel": fel,
         "filter": filter,
         "skrivbar": principal.roll == "admin",
@@ -122,6 +125,7 @@ def _hamta_rad(conn, nod_id: int) -> dict:
         raise HTTPException(status_code=404, detail="Noden finns inte.")
     rad = dict(rad)
     rad["stig"] = tjanst.foraldrastig(conn, rad["foralder_id"])
+    kommentarer.markera_antal(conn, [rad])
     return rad
 
 

@@ -1,0 +1,44 @@
+{% import "kommentarer/_makro.html" as k %}
+{# Flikarna ligger inuti #kommentarer-rot så siffrorna räknas om när en
+   kommentar bockas av (svaret swappar hela roten). #}
+<div id="kommentarer-rot">
+  <nav aria-label="Visa kommentarer" class="mb-3 flex flex-wrap gap-1 text-sm">
+    {% for nyckel, (etikett, _) in visningar.items() %}
+    <a href="/kommentarer?visa={{ nyckel|urlencode }}" hx-get="/kommentarer?visa={{ nyckel|urlencode }}"
+       hx-target="#kommentarer-rot" hx-swap="outerHTML" hx-push-url="true"
+       {% if nyckel == visa %}aria-current="page"{% endif %}
+       class="rounded-md border px-3 py-1 {{ 'border-blue-900 bg-blue-900 text-white' if nyckel == visa else 'border-stone-300 bg-white text-stone-600 hover:bg-stone-100' }}">{{ etikett }} <span class="tabular-nums {{ 'text-blue-100' if nyckel == visa else 'text-stone-400' }}">{{ antal[nyckel] }}</span></a>
+    {% endfor %}
+  </nav>
+
+  {% for g in grupper %}
+  {% set n = g.nod %}
+  <section id="grupp-{{ n.id }}" class="mb-3 scroll-mt-2 rounded-lg border border-stone-200 bg-white">
+    <header class="border-b border-stone-100 px-3 py-2">
+      <p class="flex flex-wrap gap-x-1 text-[11px] leading-tight text-stone-400">
+        {% for f in n.stig %}{% if not loop.first %}<span aria-hidden="true">/</span>{% endif %}<a href="/trad#rad-{{ f.id }}" class="hover:text-stone-700 hover:underline">{{ f.namn }}</a>{% else %}<span class="italic">(rotnivå)</span>{% endfor %}
+      </p>
+      <h2 class="flex flex-wrap items-center gap-1.5 text-sm">
+        <a href="/trad#rad-{{ n.id }}" class="font-medium hover:underline {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}">{{ n.namn }}</a>
+        <span class="text-xs text-stone-400">({{ n.id }})</span>
+        <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500">{{ TYP_LABEL[n.typ] }}</span>
+        <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}">{{ STATUS[n.status].label }}</span>
+        <a href="/lista#rad-{{ n.id }}" class="ml-auto text-xs text-stone-400 hover:text-stone-700 hover:underline">i listan</a>
+      </h2>
+    </header>
+    <ul>
+      {% for c in g.kommentarer %}
+      <li class="flex flex-wrap items-start gap-2 border-b border-stone-100 px-3 py-2 text-sm last:border-b-0">
+        {{ k.statusbricka(c.status) }}
+        <span class="min-w-0 flex-1 whitespace-pre-line break-words {{ 'text-stone-500' if c.status != 'öppen' else '' }}">{{ c.text }}</span>
+        <span class="shrink-0 text-xs tabular-nums text-stone-400" title="Skriven {{ c.skapad }} UTC{% if c.hanterad %} · hanterad {{ c.hanterad }} UTC{% endif %}">{{ c.skapad[:10] }}</span>
+        {% if skrivbar %}{{ k.knappar(c, "vy", request, "#kommentarer-rot") }}{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% else %}
+  <p class="rounded-lg border border-stone-200 bg-white p-4 text-sm text-stone-400">
+    {% if visa == "öppna" %}Inga öppna kommentarer — allt är behandlat.{% else %}Inga kommentarer att visa.{% endif %}</p>
+  {% endfor %}
+</div>

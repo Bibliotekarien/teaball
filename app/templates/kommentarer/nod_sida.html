@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% import "kommentarer/_makro.html" as k %}
+{% block titel %}Kommentarer: {{ nod.namn }} – Teaball{% endblock %}
+{% block innehall %}
+{# Fristående sida för en nods kommentarer — no-JS-vägen från räknaren i
+   listan och trädet, och målet för formulären när htmx saknas. #}
+<p class="mb-1 text-xs text-stone-400">
+  {% for f in nod.stig %}<a href="/trad#rad-{{ f.id }}" class="hover:underline">{{ f.namn }}</a> / {% endfor %}
+</p>
+<h2 class="mb-3 font-serif text-lg text-blue-900"><a href="/trad#rad-{{ nod.id }}" class="hover:underline">{{ nod.namn }}</a></h2>
+{{ k.block(nod.id, request, true, kommentarer, skrivbar, fel) }}
+<p class="mt-4 text-sm"><a href="/kommentarer" class="text-blue-800 underline">Till alla kommentarer</a></p>
+{% endblock %}
