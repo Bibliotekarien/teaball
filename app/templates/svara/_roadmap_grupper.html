@@ -15,9 +15,9 @@
         style="padding-left: {{ n.djup * 16 + 10 }}px">
       <span class="flex min-w-0 flex-1 items-center">
       {% if n.typ == "förmåga" %}
-      <span class="min-w-0 truncate text-sm {{ TYP_CLS[n.typ] }}">{{ n.namn }}</span>
+      <span class="min-w-0 break-words text-sm {{ TYP_CLS[n.typ] }}">{{ n.namn }}</span>
       {% else %}
-      <a href="/svara#rad-{{ n.id }}" class="min-w-0 truncate text-sm {{ TYP_CLS[n.typ] }} hover:underline"
+      <a href="/svara#rad-{{ n.id }}" class="min-w-0 break-words text-sm {{ TYP_CLS[n.typ] }} hover:underline"
          title="Gå till bedömningen">{{ n.namn }}</a>
       {% endif %}
       {{- ankare(n.id, n.namn) }}</span>

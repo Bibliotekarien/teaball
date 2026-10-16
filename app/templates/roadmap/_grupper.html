@@ -21,8 +21,9 @@
     <li {% if n.id not in ankrade.id %}id="rad-{{ n.id }}" {% set ankrade.id = ankrade.id + [n.id] %}{% endif %}class="group flex scroll-mt-2 items-center gap-2 border-b border-stone-100 py-1.5 pr-2"
         style="padding-left: {{ n.djup * 22 + 10 }}px"{% if n.typ != "förmåga" %} data-nod="{{ n.id }}"{% endif %}>
       {% if redigera and n.typ != "förmåga" %}<span class="greppyta cursor-grab select-none px-1 text-stone-300" title="Dra till en annan avgång">⋮⋮</span>{% endif %}
-      {# Ankaret utanför namnet: truncate skulle annars klippa bort det. #}
-      <span class="flex min-w-0 flex-1 items-center"><span class="min-w-0 truncate text-sm {{ TYP_CLS[n.typ] }}">{{ n.namn }}</span>{{ ankare(n.id, n.namn) }}</span>
+      {# Långa namn radbryts i stället för att kortas av — hela namnet är
+         informationen. Ankaret ligger utanför namnet och följer sista raden. #}
+      <span class="flex min-w-0 flex-1 items-center"><span class="min-w-0 break-words text-sm {{ TYP_CLS[n.typ] }}">{{ n.namn }}</span>{{ ankare(n.id, n.namn) }}</span>
       {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400" title="Utelämnas ur exporten">dold</span>{% endif %}
       <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ TYP_LABEL[n.typ] }}</span>
       {% if n.typ != "förmåga" %}
