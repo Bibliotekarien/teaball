@@ -31,7 +31,7 @@
        class="rounded px-1 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-800">ta&nbsp;bort</a>
   </span>
   {% endif %}
-  {% if n.kommentarer is defined %}{{ k.raknare(n.id, n.kommentarer, skrivbar) }}{% endif %}
+  {% if n.kommentarer is defined %}{{ k.raknare(n.id, n.kommentarer) }}{% endif %}
   {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">dold</span>{% endif %}
   <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ TYP_LABEL[n.typ] }}</span>
   <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}" title="{{ STATUS[n.status].beskrivning }}">{{ STATUS[n.status].label }}</span>

@@ -49,7 +49,7 @@
   {% endif %}
 
   <span class="flex shrink-0 items-center gap-1.5">
-    {% if n.kommentarer is defined %}{{ k.raknare(n.id, n.kommentarer, skrivbar) }}{% endif %}
+    {% if n.kommentarer is defined %}{{ k.raknare(n.id, n.kommentarer) }}{% endif %}
     {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">dold</span>{% endif %}
     <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ TYP_LABEL[n.typ] }}</span>
     {% if n.djup < 2 %}
