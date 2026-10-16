@@ -1,24 +1,29 @@
 {# Interna kommentarer under en nod — delat av listvyn och behovsträdet.
    raknare: brickan på nodraden; fäller ut blocket. Syns bara när raden
    markerats med kommentarsantal (services/kommentarer.markera_antal), dvs.
-   aldrig för extern roll. Utan kommentarer visas den bara för admin och då
-   som en hover-länk, så rader utan kommentarer inte får brus.
+   aldrig för extern roll. Alla interna kan skriva, så utan kommentarer visas
+   den som hover-länken "kommentera" — rader utan kommentarer får inget brus.
+   Att hantera (bocka av, dölja, öppna igen) är admins: skrivbar styr bara
+   statusknapparna.
    block: platsen under raden (id kommentarer-<id>) som brickan swappar in
    listan i. Hopfällt är det tomt. Utan JS leder brickan till nodens egen
    kommentarssida. Ingen författare visas — sådan lagras inte. #}
-{% macro raknare(nod_id, antal, skrivbar=false, oob=false) %}
+{# oppen: blocket är utfällt — då fäller brickan ihop det i stället (toggle),
+   och den hålls synlig även utan kommentarer så den går att klicka igen.
+   Läget följer med out-of-band i varje blocksvar, så brickan alltid pekar åt
+   rätt håll. #}
+{% macro raknare(nod_id, antal, oob=false, oppen=false) %}
 {% set totalt = antal.values()|sum %}
 {% set oppna = antal.get("öppen", 0) %}
 <span id="kommentarantal-{{ nod_id }}"{% if oob %} hx-swap-oob="true"{% endif %}
-      class="shrink-0{% if not totalt %} opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100{% endif %}">
-  {% if totalt or skrivbar %}
-  <a href="/kommentarer/nod/{{ nod_id }}" hx-get="/kommentarer/nod/{{ nod_id }}?oppen=1"
+      class="shrink-0{% if not totalt and not oppen %} opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100{% endif %}">
+  <a href="/kommentarer/nod/{{ nod_id }}" hx-get="/kommentarer/nod/{{ nod_id }}?oppen={{ 0 if oppen else 1 }}"
      hx-target="#kommentarer-{{ nod_id }}" hx-swap="outerHTML"
-     title="{% if totalt %}Interna kommentarer: {{ oppna }} öppna, {{ totalt - oppna }} behandlade. Klicka för att visa.{% else %}Skriv en intern kommentar{% endif %}"
+     aria-expanded="{{ 'true' if oppen else 'false' }}" aria-controls="kommentarer-{{ nod_id }}"
+     title="{% if oppen %}Dölj kommentarerna{% elif totalt %}Interna kommentarer: {{ oppna }} öppna, {{ totalt - oppna }} behandlade. Klicka för att visa.{% else %}Skriv en intern kommentar{% endif %}"
      class="rounded px-1.5 py-0.5 text-xs {{ 'bg-amber-100 text-amber-900 hover:bg-amber-200' if oppna else ('bg-stone-100 text-stone-500 hover:bg-stone-200' if totalt else 'text-stone-400 hover:bg-stone-200 hover:text-stone-700') }}">
-    {%- if totalt %}{{ totalt }}&nbsp;{{ 'kommentar' if totalt == 1 else 'kommentarer' }}{% if oppna %} ({{ oppna }}&nbsp;{{ 'öppen' if oppna == 1 else 'öppna' }}){% endif %}{% else %}kommentera{% endif -%}
+    {%- if totalt %}{{ totalt }}&nbsp;{{ 'kommentar' if totalt == 1 else 'kommentarer' }}{% if oppna %} ({{ oppna }}&nbsp;{{ 'öppen' if oppna == 1 else 'öppna' }}){% endif %}{% else %}kommentera{% endif %}&nbsp;<span aria-hidden="true">{{ '▴' if oppen else '▾' }}</span>
   </a>
-  {% endif %}
 </span>
 {% endmacro %}
 
@@ -78,7 +83,7 @@
     {% else %}
     <p class="text-stone-500">Inga kommentarer att visa.</p>
     {% endif %}
-    {% if skrivbar %}
+    {# Skrivfältet för alla interna (blocket når bara intern och admin). #}
     <form method="post" action="/kommentarer/nod/{{ nod_id }}"
           hx-post="/kommentarer/nod/{{ nod_id }}" hx-target="#kommentarer-{{ nod_id }}" hx-swap="outerHTML"
           class="mt-2 grid gap-1">
@@ -90,8 +95,33 @@
                 class="rounded-md border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"></textarea>
       <button class="justify-self-start rounded-md bg-blue-900 px-3 py-1 text-xs text-white hover:bg-blue-800">Spara kommentar</button>
     </form>
-    {% endif %}
   </div>
   {% endif %}
 </div>
+{% endmacro %}
+
+{# Gruppens rubrik i kommentarsvyn: nodens plats, namn, typ och status. id:t
+   är nodens rad-<id> (samma ankare som i alla vyer) och är också det
+   redigera byter ut mot nodformuläret — och avbryt hämtar tillbaka hit
+   (GET /kommentarer/nod/<id>/rubrik). #}
+{% macro rubrik(n, skrivbar=false) %}
+<header id="rad-{{ n.id }}" class="group scroll-mt-2 border-b border-stone-100 px-3 py-2">
+  <p class="flex flex-wrap gap-x-1 text-[11px] leading-tight text-stone-400">
+    {% for f in n.stig %}{% if not loop.first %}<span aria-hidden="true">/</span>{% endif %}<a href="/trad#rad-{{ f.id }}" class="hover:text-stone-700 hover:underline">{{ f.namn }}</a>{% else %}<span class="italic">(rotnivå)</span>{% endfor %}
+  </p>
+  <h2 class="flex flex-wrap items-center gap-1.5 text-sm">
+    <a href="/trad#rad-{{ n.id }}" class="font-medium hover:underline {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}">{{ n.namn }}</a>
+    <span class="text-xs text-stone-400">({{ n.id }})</span>
+    <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500">{{ TYP_LABEL[n.typ] }}</span>
+    <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}">{{ STATUS[n.status].label }}</span>
+    <span class="ml-auto flex items-center gap-2 text-xs">
+      {% if skrivbar %}
+      <a href="/kommentarer/nod/{{ n.id }}/redigera" hx-get="/kommentarer/nod/{{ n.id }}/redigera"
+         hx-target="#rad-{{ n.id }}" hx-swap="outerHTML"
+         class="rounded px-1 text-stone-400 hover:bg-stone-200 hover:text-stone-700">redigera&nbsp;noden</a>
+      {% endif %}
+      <a href="/lista#rad-{{ n.id }}" class="text-stone-400 hover:text-stone-700 hover:underline">i listan</a>
+    </span>
+  </h2>
+</header>
 {% endmacro %}

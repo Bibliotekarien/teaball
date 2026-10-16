@@ -1,6 +1,6 @@
 """Interna kommentarer på noderna (migration 0006). Ingen författare lagras
-— se migrationen. Bara intern personal ser dem; skrivande och statusbyten
-kräver admin, som all annan ändring."""
+— se migrationen. Bara intern personal ser dem och alla interna får skriva;
+att hantera dem (statusbyten) kräver admin."""
 
 import sqlite3
 

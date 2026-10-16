@@ -119,7 +119,7 @@ def test_behandlad_syns_under_noden_dold_gor_det_inte(client, app_db):
 
     block = client.get(f"/kommentarer/nod/{ids['wos']}?oppen=1", headers=HTMX).text
     assert "Behandlas" in block and "Döljs" not in block
-    assert "1&nbsp;kommentar</a>" in client.get("/lista").text
+    assert "1&nbsp;kommentar&nbsp;<span" in client.get("/lista").text
 
     dolda = client.get("/kommentarer?visa=dolda").text
     assert "Döljs" in dolda and "Behandlas" not in dolda
@@ -139,7 +139,7 @@ def test_utan_js_egen_sida_och_redirect(client, app_db):
     assert svar.headers["location"] == f"/kommentarer/nod/{ids['wos']}"
 
 
-def test_intern_laser_men_skriver_inte(client, app_db):
+def test_intern_skriver_men_hanterar_inte(client, app_db):
     ids = seed_trad(app_db)
     app_db.execute("INSERT INTO kommentar (funktion_id, text) VALUES (?, 'Intern läser')", (ids["wos"],))
     app_db.commit()
@@ -149,10 +149,17 @@ def test_intern_laser_men_skriver_inte(client, app_db):
     assert "✓&nbsp;Behandlad" not in vy.text
     assert 'href="/kommentarer"' in vy.text  # fliken
 
+    # Brickan och skrivfältet finns för intern, statusknapparna inte.
+    assert f'hx-get="/kommentarer/nod/{ids["registrera"]}?oppen=1"' in client.get("/lista").text
+    block = client.get(f"/kommentarer/nod/{ids['wos']}?oppen=1", headers=HTMX).text
+    assert 'name="text"' in block and "✓&nbsp;Behandlad" not in block
+
     token = csrf_fran(vy.text)
-    assert _skriv(client, ids["wos"], "nej", token).status_code == 403
-    kid = app_db.execute("SELECT id FROM kommentar").fetchone()[0]
+    svar = _skriv(client, ids["wos"], "Intern skriver", token)
+    assert svar.status_code == 200 and "Intern skriver" in svar.text
+    kid = app_db.execute("SELECT id FROM kommentar WHERE text = 'Intern läser'").fetchone()[0]
     assert _status(client, kid, "behandlad", token).status_code == 403
+    assert _status(client, kid, "dold", token, fran="nod").status_code == 403
 
 
 def test_extern_ser_aldrig_kommentarer(client, app_db):
@@ -176,3 +183,81 @@ def test_statusbyte_okand_status_och_saknad_kommentar(client, app_db):
     assert _status(client, kid, "klar", token).status_code == 400
     assert _status(client, kid + 99, "dold", token).status_code == 404
     assert _skriv(client, 9999, "x", token).status_code == 404
+
+
+def test_brickan_vaxlar_mellan_utfallt_och_hopfallt(client, app_db):
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    nod = ids["wos"]
+    # Hopfällt i vyerna: brickan fäller ut.
+    assert f'hx-get="/kommentarer/nod/{nod}?oppen=1"' in client.get("/trad").text
+    assert f'hx-get="/kommentarer/nod/{nod}?oppen=1"' in client.get("/lista").text
+
+    # Utfällt: den OOB-swappade brickan fäller ihop vid nästa klick ...
+    utfallt = client.get(f"/kommentarer/nod/{nod}?oppen=1", headers=HTMX).text
+    bricka = utfallt.split(f'id="kommentarantal-{nod}"', 1)[1]
+    assert '?oppen=0"' in bricka and 'aria-expanded="true"' in bricka
+    # ... och hålls synlig även utan kommentarer (annars bara vid hover).
+    assert "opacity-0" not in bricka.split(">", 1)[0]
+
+    # Hopfällt igen: tillbaka till att fälla ut.
+    hopfallt = client.get(f"/kommentarer/nod/{nod}?oppen=0", headers=HTMX).text
+    bricka = hopfallt.split(f'id="kommentarantal-{nod}"', 1)[1]
+    assert '?oppen=1"' in bricka and 'aria-expanded="false"' in bricka
+
+
+def test_redigera_noden_inline_i_kommentarsvyn(client, app_db):
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    token = _token(client)
+    _skriv(client, ids["wos"], "Byt namn på den här", token)
+    nod = ids["wos"]
+
+    vy = client.get("/kommentarer").text
+    assert f'hx-get="/kommentarer/nod/{nod}/redigera"' in vy
+    assert f'<header id="rad-{nod}"' in vy
+
+    form = client.get(f"/kommentarer/nod/{nod}/redigera", headers=HTMX).text
+    assert f'hx-post="/kommentarer/nod/{nod}/redigera"' in form
+    assert 'hx-target="#kommentarer-rot"' in form
+    assert f'hx-get="/kommentarer/nod/{nod}/rubrik"' in form
+    assert f'<header id="rad-{nod}"' in form
+
+    # Avbryt: bara rubriken tillbaka.
+    rubrik = client.get(f"/kommentarer/nod/{nod}/rubrik", headers=HTMX).text
+    assert f'<header id="rad-{nod}"' in rubrik and "<section" not in rubrik
+
+    svar = client.post(f"/kommentarer/nod/{nod}/redigera",
+                       data={"namn": "WoS-import", "foralder_id": str(ids["import"]),
+                             "typ": "funktion", "status": "utreds", "csrf_token": token},
+                       headers=HTMX | {"X-CSRF-Token": token}).text
+    assert 'id="kommentarer-rot"' in svar and "WoS-import" in svar
+    assert "Byt namn på den här" in svar
+    rad = app_db.execute("SELECT namn, status FROM funktion WHERE id = ?", (nod,)).fetchone()
+    assert rad["namn"] == "WoS-import" and rad["status"] == "utreds"
+
+    # Regelbrott (planerad utan avgång) ger felbannern i vyn, inget sparas.
+    fel = client.post(f"/kommentarer/nod/{nod}/redigera",
+                      data={"namn": "X", "foralder_id": str(ids["import"]),
+                            "typ": "funktion", "status": "planerad", "fas": "",
+                            "csrf_token": token},
+                      headers=HTMX | {"X-CSRF-Token": token}).text
+    assert 'id="kommentarer-fel"' in fel
+    assert app_db.execute("SELECT namn FROM funktion WHERE id = ?", (nod,)).fetchone()[0] == "WoS-import"
+
+    # Utan htmx: tillbaka till vyn med ankare på noden.
+    svar = client.post(f"/kommentarer/nod/{nod}/redigera",
+                       data={"namn": "WoS", "foralder_id": str(ids["import"]),
+                             "typ": "funktion", "status": "utreds", "csrf_token": token},
+                       follow_redirects=False)
+    assert svar.status_code == 303 and svar.headers["location"] == f"/kommentarer#rad-{nod}"
+
+
+def test_intern_far_inte_redigera_noden_i_kommentarsvyn(client, app_db):
+    ids = seed_trad(app_db)
+    app_db.execute("INSERT INTO kommentar (funktion_id, text) VALUES (?, 'x')", (ids["wos"],))
+    app_db.commit()
+    logga_in(client, app_db, namn="ingrid", roll="intern")
+    vy = client.get("/kommentarer").text
+    assert "/redigera" not in vy
+    assert client.get(f"/kommentarer/nod/{ids['wos']}/redigera", headers=HTMX).status_code == 403
