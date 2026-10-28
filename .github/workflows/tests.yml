@@ -25,3 +25,9 @@ permissions:
 jobs:
   tests:
     uses: Bibliotekarien/bibliotekarien-platform/.github/workflows/python-tests.yml@main
+
+  # Hemligheter i hela historiken, kända sårbarheter i uv.lock och SBOM på
+  # main — se bibliotekarien-platform/.github/README.md,
+  # "Säkerhetskontroller".
+  sakerhet:
+    uses: Bibliotekarien/bibliotekarien-platform/.github/workflows/security-checks.yml@main
