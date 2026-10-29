@@ -42,9 +42,14 @@ kräver konto. uvicorns accesslogg är på, med medlemmarnas token maskade
 Driftsättningschecklista (första gången):
 
 1. DNS: `teaball.bibliotekarien.se` → serverns IP.
-2. Skapa service-användare: `useradd --system --uid 1505 --home-dir /opt/teaball --shell /usr/sbin/nologin teaball && usermod -aG docker teaball`.
-3. Klona repot till `/opt/teaball/app`, skapa `.env` från `.env.example`
-   (SECRET_KEY, PUBLIC_BASE_URL, ANUBIS_COOKIE_DOMAIN; Matomo-värdena nedan).
+2. Skapa service-användare: `useradd --system --uid 1505 --home-dir /opt/teaball --shell /usr/sbin/nologin teaball`.
+   Den läggs **inte** i docker-gruppen (se "Root-ägd arbetskopia" nedan).
+3. Klona repot till `/opt/teaball/app` som root (`sudo git clone`), med
+   deploy-nyckeln via `core.sshCommand` i repots `.git/config`. Skapa `.env`
+   från `.env.example` med `sudo install -m 600` (SECRET_KEY,
+   PUBLIC_BASE_URL, ANUBIS_COOKIE_DOMAIN; Matomo-värdena nedan). Kör
+   `sudo chmod -R go-w /opt/teaball/app` och `sudo restorecon -R
+   /opt/teaball/app`.
 4. **Matomo:** registrera sajten på `https://bibstats.bibliotekarien.se`
    (Administration → Websites → Manage → Add a new website, URL
    `https://teaball.bibliotekarien.se`) och sätt `MATOMO_SITE_ID` +
@@ -60,6 +65,41 @@ Driftsättningschecklista (första gången):
 8. Observability: avkommentera `teaball.bibliotekarien.se`-proben i
    `observability-platform/stack/prometheus/prometheus.yml` (avsiktligt
    utkommenterad tills sajten är live — inga röda prober i förväg).
+
+### Root-ägd arbetskopia
+
+Arbetskopian `/opt/teaball/app` ägs av root, och `scripts/deploy.sh` kör
+git och compose som root. `teaball` är bara ett namn på uid 1505 och
+sitter inte i docker-gruppen. Tidigare ägde `teaball` kopian och satt i
+gruppen, och då fanns två vägar till root:
+
+- **docker-gruppen är root.** Den som kan prata med docker-socketen kan
+  starta en container som monterar `/`.
+- **root körde filer som teaball kunde skriva:** deploy.sh (via sudo) och
+  backup.sh (`teaball-backup.service` kör som root).
+
+deploy.sh vägrar köra om något i kopian ägs av någon annan än root eller är
+skrivbart för grupp eller andra. Samma ändring gjordes först i
+mark-rounding (#47); se Risk 1 i bibliotekarien-platform
+`SECURITY_REVIEW.md`.
+
+**Flytta en befintlig server** (en gång; den nya deploy.sh vägrar köra
+innan). Kontrollera först att repots `core.sshCommand` pekar på
+deploy-nyckeln, eftersom root inte läser teaballs `~/.ssh`:
+
+```bash
+sudo git -C /opt/teaball/app config --get core.sshCommand
+sudo chown -R root:root /opt/teaball/app
+sudo git -C /opt/teaball/app pull --ff-only
+sudo chmod -R go-w /opt/teaball/app
+sudo chmod 600 /opt/teaball/app/.env
+sudo restorecon -R /opt/teaball/app
+sudo gpasswd -d teaball docker
+sudo cp /opt/teaball/app/deploy/teaball.service /etc/systemd/system/
+sudo systemctl daemon-reload
+```
+
+Kontrollera sedan med `id teaball` (ingen docker) och en vanlig deploy.
 
 ### Skapa förvaltarkonton
 
