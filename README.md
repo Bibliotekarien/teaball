@@ -77,19 +77,25 @@ gruppen, och då fanns två vägar till root:
   starta en container som monterar `/`.
 - **root körde filer som teaball kunde skriva:** deploy.sh (via sudo) och
   backup.sh (`teaball-backup.service` kör som root).
+- **teaball ägde `/opt/teaball`** och kunde därmed byta ut hela arbetskopian
+  (`mv app x; mkdir app`), skript och allt.
 
-deploy.sh vägrar köra om något i kopian ägs av någon annan än root eller är
-skrivbart för grupp eller andra. Samma ändring gjordes först i
+deploy.sh vägrar köra om `/opt/teaball` inte är root-ägd och skrivskyddad,
+om `app` är en symlänk, eller om något i kopian ägs av någon annan än root
+eller är skrivbart för grupp eller andra. Samma ändring gjordes först i
 mark-rounding (#47); se Risk 1 i bibliotekarien-platform
 `SECURITY_REVIEW.md`.
 
 **Flytta en befintlig server** (en gång; den nya deploy.sh vägrar köra
-innan). Kontrollera först att repots `core.sshCommand` pekar på
-deploy-nyckeln, eftersom root inte läser teaballs `~/.ssh`:
+innan). Första raden ska skriva ut ett `ssh -i …deploy_key`-kommando; är den
+tom, stanna. `-f` läser filen direkt — git som root ignorerar annars repots
+config så länge någon annan äger det, och svarar då tomt fast nyckeln finns.
 
 ```bash
-sudo git -C /opt/teaball/app config --get core.sshCommand
-sudo chown -R root:root /opt/teaball/app
+sudo git config -f /opt/teaball/app/.git/config --get core.sshCommand
+sudo chown root:root /opt/teaball    # inte -R: bara katalogen själv
+sudo chmod 755 /opt/teaball
+sudo chown -R root:root /opt/teaball/app /opt/teaball/.ssh
 sudo git -C /opt/teaball/app pull --ff-only
 sudo chmod -R go-w /opt/teaball/app
 sudo chmod 600 /opt/teaball/app/.env

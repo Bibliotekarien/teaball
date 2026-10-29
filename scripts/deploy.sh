@@ -62,6 +62,17 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
+# Katalogen ovanför först: den som kan skriva där kan byta ut hela
+# arbetskopian (mv app x; mkdir app) och därmed det här skriptet.
+foralder=$(dirname "$APP_DIR")
+if [[ -L "$APP_DIR" || "$(stat -c %u "$foralder")" != 0 \
+      || -n "$(find "$foralder" -maxdepth 0 -perm /022)" ]]; then
+  echo "$foralder måste vara root-ägd och skrivskyddad för andra, och $APP_DIR" >&2
+  echo "får inte vara en symlänk. Rätta enligt README, \"Root-ägd arbetskopia\":" >&2
+  echo "  chown root:root $foralder && chmod 755 $foralder" >&2
+  exit 1
+fi
+
 # Vägra köra om någon annan än root kan skriva i arbetskopian. Annars kör
 # root kod som en mindre privilegierad användare har kunnat ändra.
 # Symlänkar har alltid 777 och hoppas över; det som räknas är målet.
