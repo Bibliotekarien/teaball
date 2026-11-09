@@ -105,12 +105,42 @@ TYP_BESKRIVNING = {
 # UI-termen är "avgång"; kolumnen och koden heter fortfarande fas.
 FASER = ["Avgång 1", "senare"]
 
+# Ordlistans begrepp utöver typerna, statusarna och svaren, som ordlistan
+# läser direkt ur TYP_BESKRIVNING, STATUS och SVAR — en text per begrepp.
+# "intern": True visas bara för förvaltare (begrepp medlemmar aldrig möter).
+ORDLISTA = [
+    {"term": "Behovsträd",
+     "forklaring": "Hela strukturen av förmågor, funktioner och behov, ordnad som ett träd."},
+    {"term": "Go-live",
+     "forklaring": "När det nya systemet tas i drift och ersätter det gamla."},
+    {"term": "Roadmap",
+     "forklaring": "Hur funktioner och behov planeras in i avgångarna."},
+    {"term": "Avgång",
+     "forklaring": "En leverans i roadmapen. ”Avgång 1” är den första; ”senare” "
+                   "samlar det som planeras efter den."},
+    {"term": "Ärvt svar",
+     "forklaring": "Ett svar på en förälder gäller också allt under den, tills ett "
+                   "eget svar ges längre ned i trädet."},
+    {"term": "Ej bedömd",
+     "forklaring": "Går att bedöma men saknar svar — varken eget eller ärvt."},
+    {"term": "Workaround",
+     "forklaring": "Vid ”Kan vänta”: hur ni klarar er tills funktionen finns. "
+                   "Kan delas anonymt med andra medlemmar."},
+    {"term": "Kommentar",
+     "forklaring": "Fritt tillägg till ett svar. Syns bara för medlemmen själv och för förvaltarna."},
+    {"term": "Dold för medlemmar", "intern": True,
+     "forklaring": "Noden visas inte i medlemmarnas vyer, och inte heller det som ligger under den."},
+    {"term": "Proxy", "intern": True,
+     "forklaring": "En förvaltare fyller i bedömningen åt en medlem; svaret märks med förvaltarens namn."},
+]
+
 templates.env.globals["SVAR"] = SVAR
 templates.env.globals["STATUS"] = STATUS
 templates.env.globals["TYP_CLS"] = TYP_CLS
 templates.env.globals["TYP_BESKRIVNING"] = TYP_BESKRIVNING
 templates.env.globals["TYP_LABEL"] = TYP_LABEL
 templates.env.globals["FASER"] = FASER
+templates.env.globals["ORDLISTA"] = ORDLISTA
 
 
 def is_htmx(request: Request) -> bool:

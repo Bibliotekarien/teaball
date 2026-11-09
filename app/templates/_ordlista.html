@@ -1,0 +1,44 @@
+{# Utfällbar ordlista: en lodrät flik i högerkanten som fäller ut en panel.
+   Ren <details> — fungerar utan JS (fliken växlar); app.js lägger till Esc
+   och klick utanför för att stänga. Placeringen sitter i .ordlista-reglerna
+   i tailwind.in.css. Typer, statusar och svar läses ur samma tabeller som
+   resten av gränssnittet (app/web.py), övriga begrepp ur ORDLISTA. #}
+{% set forvaltare = principal and principal.kind == "forvaltare" %}
+<details class="ordlista print:hidden" data-ordlista>
+  <summary class="cursor-pointer select-none rounded-md bg-blue-900 px-1.5 py-3 text-xs font-medium text-white shadow-lg hover:bg-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-700">Ordlista</summary>
+  <aside aria-label="Ordlista" class="ordlista-panel border-l border-stone-200 bg-white p-4 text-sm shadow-lg">
+    <h2 class="mb-3 font-serif text-blue-900">Ordlista</h2>
+
+    <h3 class="mb-1.5 text-xs font-medium text-stone-700">Typer</h3>
+    <dl class="mb-4 space-y-1.5">
+      {% for t, forklaring in TYP_BESKRIVNING.items() %}
+      <div><dt class="text-xs {{ TYP_CLS[t] }}">{{ TYP_LABEL[t] }}</dt>
+        <dd class="text-xs text-stone-500">{{ forklaring }}</dd></div>
+      {% endfor %}
+    </dl>
+
+    <h3 class="mb-1.5 text-xs font-medium text-stone-700">Statusar</h3>
+    <dl class="mb-4 space-y-1.5">
+      {% for s, meta in STATUS.items() %}
+      <div><dt><span class="rounded px-1.5 py-0.5 text-xs {{ meta.cls }}">{{ meta.label }}</span></dt>
+        <dd class="mt-1 text-xs text-stone-500">{{ meta.beskrivning }}</dd></div>
+      {% endfor %}
+    </dl>
+
+    <h3 class="mb-1.5 text-xs font-medium text-stone-700">Svar i bedömningen</h3>
+    <dl class="mb-4 space-y-1.5">
+      {% for nyckel, s in SVAR.items() %}
+      <div><dt><span class="rounded-full border px-2 py-0.5 text-xs {{ s.pill }}">{{ s.kort }}</span></dt>
+        <dd class="mt-1 text-xs text-stone-500">{{ s.label }}</dd></div>
+      {% endfor %}
+    </dl>
+
+    <h3 class="mb-1.5 text-xs font-medium text-stone-700">Övriga begrepp</h3>
+    <dl class="space-y-1.5">
+      {% for b in ORDLISTA if forvaltare or not b.intern %}
+      <div><dt class="text-xs font-medium text-stone-700">{{ b.term }}</dt>
+        <dd class="text-xs text-stone-500">{{ b.forklaring }}</dd></div>
+      {% endfor %}
+    </dl>
+  </aside>
+</details>

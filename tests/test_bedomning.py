@@ -4,6 +4,7 @@ UI half of acceptance test §9.3."""
 from tests.conftest import (
     csrf_fran,
     ge_token,
+    huvuddel,
     klient_fabrik,  # noqa: F401  (fixture)
     logga_in,
     seed_trad,
@@ -186,13 +187,13 @@ def test_formagor_ar_hierarki_utan_piller(client, app_db):
     # förmågor, så sidan ska sakna brickan helt ...
     sida = client.get(f"/bedomning?medlem_id={medlem}").text
     assert ">Publicering</span>" in sida
-    assert ">Driftsatt</span>" not in sida
+    assert ">Driftsatt</span>" not in huvuddel(sida)
 
     # ... men en driftsatt FUNKTION behåller sin bricka.
     app_db.execute("UPDATE funktion SET status = 'driftsatt' WHERE id = ?",
                    (ids["import"],))
     app_db.commit()
-    assert ">Driftsatt</span>" in client.get(f"/bedomning?medlem_id={medlem}").text
+    assert ">Driftsatt</span>" in huvuddel(client.get(f"/bedomning?medlem_id={medlem}").text)
 
 
 def test_dolj_formagor(client, app_db):

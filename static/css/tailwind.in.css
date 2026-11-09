@@ -26,3 +26,43 @@ details[open] > summary .chevron {
 [id^="rad-"]:target {
   animation: nyss-sparad-blink 1.2s ease-out;
 }
+
+/* Ordlistan (_ordlista.html): lodrät flik mitt i högerkanten som fäller ut
+   en panel; fliken följer med panelens kant när den är öppen. Ren <details>.
+   Bredden får aldrig ta hela skärmen — fliken ska alltid gå att klicka. */
+.ordlista {
+  --ordlista-bredd: min(22rem, calc(100vw - 2.5rem));
+}
+.ordlista > summary {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  z-index: 30;
+  transform: translateY(-50%);
+  writing-mode: vertical-rl;
+  list-style: none;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.ordlista > summary::-webkit-details-marker {
+  display: none;
+}
+.ordlista[open] > summary {
+  right: var(--ordlista-bredd);
+}
+.ordlista-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  width: var(--ordlista-bredd);
+  overflow-y: auto;
+}
+/* På smala skärmar ligger innehållet kant i kant med fliken — ge huvudytan
+   luft så fliken inte täcker högerställda knappar. */
+@media (max-width: 64rem) {
+  .ordlista-luft {
+    padding-right: 2.25rem;
+  }
+}

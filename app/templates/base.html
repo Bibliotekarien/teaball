@@ -54,9 +54,10 @@
   {% endif %}
 
   {# huvudbredd: vyer med en sidokolumn (behovsträdet) breddar sig på stora skärmar. #}
-  <main class="mx-auto {% block huvudbredd %}max-w-4xl{% endblock %} px-4 py-5 sm:px-6">
+  <main class="mx-auto {% block huvudbredd %}max-w-4xl{% endblock %} px-4 py-5 sm:px-6{% if principal %} ordlista-luft{% endif %}">
     {% block innehall %}{% endblock %}
   </main>
+  {% if principal %}{% include "_ordlista.html" %}{% endif %}
 
   <footer class="mx-auto max-w-4xl px-4 pb-6 pt-2 text-xs text-stone-400 sm:px-6">
     <a href="/integritet" class="underline decoration-stone-300 underline-offset-2 hover:text-stone-600">Personuppgifter &amp; integritet</a>
