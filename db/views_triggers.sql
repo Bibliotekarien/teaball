@@ -87,7 +87,8 @@ END;
 DROP TRIGGER IF EXISTS funktion_stampel_update;
 CREATE TRIGGER funktion_stampel_update
 AFTER UPDATE OF namn, foralder_id, typ, status, fas, beskrivning,
-                synlig_externt, lank_dokumentation, lank_jira ON funktion
+                synlig_externt, lank_dokumentation, lank_jira,
+                rankning_last, rankning_last_kommentar ON funktion
 WHEN OLD.namn IS NOT NEW.namn
   OR OLD.foralder_id IS NOT NEW.foralder_id
   OR OLD.typ IS NOT NEW.typ
@@ -97,6 +98,8 @@ WHEN OLD.namn IS NOT NEW.namn
   OR OLD.synlig_externt IS NOT NEW.synlig_externt
   OR OLD.lank_dokumentation IS NOT NEW.lank_dokumentation
   OR OLD.lank_jira IS NOT NEW.lank_jira
+  OR OLD.rankning_last IS NOT NEW.rankning_last
+  OR OLD.rankning_last_kommentar IS NOT NEW.rankning_last_kommentar
 BEGIN
     UPDATE funktion SET uppdaterad = datetime('now') WHERE id = NEW.id;
 END;
@@ -158,7 +161,7 @@ WITH RECURSIVE trad(id, djup, vag, synlig_stig) AS (
 SELECT t.id, t.djup, t.vag, t.synlig_stig,
        f.namn, f.beskrivning, f.foralder_id, f.typ, f.status, f.fas,
        f.synlig_externt, f.sortering, f.lank_dokumentation, f.lank_jira,
-       f.skapad, f.uppdaterad
+       f.skapad, f.uppdaterad, f.rankning_last, f.rankning_last_kommentar
 FROM trad t
 JOIN funktion f ON f.id = t.id;
 

@@ -64,6 +64,21 @@
     <span class="text-[11px] italic text-stone-400" title="Svaret gavs innan noden blev {{ STATUS[n.status].label|lower }}.">tidigare svar: {{ SVAR[eget.svar].kort }}</span>
     {% endif %}
     {% endif %}
+    {% elif n.rankning_last %}
+    {# Locked from ranking (migration 0008, service-enforced too): the node
+       stays visible with its buttons greyed out and disabled — unlike the
+       statuses above, nothing about the node itself has changed, so the
+       familiar buttons stay where they are. An earlier own answer keeps a
+       slightly darker pressed button; the förvaltare's comment says why. #}
+    <div class="flex items-center gap-1" role="group" aria-label="Svar — låst från rankning">
+      {% for nyckel, s in SVAR.items() %}
+      {% set vald = eget and eget.svar == nyckel %}
+      <button type="button" disabled aria-pressed="{{ 'true' if vald else 'false' }}"
+              title="{{ s.label }} — låst från rankning{{ ' (ert tidigare svar)' if vald else '' }}"
+              class="rounded-full border px-2 py-1.5 text-xs sm:py-0.5 {{ 'border-stone-300 bg-stone-100 text-stone-500' if vald else 'border-stone-200 bg-stone-50 text-stone-300' }}">{{ s.kort }}</button>
+      {% endfor %}
+    </div>
+    <p class="w-72 max-w-full text-right text-[11px] text-stone-500">🔒 Låst från rankning{% if n.rankning_last_kommentar %}: {{ n.rankning_last_kommentar }}{% endif %}</p>
     {% else %}
     {% if skrivbar_har %}
     <form method="post" action="{{ bas }}/{{ n.id }}/svar"

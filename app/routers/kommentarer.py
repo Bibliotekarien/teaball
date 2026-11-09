@@ -217,6 +217,8 @@ def uppdatera_nod(
     lank_dokumentation: str = Form(""),
     lank_jira: str = Form(""),
     synlig_externt: str = Form(""),
+    rankning_last: str = Form(""),
+    rankning_last_kommentar: str = Form(""),
     principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
@@ -234,6 +236,8 @@ def uppdatera_nod(
             conn, nod_id, namn.strip()[:200], trad.till_int(foralder_id), typ, status,
             fas.strip()[:50] or None, beskrivning.strip()[:4000] or None,
             1 if synlig_externt else 0, dok, jira,
+            rankning_last=1 if rankning_last else 0,
+            rankning_last_kommentar=trad.last_kommentar(rankning_last_kommentar),
         )
     except sqlite3.IntegrityError as fel:
         conn.rollback()

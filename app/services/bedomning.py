@@ -12,6 +12,13 @@ GILTIGA_SVAR = {"golive_krav", "kan_vanta", "behovs_ej"}
 EJ_RANKBARA_STATUSAR = {"driftsatt", "utgår"}
 
 
+def ej_rankbar(nod) -> bool:
+    """True when the node can't be assessed: a non-assessable status, or
+    locked from ranking by a förvaltare (migration 0008). The lock is per
+    node — like status it is not inherited by the children."""
+    return nod["status"] in EJ_RANKBARA_STATUSAR or bool(nod["rankning_last"])
+
+
 def svarskarta(conn, medlem_id: int):
     """(direct answers by funktion_id, effective answers by funktion_id) for one
     member. Effective rows carry kalla_namn for the 'ärvt: … (från …)' label (A2)."""
@@ -52,7 +59,8 @@ def delade_workarounds(conn, medlem_id: int):
 
 def rakna_bedomt(rotter, effektiva):
     """(bedömda, kvar) over the rendered tree's assessable nodes —
-    driftsatt/utgår can never be answered and belong in neither column.
+    driftsatt/utgår and locked nodes can't be answered and belong in neither
+    column.
     An inherited answer counts as bedömd: the parent's answer holds until
     something more specific is given (A1/B6)."""
     bedomda = kvar = 0
@@ -60,7 +68,7 @@ def rakna_bedomt(rotter, effektiva):
     while stack:
         n = stack.pop()
         stack.extend(n["barn"])
-        if n["status"] in EJ_RANKBARA_STATUSAR:
+        if ej_rankbar(n):
             continue
         if n["id"] in effektiva:
             bedomda += 1
@@ -78,7 +86,7 @@ def utan_bedomda(rotter, effektiva):
     ut = []
     for n in rotter:
         barn = utan_bedomda(n["barn"], effektiva)
-        kvar_har = n["status"] not in EJ_RANKBARA_STATUSAR and n["id"] not in effektiva
+        kvar_har = not ej_rankbar(n) and n["id"] not in effektiva
         if barn or kvar_har:
             ut.append({**n, "barn": barn})
     return ut
@@ -117,13 +125,15 @@ def satt_svar(conn, medlem_id: int, funktion_id: int, svar: str, besvarat_av: st
     via the D2 trigger). Returns the resulting answer, or None if removed."""
     if svar not in GILTIGA_SVAR:
         raise ValueError("Ogiltigt svarsalternativ.")
-    status = conn.execute(
-        "SELECT status FROM funktion WHERE id = ?", (funktion_id,)
+    nod = conn.execute(
+        "SELECT status, rankning_last FROM funktion WHERE id = ?", (funktion_id,)
     ).fetchone()
-    if status and status["status"] in EJ_RANKBARA_STATUSAR:
+    if nod and nod["status"] in EJ_RANKBARA_STATUSAR:
         raise ValueError(
-            f"Noden är {status['status']} och kan inte bedömas."
+            f"Noden är {nod['status']} och kan inte bedömas."
         )
+    if nod and nod["rankning_last"]:
+        raise ValueError("Noden är låst från rankning och kan inte bedömas.")
     rad = conn.execute(
         "SELECT svar FROM bedomning WHERE medlem_id = ? AND funktion_id = ?",
         (medlem_id, funktion_id),
