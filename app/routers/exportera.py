@@ -1,7 +1,7 @@
 """Export downloads: E1, the all-views Excel workbook, the standalone tree
 HTML, the combined PDF report (tree + ranking) and the text exports
 (Confluence wiki-markup, plain markdown). Admin + intern only: the
-default outputs dump private comments and unshared workarounds, and the
+default outputs dump internal and unshared open comments, and the
 "safe" variants are opt-in query params — a blanket rule is the only
 auditable one. The extern role's sole export is /roadmap/export."""
 

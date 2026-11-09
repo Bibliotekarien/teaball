@@ -49,16 +49,18 @@ def rankning(conn, arvda: bool = False, endast_synliga: bool = False):
     return rader
 
 
-def workaround_bank(conn):
-    """N4: all workarounds per node — admins see everything, including unshared
-    ones, with member names."""
+def oppna_kommentarer_bank(conn):
+    """N4: all open comments per node (formerly the workaround bank) —
+    förvaltare see everything, private ones included, with member names
+    and the writer's answer for the colour."""
     ut: dict[int, list[dict]] = {}
     for r in conn.execute(
         """
-        SELECT b.funktion_id, b.workaround, b.workaround_delas, m.namn AS medlem_namn
+        SELECT b.funktion_id, b.svar, b.oppen_kommentar, b.oppen_delning,
+               m.namn AS medlem_namn
         FROM bedomning b
         JOIN medlem m ON m.id = b.medlem_id
-        WHERE b.workaround IS NOT NULL AND TRIM(b.workaround) != ''
+        WHERE b.oppen_kommentar IS NOT NULL AND TRIM(b.oppen_kommentar) != ''
         ORDER BY m.namn
         """
     ):

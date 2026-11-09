@@ -22,7 +22,7 @@ def _förbered(client, app_db, roll, namn):
     ids = seed_trad(app_db)
     medlem_id = skapa_medlem(app_db, "KTH")
     satt_svar(app_db, medlem_id, ids["dubblett"], "golive_krav",
-              kommentar="Privat anteckning om spikblad")
+              intern_kommentar="Privat anteckning om spikblad")
     app_db.commit()
     logga_in(client, app_db, namn=namn, roll=roll)
     return ids, medlem_id
@@ -37,8 +37,8 @@ ALLA_SKRIVNINGAR = [
     ("/trad/nod/{nod}/synlighet", {}),
     ("/trad/nod/{nod}/ta-bort", {}),
     ("/bedomning/{medlem}/{nod}/svar", {"svar": "kan_vanta"}),
-    ("/bedomning/{medlem}/{nod}/workaround", {"workaround": "x"}),
-    ("/bedomning/{medlem}/{nod}/kommentar", {"kommentar": "x"}),
+    ("/bedomning/{medlem}/{nod}/oppen-kommentar", {"oppen_kommentar": "x", "oppen_delning": "namn"}),
+    ("/bedomning/{medlem}/{nod}/intern-kommentar", {"intern_kommentar": "x"}),
     ("/roadmap/flytta", {"nod_id": "{nod}", "fas": "senare"}),
     ("/medlemmar", {"namn": "Ny medlem"}),
     ("/medlemmar/{medlem}", {"namn": "Bytt namn"}),
@@ -129,8 +129,8 @@ def test_intern_far_403_pa_alla_skrivningar(client, app_db):
     for tabell, antal in fore.items():
         assert app_db.execute(f"SELECT COUNT(*) FROM {tabell}").fetchone()[0] == antal
     kommentar = app_db.execute(
-        "SELECT kommentar FROM bedomning WHERE medlem_id = ?", (medlem_id,)
-    ).fetchone()["kommentar"]
+        "SELECT intern_kommentar FROM bedomning WHERE medlem_id = ?", (medlem_id,)
+    ).fetchone()["intern_kommentar"]
     assert kommentar == "Privat anteckning om spikblad"
 
 

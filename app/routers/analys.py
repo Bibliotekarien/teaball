@@ -29,7 +29,7 @@ def rankning(
             "principal": principal,
             "arvda": med_arvda,
             "rader": tjanst.rankning(conn, med_arvda),
-            "workarounds": tjanst.workaround_bank(conn),
+            "oppna_kommentarer": tjanst.oppna_kommentarer_bank(conn),
             "tackning": tjanst.tackning(conn),
         },
     )

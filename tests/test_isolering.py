@@ -38,24 +38,27 @@ def test_acceptance_9_2_medlemsflode(app_db, klient_fabrik):
     klient_a = _medlemsklient(klient_fabrik, ge_token(app_db, a))
     token_a = _csrf(klient_a)
 
-    # A answers kan_vanta on a function node, writes a workaround, shares it,
-    # and leaves a private comment.
+    # A answers kan_vanta on a function node, writes an open comment, shares
+    # it anonymously, and leaves an internal comment.
     klient_a.post(f"/svara/{ids['wos']}/svar", data={"svar": "kan_vanta", "csrf_token": token_a})
-    klient_a.post(f"/svara/{ids['wos']}/workaround",
-                  data={"workaround": "Cron-skript som diffar mot gårdagens skörd.",
-                        "workaround_delas": "1", "csrf_token": token_a})
-    klient_a.post(f"/svara/{ids['wos']}/kommentar",
-                  data={"kommentar": "Internt: rektorsbeslut väntas i höst.", "csrf_token": token_a})
+    klient_a.post(f"/svara/{ids['wos']}/oppen-kommentar",
+                  data={"oppen_kommentar": "Cron-skript som diffar mot gårdagens skörd.",
+                        "oppen_delning": "anonym", "csrf_token": token_a})
+    klient_a.post(f"/svara/{ids['wos']}/intern-kommentar",
+                  data={"intern_kommentar": "Internt: rektorsbeslut väntas i höst.",
+                        "csrf_token": token_a})
 
     # A's children show the inherited label.
     sida_a = klient_a.get("/svara").text
     assert "ärvt: Kan vänta (från Import från Web of Science)" in sida_a
 
-    # B sees the shared workaround anonymously — but never A's comment or name.
+    # B sees the shared open comment anonymously, tinted and labelled with
+    # A's answer — but never A's internal comment or name.
     klient_b = _medlemsklient(klient_fabrik, ge_token(app_db, b))
     sida_b = klient_b.get("/svara").text
     assert "Cron-skript som diffar mot gårdagens skörd." in sida_b
-    assert "Workarounds från andra medlemmar (1)" in sida_b
+    assert "Öppna kommentarer från andra medlemmar (1)" in sida_b
+    assert '<span class="font-medium">Kan vänta · anonym:</span>' in sida_b
     assert "Uppsala universitet" not in sida_b
     assert "rektorsbeslut" not in sida_b
 
@@ -63,6 +66,46 @@ def test_acceptance_9_2_medlemsflode(app_db, klient_fabrik):
     assert app_db.execute(
         "SELECT COUNT(*) FROM bedomning WHERE medlem_id = ?", (b,)
     ).fetchone()[0] == 0
+
+
+def test_oppen_kommentar_delningslagen(app_db, klient_fabrik):
+    """privat never reaches other members; anonym never carries the name;
+    namn shows the organisation. The colour follows the writer's answer."""
+    ids = seed_trad(app_db)
+    a = skapa_medlem(app_db, "Uppsala universitet")
+    b = skapa_medlem(app_db, "Umeå universitet")
+    app_db.commit()
+    klient_a = _medlemsklient(klient_fabrik, ge_token(app_db, a))
+    token_a = _csrf(klient_a)
+    klient_b = _medlemsklient(klient_fabrik, ge_token(app_db, b))
+
+    # Go-live on Registrera avhandling: an open comment works on any answer.
+    klient_a.post(f"/svara/{ids['registrera']}/svar",
+                  data={"svar": "golive_krav", "csrf_token": token_a})
+
+    def spara(delning):
+        klient_a.post(f"/svara/{ids['registrera']}/oppen-kommentar",
+                      data={"oppen_kommentar": "Blockerar vår disputationsprocess.",
+                            "oppen_delning": delning, "csrf_token": token_a})
+        return klient_b.get("/svara").text
+
+    sida = spara("privat")
+    assert "Blockerar vår disputationsprocess." not in sida
+
+    sida = spara("anonym")
+    assert "Blockerar vår disputationsprocess." in sida
+    assert "Uppsala universitet" not in sida
+    assert "Go-live · anonym:" in sida
+    assert "border-rose-200 bg-rose-50 text-rose-900" in sida
+
+    sida = spara("namn")
+    assert "Go-live · Uppsala universitet:" in sida
+
+    # An unknown sharing value falls back to privat, never to more visibility.
+    sida = spara("alla")
+    assert "Blockerar vår disputationsprocess." not in sida
+    assert app_db.execute("SELECT oppen_delning FROM bedomning WHERE medlem_id = ?",
+                          (a,)).fetchone()[0] == "privat"
 
 
 def test_acceptance_9_4_medlemsvy(app_db, klient_fabrik):

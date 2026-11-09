@@ -112,15 +112,15 @@ def _historik(conn):
 def test_history_on_update(conn, trad):
     m = skapa_medlem(conn, "Uppsala universitet")
     satt_svar(conn, m, trad["wos"], "kan_vanta",
-              workaround="Cron-skript tills vidare.", kommentar="Privat notis.")
+              oppen_kommentar="Cron-skript tills vidare.", intern_kommentar="Privat notis.")
     satt_svar(conn, m, trad["wos"], "golive_krav")
 
     rows = _historik(conn)
     assert len(rows) == 1
     gammal = rows[0]
     assert gammal["svar"] == "kan_vanta"
-    assert gammal["workaround"] == "Cron-skript tills vidare."
-    assert gammal["kommentar"] == "Privat notis."
+    assert gammal["oppen_kommentar"] == "Cron-skript tills vidare."
+    assert gammal["intern_kommentar"] == "Privat notis."
 
     aktuell = conn.execute(
         "SELECT svar FROM bedomning WHERE medlem_id = ? AND funktion_id = ?",
@@ -131,14 +131,14 @@ def test_history_on_update(conn, trad):
 
 def test_history_on_delete(conn, trad):
     m = skapa_medlem(conn, "Umeå universitet")
-    satt_svar(conn, m, trad["wos"], "behovs_ej", kommentar="Ej relevant för oss.")
+    satt_svar(conn, m, trad["wos"], "behovs_ej", intern_kommentar="Ej relevant för oss.")
     conn.execute("DELETE FROM bedomning WHERE medlem_id = ? AND funktion_id = ?",
                  (m, trad["wos"]))
 
     rows = _historik(conn)
     assert len(rows) == 1
     assert rows[0]["svar"] == "behovs_ej"
-    assert rows[0]["kommentar"] == "Ej relevant för oss."
+    assert rows[0]["intern_kommentar"] == "Ej relevant för oss."
 
 
 # --- FK behaviour -----------------------------------------------------------

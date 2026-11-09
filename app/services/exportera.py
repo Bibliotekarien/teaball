@@ -17,10 +17,11 @@ from openpyxl.utils import get_column_letter
 
 from app.services import analys as analys_tjanst
 from app.services import roadmap as roadmap_tjanst
+from app.services.bedomning import OPPEN_DELNING
 from app.services.trad import TYP_LABEL, nodnamn
 
 # Spreadsheet formula injection: Excel/LibreOffice execute a cell whose text
-# starts with one of these. Member free-text (workaround, kommentar) and
+# starts with one of these. Member free-text (open and internal comments) and
 # admin-set names reach both the CSV and XLSX exports, so a leading apostrophe
 # neutralizes them — the tools then render the value as literal text. This is
 # the only member→förvaltare escalation path in the system.
@@ -100,11 +101,12 @@ def bedomningar_csv(conn) -> str:
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["medlem", "kategori", "funktion_id", "funktion", "svar",
-                "workaround", "workaround_delas", "kommentar", "besvarat_av", "besvarat"])
+                "oppen_kommentar", "oppen_delning", "intern_kommentar",
+                "besvarat_av", "besvarat"])
     for r in conn.execute(
         """
         SELECT m.namn AS medlem, m.kategori, b.funktion_id, f.namn AS funktion,
-               b.svar, b.workaround, b.workaround_delas, b.kommentar,
+               b.svar, b.oppen_kommentar, b.oppen_delning, b.intern_kommentar,
                b.besvarat_av, b.besvarat
         FROM bedomning b
         JOIN medlem m ON m.id = b.medlem_id
@@ -113,7 +115,7 @@ def bedomningar_csv(conn) -> str:
         """
     ):
         w.writerow(_sakra_rad([r["medlem"], r["kategori"], r["funktion_id"], r["funktion"],
-                    r["svar"], r["workaround"], r["workaround_delas"], r["kommentar"],
+                    r["svar"], r["oppen_kommentar"], r["oppen_delning"], r["intern_kommentar"],
                     r["besvarat_av"], r["besvarat"]]))
     return buf.getvalue()
 
@@ -160,9 +162,9 @@ def _blad_trad(blad, conn):
 
 
 def _blad_bedomningar(blad, conn):
-    _rubrikrad(blad, ["Medlem", "Kategori", "Nod", "Svar", "Workaround", "Delas",
-                      "Kommentar (privat)", "Besvarat av", "Besvarat"],
-               [28, 13, 40, 11, 40, 7, 40, 20, 18])
+    _rubrikrad(blad, ["Medlem", "Kategori", "Nod", "Svar", "Öppen kommentar", "Visas för",
+                      "Intern kommentar", "Besvarat av", "Besvarat"],
+               [28, 13, 40, 11, 40, 22, 40, 20, 18])
     rows = conn.execute(
         """
         SELECT m.namn AS medlem, m.kategori, f.namn AS funktion, b.*
@@ -174,8 +176,8 @@ def _blad_bedomningar(blad, conn):
     )
     for radnr, r in enumerate(rows, start=2):
         blad.append(_sakra_rad([r["medlem"], r["kategori"], nodnamn(r["funktion"], r["funktion_id"]), SVAR_ETIKETT[r["svar"]],
-                     r["workaround"], "ja" if r["workaround_delas"] else "nej",
-                     r["kommentar"], r["besvarat_av"], r["besvarat"]]))
+                     r["oppen_kommentar"], OPPEN_DELNING[r["oppen_delning"]],
+                     r["intern_kommentar"], r["besvarat_av"], r["besvarat"]]))
         _fyll(blad.cell(row=radnr, column=4), SVAR_STIL[r["svar"]])
 
 

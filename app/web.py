@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 
 from app import config
 from app.auth.csrf import csrf_token
+from app.services.bedomning import OPPEN_DELNING
 from app.services.trad import TYP_LABEL
 
 templates = Jinja2Templates(directory=str(config.TEMPLATES_DIR))
@@ -44,6 +45,8 @@ SVAR = {
         "dot": "bg-rose-600",
         "pill": "bg-rose-600 text-white border-rose-600",
         "ghost": "text-rose-700 border-rose-200 hover:bg-rose-50",
+        # Open comments from other members are tinted by the writer's answer.
+        "notis": "border-rose-200 bg-rose-50 text-rose-900",
     },
     "kan_vanta": {
         "label": "Ja, kan vänta 6–12 mån",
@@ -53,6 +56,7 @@ SVAR = {
         # (WCAG fail); dark amber text reads at 6.99:1.
         "pill": "bg-amber-500 text-amber-950 border-amber-500",
         "ghost": "text-amber-700 border-amber-200 hover:bg-amber-50",
+        "notis": "border-amber-200 bg-amber-50 text-amber-900",
     },
     "behovs_ej": {
         "label": "Behövs ej",
@@ -60,6 +64,7 @@ SVAR = {
         "dot": "bg-stone-400",
         "pill": "bg-stone-500 text-white border-stone-500",
         "ghost": "text-stone-500 border-stone-200 hover:bg-stone-100",
+        "notis": "border-stone-300 bg-stone-50 text-stone-700",
     },
 }
 
@@ -124,10 +129,11 @@ ORDLISTA = [
                    "eget svar ges längre ned i trädet."},
     {"term": "Ej bedömd",
      "forklaring": "Går att bedöma men saknar svar — varken eget eller ärvt."},
-    {"term": "Workaround",
-     "forklaring": "Vid ”Kan vänta”: hur ni klarar er tills funktionen finns. "
-                   "Kan delas anonymt med andra medlemmar."},
-    {"term": "Kommentar",
+    {"term": "Öppen kommentar",
+     "forklaring": "Fritt tillägg till ett svar, t.ex. hur ni klarar er under tiden. "
+                   "Kan delas med andra medlemmar, anonymt eller med organisationens "
+                   "namn, och färgas efter svaret."},
+    {"term": "Intern kommentar",
      "forklaring": "Fritt tillägg till ett svar. Syns bara för medlemmen själv och för förvaltarna."},
     {"term": "Dold för medlemmar", "intern": True,
      "forklaring": "Noden visas inte i medlemmarnas vyer, och inte heller det som ligger under den."},
@@ -141,6 +147,7 @@ templates.env.globals["TYP_CLS"] = TYP_CLS
 templates.env.globals["TYP_BESKRIVNING"] = TYP_BESKRIVNING
 templates.env.globals["TYP_LABEL"] = TYP_LABEL
 templates.env.globals["FASER"] = FASER
+templates.env.globals["OPPEN_DELNING"] = OPPEN_DELNING
 templates.env.globals["ORDLISTA"] = ORDLISTA
 
 
