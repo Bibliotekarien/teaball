@@ -93,7 +93,7 @@
      max-w-prose hindrar beskrivningen från att löpa in under pillren till höger. #}
   {% if detaljerad and (n.beskrivning or n.lank_dokumentation or n.lank_jira) %}
   <div class="w-full pb-1 pl-[46px] text-xs">
-    {% if n.beskrivning %}<p class="max-w-prose text-stone-400">{{ n.beskrivning }}</p>{% endif %}
+    {% if n.beskrivning %}<p class="max-w-prose whitespace-pre-line text-stone-400">{{ n.beskrivning }}</p>{% endif %}
     {% if n.lank_dokumentation or n.lank_jira %}
     <p class="mt-0.5 flex gap-4">
       <span class="w-36 shrink-0">{% if n.lank_dokumentation %}<a href="{{ n.lank_dokumentation }}" target="_blank" rel="noopener noreferrer" class="whitespace-nowrap text-blue-800 underline hover:text-blue-900">Dokumentation&nbsp;↗</a>{% endif %}</span>
