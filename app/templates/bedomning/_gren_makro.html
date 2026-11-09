@@ -44,7 +44,7 @@
       {% if visa_dold and not n.synlig_stig %}
       <span class="ml-1 rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400" title="Visas inte för medlemmar">dold för medlemmar</span>
       {% endif %}
-      {% if n.beskrivning and detaljerad_har %}<p class="mt-0.5 text-xs text-stone-400">{{ n.beskrivning }}</p>{% endif %}
+      {% if n.beskrivning and detaljerad_har %}<p class="mt-0.5 whitespace-pre-line text-xs text-stone-400">{{ n.beskrivning }}</p>{% endif %}
       {% if delade_har %}
       <details class="mt-1">
         <summary class="cursor-pointer text-xs text-amber-700">💡 Workarounds från andra medlemmar ({{ delade_har|length }})</summary>
