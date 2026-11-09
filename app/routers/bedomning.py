@@ -12,7 +12,7 @@ from app.auth.csrf import krav_csrf
 from app.db import get_conn
 from app.services import bedomning as tjanst
 from app.services import trad as trad_tjanst
-from app.web import is_htmx, templates
+from app.web import bedomning_detaljerad, is_htmx, templates
 
 router = APIRouter(prefix="/bedomning", dependencies=[Depends(krav_csrf)])
 
@@ -51,6 +51,7 @@ def _gren_eller_redirect(request, conn, medlem_id: int, funktion_id: int):
             "delade": tjanst.delade_workarounds(conn, medlem_id),
             "bas": f"/bedomning/{medlem_id}",
             "visa_dold": True,
+            "detaljerad": bedomning_detaljerad(request),
             # Only reachable via admin POSTs; explicit rather than falling
             # through to the macro's default.
             "skrivbar": True,
@@ -67,6 +68,7 @@ def visa(
     dolj_bedomda: str = "",
     dolj_driftsatta: str = "",
     dolj_formagor: str = "",
+    vy: str = "",
     principal: Principal = Depends(krav_intern),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
@@ -86,6 +88,7 @@ def visa(
         "bas": f"/bedomning/{vald}",
         "visa_dold": True,
         "skrivbar": principal.roll == "admin",
+        "detaljerad": bedomning_detaljerad(request, vy),
     }
     ctx["dolj_bedomda"] = bool(dolj_bedomda)
     ctx["dolj_driftsatta"] = bool(dolj_driftsatta)

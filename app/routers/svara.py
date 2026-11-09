@@ -21,7 +21,7 @@ from app.db import get_conn
 from app.services import bedomning as tjanst
 from app.services import roadmap as roadmap_tjanst
 from app.services import trad as trad_tjanst
-from app.web import is_htmx, templates
+from app.web import bedomning_detaljerad, is_htmx, templates
 
 router = APIRouter(prefix="/svara", dependencies=[Depends(krav_csrf)])
 
@@ -149,6 +149,7 @@ def _gren_eller_redirect(request, conn, principal: Principal, funktion_id: int):
             "delade": tjanst.delade_workarounds(conn, principal.medlem_id),
             "bas": "/svara",
             "visa_dold": False,
+            "detaljerad": bedomning_detaljerad(request),
             "bedomda": bedomda,
             "kvar": kvar,
         },
@@ -161,6 +162,7 @@ def visa(
     dolj_bedomda: str = "",
     dolj_driftsatta: str = "",
     dolj_formagor: str = "",
+    vy: str = "",
     principal: Principal = Depends(krav_medlem),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
@@ -186,6 +188,7 @@ def visa(
             "delade": tjanst.delade_workarounds(conn, principal.medlem_id),
             "bas": "/svara",
             "visa_dold": False,
+            "detaljerad": bedomning_detaljerad(request, vy),
             "bedomda": bedomda,
             "kvar": kvar,
             "dolj_bedomda": bool(dolj_bedomda),
