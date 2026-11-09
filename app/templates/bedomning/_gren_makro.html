@@ -70,8 +70,12 @@
           hx-post="{{ bas }}/{{ n.id }}/svar" hx-target="#gren-{{ n.id }}" hx-swap="outerHTML"
           class="flex items-center gap-1">
       <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+      {# title är medvetet tom tills vidare; knapptexten bär svaret och
+         aria-pressed läget. Attributet står kvar så tooltipen lätt kan
+         läggas tillbaka (var: s.label, plus " — klicka igen för att ångra"
+         på det valda svaret). #}
       {% for nyckel, s in SVAR.items() %}
-      <button name="svar" value="{{ nyckel }}" title="{{ s.label }}{{ ' — klicka igen för att ångra' if eget and eget.svar == nyckel else '' }}"
+      <button name="svar" value="{{ nyckel }}" title=""
               aria-pressed="{{ 'true' if eget and eget.svar == nyckel else 'false' }}"
               class="rounded-full border px-2 py-1.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-blue-700 sm:py-0.5 {{ s.pill if eget and eget.svar == nyckel else s.ghost }}">{{ s.kort }}</button>
       {% endfor %}
