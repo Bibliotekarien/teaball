@@ -5,6 +5,7 @@ roadmap bär på — redigering, dolda noder, exportlänkar, andras svar."""
 from app import matomo
 from tests.conftest import (
     ge_token,
+    huvuddel,
     klient_fabrik,  # noqa: F401  (fixture)
     logga_in,
     satt_svar,
@@ -32,7 +33,8 @@ def test_roadmap_visar_avgangar_och_egna_svar(app_db, klient_fabrik):
     klient = _medlemsklient(klient_fabrik, ge_token(app_db, a))
     svar = klient.get("/svara/roadmap")
     assert svar.status_code == 200
-    sida = svar.text
+    # Huvudinnehållet: ordlistan bredvid upprepar alla svars- och statusetiketter.
+    sida = huvuddel(svar.text)
     # Avgångarna och raderna, med namn, typ och status.
     assert ">Avgång 1</h2>" in sida and ">senare</h2>" in sida
     assert "Registrera avhandling" in sida and "Import från Web of Science" in sida
@@ -42,7 +44,7 @@ def test_roadmap_visar_avgangar_och_egna_svar(app_db, klient_fabrik):
     assert "(ärvt)" in sida and "ärvt från Import" in sida
     # B:s svar syns inte — varken etikett, antal eller namn.
     assert "Behövs ej" not in sida
-    assert "Umeå" not in sida
+    assert "Umeå" not in svar.text
     # Obedömda bedömbara noder markeras; raderna länkar till bedömningen.
     assert "ej bedömd" in sida
     assert f'href="/svara#rad-{ids["registrera"]}"' in sida
@@ -78,11 +80,11 @@ def test_roadmap_filter(app_db, klient_fabrik):
 
     utan_krav = klient.get("/svara/roadmap").text
     assert "Dubblettdetektering" not in utan_krav          # krav döljs som standard
-    med_krav = klient.get("/svara/roadmap?visa_krav=1").text
+    med_krav = huvuddel(klient.get("/svara/roadmap?visa_krav=1").text)
     assert "Dubblettdetektering" in med_krav
     utan_formagor = klient.get("/svara/roadmap?dolj_formagor=1").text
     assert "Publicering" not in utan_formagor and "Import från Web of Science" in utan_formagor
-    utan_svar = klient.get("/svara/roadmap?dolj_svar=1").text
+    utan_svar = huvuddel(klient.get("/svara/roadmap?dolj_svar=1").text)
     assert "Kan vänta" not in utan_svar and "ej bedömd" not in utan_svar
     assert "Kan vänta" in med_krav
 

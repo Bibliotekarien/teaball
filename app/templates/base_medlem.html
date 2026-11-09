@@ -32,9 +32,10 @@
     {% endfor %}
   </nav>
   {% endif %}
-  <main class="mx-auto max-w-4xl px-3 py-4 sm:px-6 sm:py-5">
+  <main class="mx-auto max-w-4xl px-3 py-4 sm:px-6 sm:py-5{% if principal %} ordlista-luft{% endif %}">
     {% block innehall %}{% endblock %}
   </main>
+  {% if principal %}{% include "_ordlista.html" %}{% endif %}
 
   <footer class="mx-auto max-w-4xl px-3 pb-6 pt-2 text-xs text-stone-400 sm:px-6">
     <a href="/integritet" class="underline decoration-stone-300 underline-offset-2 hover:text-stone-600">Personuppgifter &amp; integritet</a>

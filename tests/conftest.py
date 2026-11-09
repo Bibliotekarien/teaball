@@ -75,6 +75,13 @@ def skapa_forvaltare(conn, namn="anna", losenord="hemligt-losen", roll="admin"):
     conn.commit()
 
 
+def huvuddel(sida: str) -> str:
+    """The page's <main> only. The glossary panel sits outside it and repeats
+    every answer and status label, so 'label not on the page' assertions
+    must look at the content, not the whole document."""
+    return sida.split("<main", 1)[1].split("</main>", 1)[0]
+
+
 def csrf_fran(html: str) -> str:
     return re.search(r'name="csrf_token" value="([^"]+)"', html).group(1)
 

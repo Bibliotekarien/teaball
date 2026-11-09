@@ -26,6 +26,22 @@
     }
   });
 
+  // <details data-ordlista>: Esc or a click outside closes the glossary
+  // panel. Without JS the tab itself still toggles it.
+  document.addEventListener("keydown", function (e) {
+    var ordlista = document.querySelector("details[data-ordlista][open]");
+    if (e.key === "Escape" && ordlista) {
+      ordlista.open = false;
+      ordlista.querySelector("summary").focus();
+    }
+  });
+  document.addEventListener("click", function (e) {
+    var ordlista = document.querySelector("details[data-ordlista][open]");
+    if (ordlista && !ordlista.contains(e.target)) {
+      ordlista.open = false;
+    }
+  });
+
   // htmx swallows non-2xx responses silently — without this banner a member
   // whose save failed (expired session, network hiccup) believes it succeeded.
   document.addEventListener("htmx:responseError", visaFelbanner);
