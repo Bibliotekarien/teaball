@@ -63,6 +63,19 @@
              {% if not nod or nod.synlig_externt %}checked{% endif %}>
       Synlig för medlemmar
     </label>
+    {# Lås från rankning: noden syns men knapparna är utgråade, med kommentaren
+       bredvid. Kommentaren sparas även olåst, så ett nytt lås behåller texten. #}
+    <label class="flex items-end gap-2 pb-1 text-sm">
+      <input type="checkbox" name="rankning_last" value="1"
+             {% if nod and nod.rankning_last %}checked{% endif %}>
+      Lås från rankning
+    </label>
+    <label class="grid gap-0.5 text-xs text-stone-500">Kommentar vid låset (visas för medlemmarna)
+      <input name="rankning_last_kommentar" maxlength="500"
+             value="{{ nod.rankning_last_kommentar or '' if nod else '' }}"
+             placeholder="t.ex. Beslutat av styrgruppen"
+             class="rounded-md border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700">
+    </label>
     <label class="grid gap-0.5 text-xs text-stone-500 sm:col-span-2">Beskrivning
       <textarea name="beskrivning" rows="2" maxlength="4000"
                 class="rounded-md border border-stone-300 px-2 py-1 text-sm">{{ nod.beskrivning or '' if nod else '' }}</textarea>

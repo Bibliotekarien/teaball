@@ -30,6 +30,9 @@
         <span class="rounded border px-1.5 py-0.5 text-xs {{ SVAR[eff.svar].pill }}"
               title="{{ SVAR[eff.svar].label }}{% if eff.arvd %} — ärvt från {{ eff.kalla_namn }}{% endif %}">
           {{ SVAR[eff.svar].kort }}{% if eff.arvd %} <span class="italic opacity-80">(ärvt)</span>{% endif %}</span>
+        {% elif n.typ != "förmåga" and n.rankning_last %}
+        <span class="rounded border border-dashed border-stone-300 px-1.5 py-0.5 text-xs text-stone-400"
+              title="{{ n.rankning_last_kommentar or 'Låst från rankning' }}">🔒 låst</span>
         {% elif n.typ != "förmåga" and n.status not in ej_rankbara %}
         <span class="rounded border border-dashed border-stone-300 px-1.5 py-0.5 text-xs text-stone-400">ej bedömd</span>
         {% endif %}
