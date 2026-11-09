@@ -83,7 +83,8 @@ def test_medlem_ser_utgraade_knappar_och_kan_inte_svara(client, app_db, klient_f
     rad = sida.split(f'id="rad-{ids["registrera"]}"', 1)[1].split('id="rad-', 1)[0]
     # Alla tre knapparna finns men är inaktiverade; det tidigare svaret syns.
     assert rad.count("disabled") == 3
-    assert 'aria-pressed="true"' in rad and "ert tidigare svar" in rad
+    intryckt = rad.split('aria-pressed="true"', 1)[1].split("</button>", 1)[0]
+    assert intryckt.endswith(">Kan vänta")
     assert f"🔒 Låst från rankning: {KOMMENTAR}" in rad
     assert f'action="/svara/{ids["registrera"]}/svar"' not in rad
     # Tjänsten spärrar även en direkt POST, och svaret står kvar.
