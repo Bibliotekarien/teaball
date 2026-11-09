@@ -2,6 +2,7 @@
 
 import hashlib
 from functools import lru_cache
+from urllib.parse import urlencode
 
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
@@ -115,3 +116,23 @@ templates.env.globals["FASER"] = FASER
 
 def is_htmx(request: Request) -> bool:
     return request.headers.get("hx-request") == "true"
+
+
+def med_parametrar(request: Request, **nya: str) -> str:
+    """Current path and query string with the given parameters replaced.
+    Relative on purpose: request.url can carry the wrong scheme behind the
+    proxy. Lets a view toggle keep the filters the page was opened with."""
+    behallna = [(k, v) for k, v in request.query_params.multi_items() if k not in nya]
+    return f"{request.url.path}?{urlencode(behallna + list(nya.items()))}"
+
+
+templates.env.globals["med_parametrar"] = med_parametrar
+
+
+def bedomning_detaljerad(request: Request, vy: str = "") -> bool:
+    """Compact/detailed toggle for the assessment view, sticky per session
+    like the tree's. Detailed is the default here (unlike the tree): the
+    descriptions are what members judge by, so hiding them is opt-in."""
+    if vy in ("kompakt", "detaljerad"):
+        request.session["bedomning_vy"] = vy
+    return request.session.get("bedomning_vy") != "kompakt"

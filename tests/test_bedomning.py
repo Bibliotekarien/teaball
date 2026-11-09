@@ -248,6 +248,40 @@ def test_raknare_och_filter_i_medlemsvyn(app_db, klient_fabrik):
     assert 'name="dolj_bedomda" value="1" data-autosubmit checked' in sida
 
 
+def test_vyvaxling_i_medlemsvyn(app_db, klient_fabrik):
+    ids = seed_trad(app_db)
+    detaljer = skapa_funktion(app_db, "Med detaljer", ids["publicering"], typ="funktion",
+                              beskrivning="En längre förklaring.", sortering=30)
+    medlem = skapa_medlem(app_db, "Uppsala universitet")
+    token = ge_token(app_db, medlem)
+    klient = klient_fabrik()
+    klient.get(f"/svara/{token}", follow_redirects=False)
+
+    # Detaljerad är standard i bedömningen: beskrivningen är det medlemmen
+    # bedömer utifrån. Panelen erbjuder kompakt och alla-knapparna.
+    sida = klient.get("/svara").text
+    assert ">En längre förklaring.</p>" in sida
+    assert ">Kompakt vy</a>" in sida
+    assert 'data-trad-alla="kompaktera"' in sida
+
+    # Vylänken behåller sidans filter.
+    sida = klient.get("/svara?dolj_driftsatta=1").text
+    assert 'href="/svara?dolj_driftsatta=1&amp;vy=kompakt"' in sida
+
+    # Kompakt: beskrivningen bara som tooltip, och valet är klibbigt — även
+    # för grenen som kommer tillbaka efter ett svar.
+    sida = klient.get("/svara?vy=kompakt").text
+    assert ">En längre förklaring.</p>" not in sida
+    assert 'title="En längre förklaring.">Med detaljer</span>' in sida
+    assert ">Detaljerad vy</a>" in sida
+    assert ">En längre förklaring.</p>" not in klient.get("/svara").text
+    csrf = csrf_fran(klient.get("/svara").text)
+    gren = klient.post(f"/svara/{detaljer}/svar", data={"svar": "golive_krav"},
+                       headers={"HX-Request": "true", "X-CSRF-Token": csrf})
+    assert f'id="gren-{detaljer}"' in gren.text
+    assert ">En längre förklaring.</p>" not in gren.text
+
+
 def test_delade_workarounds_visas_anonymt(client, app_db):
     ids, medlem, token = _förbered(client, app_db)
     annan = skapa_medlem(app_db, "Kungliga Tekniska högskolan")
