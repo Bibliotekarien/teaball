@@ -1,6 +1,6 @@
 {% from "_ankare.html" import ankare %}
 {# Assessment tree node (B3–B6, B8). Imported WITH CONTEXT: reads direkta,
-   effektiva, delade, bas, visa_dold, skrivbar and request from the render
+   effektiva, oppna, bas, visa_dold, skrivbar and request from the render
    context. bas = URL prefix for saves: /bedomning/<medlem_id> (proxy) or
    /svara (member). detaljerad (default true) shows the description under the
    name; compact keeps it as a title tooltip, like the tree.
@@ -28,7 +28,7 @@
 {% set detaljerad_har = detaljerad|default(true) %}
 {% set eget = direkta.get(n.id) %}
 {% set eff = effektiva.get(n.id) %}
-{% set delade_har = delade.get(n.id, []) %}
+{% set oppna_har = oppna.get(n.id, []) %}
 <div id="rad-{{ n.id }}" class="group flex scroll-mt-2 flex-col gap-2 border-b border-stone-100 py-2 pr-2 hover:bg-stone-50 sm:flex-row sm:items-start">
   <div class="flex min-w-0 flex-1 items-start gap-2">
     {% if n.barn %}
@@ -45,11 +45,18 @@
       <span class="ml-1 rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400" title="Visas inte för medlemmar">dold för medlemmar</span>
       {% endif %}
       {% if n.beskrivning and detaljerad_har %}<p class="mt-0.5 whitespace-pre-line text-xs text-stone-400">{{ n.beskrivning }}</p>{% endif %}
-      {% if delade_har %}
+      {% if oppna_har %}
+      {# Other members' shared open comments, tinted by the writer's answer.
+         The answer is also written out — colour must not be the only cue. #}
       <details class="mt-1">
-        <summary class="cursor-pointer text-xs text-amber-700">💡 Workarounds från andra medlemmar ({{ delade_har|length }})</summary>
-        <ul class="ml-4 mt-1 list-disc text-xs text-amber-900">
-          {% for w in delade_har %}<li>{{ w }}</li>{% endfor %}
+        <summary class="cursor-pointer text-xs text-stone-500">Öppna kommentarer från andra medlemmar ({{ oppna_har|length }})</summary>
+        <ul class="mt-1 space-y-1">
+          {% for k in oppna_har %}
+          <li class="rounded border px-2 py-1 text-xs {{ SVAR[k.svar].notis }}">
+            <span class="font-medium">{{ SVAR[k.svar].kort }} · {{ k.namn or "anonym" }}:</span>
+            <span class="whitespace-pre-line">{{ k.text }}</span>
+          </li>
+          {% endfor %}
         </ul>
       </details>
       {% endif %}
@@ -111,43 +118,47 @@
     <span class="text-[11px] italic text-stone-500">ärvt: {{ SVAR[eff.svar].kort }} (från {{ eff.kalla_namn }})</span>
     {% endif %}
 
-    {% if eget and eget.svar == "kan_vanta" %}
-    {% if not skrivbar_har %}
-    {% if eget.workaround %}
-    <p class="w-72 max-w-full rounded border border-amber-200 bg-amber-50 px-2 py-1 text-right text-xs text-amber-900">{{ eget.workaround }}{% if eget.workaround_delas %} <span class="text-amber-600">(delas)</span>{% endif %}</p>
-    {% endif %}
-    {% else %}
-    <form method="post" action="{{ bas }}/{{ n.id }}/workaround"
-          hx-post="{{ bas }}/{{ n.id }}/workaround" hx-swap="none"
-          hx-trigger="submit, change delay:500ms"
-          class="flex w-72 max-w-full flex-col items-end gap-1">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-      <input name="workaround" value="{{ eget.workaround or '' }}" maxlength="4000"
-             placeholder="Workaround: hur klarar ni er under tiden?"
-             class="w-full rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs placeholder-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400">
-      <label class="flex items-center gap-1 text-[11px] text-stone-500">
-        <input type="checkbox" name="workaround_delas" value="1" {% if eget.workaround_delas %}checked{% endif %}>
-        Dela med andra medlemmar
-        <button class="ml-1 rounded border border-stone-200 px-1.5 text-[11px] text-stone-500 hover:bg-stone-100">Spara</button>
-      </label>
-    </form>
-    {% endif %}
-    {% endif %}
-
+    {# Two comments on every own answer (migration 0009). The open one is
+       tinted by the answer, like other members see it, and its sharing is
+       chosen per comment; the internal one stays with the member and
+       förvaltarna. Both fold away so an answered row stays one line. #}
     {% if eget and not skrivbar_har %}
-    {% if eget.kommentar %}
-    <p class="w-72 max-w-full text-right text-[11px] text-stone-500">💬 {{ eget.kommentar }}</p>
+    {% if eget.oppen_kommentar %}
+    <p class="w-72 max-w-full whitespace-pre-line rounded border px-2 py-1 text-right text-xs {{ SVAR[eget.svar].notis }}">{{ eget.oppen_kommentar }} <span class="opacity-80">({{ OPPEN_DELNING[eget.oppen_delning] }})</span></p>
+    {% endif %}
+    {% if eget.intern_kommentar %}
+    <p class="w-72 max-w-full whitespace-pre-line text-right text-[11px] text-stone-500">💬 {{ eget.intern_kommentar }}</p>
     {% endif %}
     {% elif eget %}
     <details class="w-72 max-w-full">
-      <summary class="cursor-pointer text-right text-[11px] {{ 'text-blue-800' if eget.kommentar else 'text-stone-400' }}">💬 Kommentar{{ ' ✓' if eget.kommentar else '' }}</summary>
-      <form method="post" action="{{ bas }}/{{ n.id }}/kommentar"
-            hx-post="{{ bas }}/{{ n.id }}/kommentar" hx-swap="none"
+      <summary class="cursor-pointer text-right text-[11px] {{ 'text-blue-800' if eget.oppen_kommentar else 'text-stone-400' }}">Öppen kommentar{{ ' ✓ (' ~ OPPEN_DELNING[eget.oppen_delning] ~ ')' if eget.oppen_kommentar else '' }}</summary>
+      <form method="post" action="{{ bas }}/{{ n.id }}/oppen-kommentar"
+            hx-post="{{ bas }}/{{ n.id }}/oppen-kommentar" hx-swap="none"
             hx-trigger="submit, change delay:500ms"
             class="mt-1 flex flex-col items-end gap-1">
         <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-        <textarea name="kommentar" rows="2" maxlength="4000" placeholder="Kommentar till ert svar (privat)"
-                  class="w-full rounded border border-stone-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700">{{ eget.kommentar or '' }}</textarea>
+        <textarea name="oppen_kommentar" rows="2" maxlength="4000"
+                  placeholder="T.ex. hur ni klarar er under tiden — kan delas med andra medlemmar"
+                  class="w-full rounded border px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700 {{ SVAR[eget.svar].notis }}">{{ eget.oppen_kommentar or '' }}</textarea>
+        <label class="flex items-center gap-1 text-[11px] text-stone-500">Visas för
+          <select name="oppen_delning" class="rounded border border-stone-200 bg-white px-1 text-[11px]">
+            {% for nyckel, etikett in OPPEN_DELNING.items() %}
+            <option value="{{ nyckel }}" {% if eget.oppen_delning == nyckel %}selected{% endif %}>{{ etikett }}</option>
+            {% endfor %}
+          </select>
+          <button class="ml-1 rounded border border-stone-200 px-1.5 text-[11px] text-stone-500 hover:bg-stone-100">Spara</button>
+        </label>
+      </form>
+    </details>
+    <details class="w-72 max-w-full">
+      <summary class="cursor-pointer text-right text-[11px] {{ 'text-blue-800' if eget.intern_kommentar else 'text-stone-400' }}">💬 Intern kommentar{{ ' ✓' if eget.intern_kommentar else '' }}</summary>
+      <form method="post" action="{{ bas }}/{{ n.id }}/intern-kommentar"
+            hx-post="{{ bas }}/{{ n.id }}/intern-kommentar" hx-swap="none"
+            hx-trigger="submit, change delay:500ms"
+            class="mt-1 flex flex-col items-end gap-1">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+        <textarea name="intern_kommentar" rows="2" maxlength="4000" placeholder="Syns bara för er och förvaltarna"
+                  class="w-full rounded border border-stone-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-700">{{ eget.intern_kommentar or '' }}</textarea>
         <button class="rounded border border-stone-200 px-1.5 text-[11px] text-stone-500 hover:bg-stone-100">Spara</button>
       </form>
     </details>

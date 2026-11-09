@@ -119,16 +119,17 @@ def skapa_medlem(conn, namn, kategori=None):
     return cur.lastrowid
 
 
-def satt_svar(conn, medlem_id, funktion_id, svar, workaround=None,
-              workaround_delas=0, kommentar=None, besvarat_av=None):
+def satt_svar(conn, medlem_id, funktion_id, svar, oppen_kommentar=None,
+              oppen_delning="privat", intern_kommentar=None, besvarat_av=None):
     conn.execute(
-        "INSERT INTO bedomning (medlem_id, funktion_id, svar, workaround, workaround_delas,"
-        " kommentar, besvarat_av) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO bedomning (medlem_id, funktion_id, svar, oppen_kommentar, oppen_delning,"
+        " intern_kommentar, besvarat_av) VALUES (?, ?, ?, ?, ?, ?, ?)"
         " ON CONFLICT (medlem_id, funktion_id) DO UPDATE SET"
-        " svar=excluded.svar, workaround=excluded.workaround,"
-        " workaround_delas=excluded.workaround_delas, kommentar=excluded.kommentar,"
+        " svar=excluded.svar, oppen_kommentar=excluded.oppen_kommentar,"
+        " oppen_delning=excluded.oppen_delning, intern_kommentar=excluded.intern_kommentar,"
         " besvarat_av=excluded.besvarat_av, besvarat=datetime('now')",
-        (medlem_id, funktion_id, svar, workaround, workaround_delas, kommentar, besvarat_av),
+        (medlem_id, funktion_id, svar, oppen_kommentar, oppen_delning, intern_kommentar,
+         besvarat_av),
     )
 
 

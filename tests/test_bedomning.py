@@ -62,15 +62,16 @@ def test_acceptance_9_3_historik_intakt(client, app_db):
     bas = f"/bedomning/{medlem}/{ids['wos']}"
 
     client.post(f"{bas}/svar", data={"svar": "kan_vanta", "csrf_token": token})
-    client.post(f"{bas}/workaround",
-                data={"workaround": "Cron-skript som diffar mot gårdagens skörd.",
-                      "workaround_delas": "1", "csrf_token": token})
-    client.post(f"{bas}/kommentar",
-                data={"kommentar": "Väntar på styrgruppen.", "csrf_token": token})
+    client.post(f"{bas}/oppen-kommentar",
+                data={"oppen_kommentar": "Cron-skript som diffar mot gårdagens skörd.",
+                      "oppen_delning": "anonym", "csrf_token": token})
+    client.post(f"{bas}/intern-kommentar",
+                data={"intern_kommentar": "Väntar på styrgruppen.", "csrf_token": token})
 
-    # B4: the workaround field is visible while the answer is kan_vanta ...
+    # B4: the open comment is tinted by the answer (kan vänta: amber) ...
     sida = client.get(f"/bedomning?medlem_id={medlem}").text
-    assert "Workaround: hur klarar ni er under tiden?" in sida
+    assert "Öppen kommentar ✓ (alla medlemmar, anonymt)" in sida
+    assert "focus:ring-blue-700 border-amber-200 bg-amber-50" in sida
 
     # ... then change the answer to golive_krav (§9.3).
     client.post(f"{bas}/svar", data={"svar": "golive_krav", "csrf_token": token})
@@ -80,15 +81,17 @@ def test_acceptance_9_3_historik_intakt(client, app_db):
         (ids["wos"],),
     ).fetchone()
     assert hist["svar"] == "kan_vanta"
-    assert hist["workaround"] == "Cron-skript som diffar mot gårdagens skörd."
-    assert hist["kommentar"] == "Väntar på styrgruppen."
+    assert hist["oppen_kommentar"] == "Cron-skript som diffar mot gårdagens skörd."
+    assert hist["oppen_delning"] == "anonym"
+    assert hist["intern_kommentar"] == "Väntar på styrgruppen."
 
-    # The field disappears with the new answer (B4) but the row keeps its data.
+    # Both comments stay with the new answer, and the colour follows it.
     sida = client.get(f"/bedomning?medlem_id={medlem}").text
-    assert "Workaround: hur klarar ni er under tiden?" not in sida
+    assert "focus:ring-blue-700 border-rose-200 bg-rose-50" in sida
     rad = app_db.execute("SELECT * FROM bedomning WHERE funktion_id = ?", (ids["wos"],)).fetchone()
     assert rad["svar"] == "golive_krav"
-    assert rad["workaround"] == "Cron-skript som diffar mot gårdagens skörd."
+    assert rad["oppen_kommentar"] == "Cron-skript som diffar mot gårdagens skörd."
+    assert rad["intern_kommentar"] == "Väntar på styrgruppen."
 
 
 def test_driftsatt_och_utgar_kan_inte_rankas(client, app_db):
@@ -283,22 +286,22 @@ def test_vyvaxling_i_medlemsvyn(app_db, klient_fabrik):
     assert ">En längre förklaring.</p>" not in gren.text
 
 
-def test_delade_workarounds_visas_anonymt(client, app_db):
+def test_delade_oppna_kommentarer_visas_anonymt(client, app_db):
     ids, medlem, token = _förbered(client, app_db)
     annan = skapa_medlem(app_db, "Kungliga Tekniska högskolan")
     app_db.execute(
-        "INSERT INTO bedomning (medlem_id, funktion_id, svar, workaround, workaround_delas)"
-        " VALUES (?, ?, 'kan_vanta', 'Egen XSLT-transform i pipeline.', 1)",
+        "INSERT INTO bedomning (medlem_id, funktion_id, svar, oppen_kommentar, oppen_delning)"
+        " VALUES (?, ?, 'kan_vanta', 'Egen XSLT-transform i pipeline.', 'anonym')",
         (annan, ids["wos"]),
     )
     app_db.commit()
 
     sida = client.get(f"/bedomning?medlem_id={medlem}").text
-    assert "Workarounds från andra medlemmar (1)" in sida
+    assert "Öppna kommentarer från andra medlemmar (1)" in sida
     assert "Egen XSLT-transform i pipeline." in sida
 
     # Anonymity (B8): the subtree partial (which has no member <select>) must
-    # not attribute the workaround to its author.
+    # not attribute the comment to its author.
     partial = client.post(f"/bedomning/{medlem}/{ids['wos']}/svar",
                           data={"svar": "behovs_ej"},
                           headers={"HX-Request": "true", "X-CSRF-Token": token}).text

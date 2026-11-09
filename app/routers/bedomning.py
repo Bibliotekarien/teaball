@@ -48,7 +48,7 @@ def _gren_eller_redirect(request, conn, medlem_id: int, funktion_id: int):
             "n": nod,
             "direkta": direkta,
             "effektiva": effektiva,
-            "delade": tjanst.delade_workarounds(conn, medlem_id),
+            "oppna": tjanst.oppna_kommentarer(conn, medlem_id),
             "bas": f"/bedomning/{medlem_id}",
             "visa_dold": True,
             "detaljerad": bedomning_detaljerad(request),
@@ -96,7 +96,7 @@ def visa(
     ctx["bedomda"], ctx["kvar"] = 0, 0
     if vald:
         ctx["direkta"], ctx["effektiva"] = tjanst.svarskarta(conn, vald)
-        ctx["delade"] = tjanst.delade_workarounds(conn, vald)
+        ctx["oppna"] = tjanst.oppna_kommentarer(conn, vald)
         # Counted on the full tree, before the filters — the counter must not
         # shrink along with what it measures.
         ctx["bedomda"], ctx["kvar"] = tjanst.rakna_bedomt(ctx["rotter"], ctx["effektiva"])
@@ -107,7 +107,7 @@ def visa(
         if dolj_bedomda:
             ctx["rotter"] = tjanst.utan_bedomda(ctx["rotter"], ctx["effektiva"])
     else:
-        ctx["direkta"], ctx["effektiva"], ctx["delade"] = {}, {}, {}
+        ctx["direkta"], ctx["effektiva"], ctx["oppna"] = {}, {}, {}
     return templates.TemplateResponse(request, "bedomning/index.html", ctx)
 
 
@@ -129,17 +129,17 @@ def spara_svar(
     return _gren_eller_redirect(request, conn, medlem_id, funktion_id)
 
 
-@router.post("/{medlem_id}/{funktion_id}/workaround")
-def spara_workaround(
+@router.post("/{medlem_id}/{funktion_id}/oppen-kommentar")
+def spara_oppen_kommentar(
     request: Request,
     medlem_id: int,
     funktion_id: int,
-    workaround: str = Form(""),
-    workaround_delas: str = Form(""),
+    oppen_kommentar: str = Form(""),
+    oppen_delning: str = Form("privat"),
     principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
-    tjanst.satt_workaround(conn, medlem_id, funktion_id, workaround, bool(workaround_delas))
+    tjanst.satt_oppen_kommentar(conn, medlem_id, funktion_id, oppen_kommentar, oppen_delning)
     conn.commit()
     if is_htmx(request):
         return Response(status_code=204)  # autosave: nothing else changes visually
@@ -148,16 +148,16 @@ def spara_workaround(
     )
 
 
-@router.post("/{medlem_id}/{funktion_id}/kommentar")
-def spara_kommentar(
+@router.post("/{medlem_id}/{funktion_id}/intern-kommentar")
+def spara_intern_kommentar(
     request: Request,
     medlem_id: int,
     funktion_id: int,
-    kommentar: str = Form(""),
+    intern_kommentar: str = Form(""),
     principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
-    tjanst.satt_kommentar(conn, medlem_id, funktion_id, kommentar)
+    tjanst.satt_intern_kommentar(conn, medlem_id, funktion_id, intern_kommentar)
     conn.commit()
     if is_htmx(request):
         return Response(status_code=204)

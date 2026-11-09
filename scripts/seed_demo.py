@@ -64,15 +64,15 @@ def seed(conn, slump: random.Random | None = None) -> tuple[int, int]:
     for medlem_id in medlem_ider:
         for funktion_id in slump.sample(nod_ider, 200):
             svar = slump.choice(SVAR)
-            workaround = (
+            oppen = (
                 "Manuellt kringgående via exportfil."
                 if svar == "kan_vanta" and slump.random() < 0.3 else None
             )
             conn.execute(
-                "INSERT INTO bedomning (medlem_id, funktion_id, svar, workaround,"
-                " workaround_delas, kommentar) VALUES (?, ?, ?, ?, ?, ?)",
-                (medlem_id, funktion_id, svar, workaround,
-                 1 if workaround and slump.random() < 0.5 else 0,
+                "INSERT INTO bedomning (medlem_id, funktion_id, svar, oppen_kommentar,"
+                " oppen_delning, intern_kommentar) VALUES (?, ?, ?, ?, ?, ?)",
+                (medlem_id, funktion_id, svar, oppen,
+                 "anonym" if oppen and slump.random() < 0.5 else "privat",
                  "Diskuterat på dialogmöte." if slump.random() < 0.1 else None),
             )
     conn.commit()

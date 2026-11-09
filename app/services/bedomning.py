@@ -40,20 +40,38 @@ def svarskarta(conn, medlem_id: int):
     return direkta, effektiva
 
 
-def delade_workarounds(conn, medlem_id: int):
-    """Other members' shared workarounds per node, anonymously (B8):
-    {funktion_id: [text, ...]} — never exposes who wrote them."""
-    ut: dict[int, list[str]] = {}
+# Who sees an open comment (bedomning.oppen_delning, migration 0009), with
+# the UI wording. Order is the picker's: least visible first, so the
+# default is privat.
+OPPEN_DELNING = {
+    "privat": "bara förvaltarna",
+    "anonym": "alla medlemmar, anonymt",
+    "namn": "alla medlemmar, med organisationens namn",
+}
+
+
+def oppna_kommentarer(conn, medlem_id: int):
+    """Other members' shared open comments per node (B8, migration 0009):
+    {funktion_id: [{"text", "svar", "namn"}, ...]}. svar is the writer's
+    current answer — the comment belongs to the answer row, so its colour
+    follows when they change their mind. namn is the organisation only when
+    the writer chose 'namn'; for 'anonym' the name is never even selected,
+    so a template mistake can't leak it."""
+    ut: dict[int, list[dict]] = {}
     for r in conn.execute(
         """
-        SELECT funktion_id, workaround FROM bedomning
-        WHERE workaround_delas = 1 AND workaround IS NOT NULL AND TRIM(workaround) != ''
-          AND medlem_id != ?
-        ORDER BY funktion_id, besvarat
+        SELECT b.funktion_id, b.oppen_kommentar AS text, b.svar,
+               CASE WHEN b.oppen_delning = 'namn' THEN m.namn END AS namn
+        FROM bedomning b
+        JOIN medlem m ON m.id = b.medlem_id
+        WHERE b.oppen_delning IN ('anonym', 'namn')
+          AND b.oppen_kommentar IS NOT NULL AND TRIM(b.oppen_kommentar) != ''
+          AND b.medlem_id != ?
+        ORDER BY b.funktion_id, b.besvarat
         """,
         (medlem_id,),
     ):
-        ut.setdefault(r["funktion_id"], []).append(r["workaround"])
+        ut.setdefault(r["funktion_id"], []).append(dict(r))
     return ut
 
 
@@ -121,7 +139,7 @@ def utan_driftsatta(rotter):
 
 def satt_svar(conn, medlem_id: int, funktion_id: int, svar: str, besvarat_av: str):
     """B3: clicking the already-selected answer removes it; otherwise upsert.
-    Changing the answer keeps workaround/comment (the old row goes to history
+    Changing the answer keeps both comments (the old row goes to history
     via the D2 trigger). Returns the resulting answer, or None if removed."""
     if svar not in GILTIGA_SVAR:
         raise ValueError("Ogiltigt svarsalternativ.")
@@ -159,19 +177,25 @@ def satt_svar(conn, medlem_id: int, funktion_id: int, svar: str, besvarat_av: st
     return svar
 
 
-def satt_workaround(conn, medlem_id: int, funktion_id: int, workaround: str, delas: bool):
-    """B4: only meaningful on an existing direct answer; no-op otherwise."""
+def satt_oppen_kommentar(conn, medlem_id: int, funktion_id: int, text: str, delning: str):
+    """B4 (migration 0009): the open comment and how it is shared — privat
+    (förvaltarna only), anonym or namn (all members, with the organisation's
+    name). Any answer may carry one. Only meaningful on an existing direct
+    answer; no-op otherwise. An unknown delning falls back to privat, never
+    to something more visible than the member asked for."""
+    if delning not in OPPEN_DELNING:
+        delning = "privat"
     conn.execute(
-        "UPDATE bedomning SET workaround = ?, workaround_delas = ?"
+        "UPDATE bedomning SET oppen_kommentar = ?, oppen_delning = ?"
         " WHERE medlem_id = ? AND funktion_id = ?",
-        (workaround.strip()[:4000] or None, 1 if delas else 0, medlem_id, funktion_id),
+        (text.strip()[:4000] or None, delning, medlem_id, funktion_id),
     )
 
 
-def satt_kommentar(conn, medlem_id: int, funktion_id: int, kommentar: str):
-    """B5: always private; requires an existing direct answer (the data model
-    has no answer-less rows)."""
+def satt_intern_kommentar(conn, medlem_id: int, funktion_id: int, text: str):
+    """B5: always private to the member and förvaltarna; requires an
+    existing direct answer (the data model has no answer-less rows)."""
     conn.execute(
-        "UPDATE bedomning SET kommentar = ? WHERE medlem_id = ? AND funktion_id = ?",
-        (kommentar.strip()[:4000] or None, medlem_id, funktion_id),
+        "UPDATE bedomning SET intern_kommentar = ? WHERE medlem_id = ? AND funktion_id = ?",
+        (text.strip()[:4000] or None, medlem_id, funktion_id),
     )

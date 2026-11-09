@@ -28,14 +28,18 @@
       <span><span class="mr-1 inline-block h-2 w-2 rounded-full bg-stone-400"></span>{{ r.behovs_ej }} behövs ej</span>
       <span class="text-stone-400">({{ r.totalt }} svar{% if arvda %} inkl. ärvda{% endif %})</span>
     </div>
-    {% set bank = workarounds.get(r.id, []) %}
+    {# Förvaltarna ser alla öppna kommentarer med organisationens namn, även
+       privata — samma färg per svar som medlemmarna ser. #}
+    {% set bank = oppna_kommentarer.get(r.id, []) %}
     {% if bank %}
-    <div class="mt-2 rounded bg-amber-50 p-2 text-xs text-amber-900">
-      <strong>Workaround-bank:</strong>
-      <ul class="ml-4 list-disc">
-        {% for w in bank %}
-        <li>{{ w.workaround }}
-          <span class="text-amber-700/70">— {{ w.medlem_namn }}{% if not w.workaround_delas %} (ej delad){% endif %}</span>
+    <div class="mt-2 text-xs">
+      <strong class="text-stone-700">Öppna kommentarer:</strong>
+      <ul class="mt-1 space-y-1">
+        {% for k in bank %}
+        <li class="rounded border px-2 py-1 {{ SVAR[k.svar].notis }}">
+          <span class="font-medium">{{ SVAR[k.svar].kort }} · {{ k.medlem_namn }}</span>
+          <span class="opacity-80">({{ OPPEN_DELNING[k.oppen_delning] }})</span>:
+          <span class="whitespace-pre-line">{{ k.oppen_kommentar }}</span>
         </li>
         {% endfor %}
       </ul>

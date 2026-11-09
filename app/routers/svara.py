@@ -146,7 +146,7 @@ def _gren_eller_redirect(request, conn, principal: Principal, funktion_id: int):
             "n": nod,
             "direkta": direkta,
             "effektiva": effektiva,
-            "delade": tjanst.delade_workarounds(conn, principal.medlem_id),
+            "oppna": tjanst.oppna_kommentarer(conn, principal.medlem_id),
             "bas": "/svara",
             "visa_dold": False,
             "detaljerad": bedomning_detaljerad(request),
@@ -185,7 +185,7 @@ def visa(
             "rotter": rotter,
             "direkta": direkta,
             "effektiva": effektiva,
-            "delade": tjanst.delade_workarounds(conn, principal.medlem_id),
+            "oppna": tjanst.oppna_kommentarer(conn, principal.medlem_id),
             "bas": "/svara",
             "visa_dold": False,
             "detaljerad": bedomning_detaljerad(request, vy),
@@ -215,18 +215,18 @@ def spara_svar(
     return _gren_eller_redirect(request, conn, principal, funktion_id)
 
 
-@router.post("/{funktion_id}/workaround")
-def spara_workaround(
+@router.post("/{funktion_id}/oppen-kommentar")
+def spara_oppen_kommentar(
     request: Request,
     funktion_id: int,
-    workaround: str = Form(""),
-    workaround_delas: str = Form(""),
+    oppen_kommentar: str = Form(""),
+    oppen_delning: str = Form("privat"),
     principal: Principal = Depends(krav_medlem),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     _kontrollera_synlig(conn, funktion_id)
-    tjanst.satt_workaround(
-        conn, principal.medlem_id, funktion_id, workaround, bool(workaround_delas)
+    tjanst.satt_oppen_kommentar(
+        conn, principal.medlem_id, funktion_id, oppen_kommentar, oppen_delning
     )
     conn.commit()
     if is_htmx(request):
@@ -234,16 +234,16 @@ def spara_workaround(
     return RedirectResponse(f"/svara#rad-{funktion_id}", status_code=303)
 
 
-@router.post("/{funktion_id}/kommentar")
-def spara_kommentar(
+@router.post("/{funktion_id}/intern-kommentar")
+def spara_intern_kommentar(
     request: Request,
     funktion_id: int,
-    kommentar: str = Form(""),
+    intern_kommentar: str = Form(""),
     principal: Principal = Depends(krav_medlem),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     _kontrollera_synlig(conn, funktion_id)
-    tjanst.satt_kommentar(conn, principal.medlem_id, funktion_id, kommentar)
+    tjanst.satt_intern_kommentar(conn, principal.medlem_id, funktion_id, intern_kommentar)
     conn.commit()
     if is_htmx(request):
         return Response(status_code=204)

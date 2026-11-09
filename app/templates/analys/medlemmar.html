@@ -69,8 +69,8 @@
       <tr class="border-b border-stone-200 text-left text-xs text-stone-400">
         <th class="py-1 pr-2 font-normal">Nod</th>
         <th class="py-1 pr-2 font-normal">Svar</th>
-        <th class="py-1 pr-2 font-normal">Workaround</th>
-        <th class="py-1 pr-2 font-normal">Kommentar</th>
+        <th class="py-1 pr-2 font-normal">Öppen kommentar</th>
+        <th class="py-1 pr-2 font-normal">Intern kommentar</th>
         <th class="py-1 font-normal">Besvarat</th>
       </tr>
     </thead>
@@ -79,8 +79,8 @@
       <tr class="border-b border-stone-100 align-top">
         <td class="py-1.5 pr-2">{{ s.funktion_namn }}</td>
         <td class="py-1.5 pr-2 whitespace-nowrap"><span class="mr-1 inline-block h-2 w-2 rounded-full {{ SVAR[s.svar].dot }}"></span>{{ SVAR[s.svar].kort }}</td>
-        <td class="py-1.5 pr-2 text-xs text-stone-500">{{ s.workaround or "" }}{% if s.workaround and not s.workaround_delas %} <span class="text-stone-400">(ej delad)</span>{% endif %}</td>
-        <td class="py-1.5 pr-2 text-xs text-stone-500">{{ s.kommentar or "" }}</td>
+        <td class="py-1.5 pr-2 whitespace-pre-line text-xs text-stone-500">{{ s.oppen_kommentar or "" }}{% if s.oppen_kommentar %} <span class="text-stone-400">({{ OPPEN_DELNING[s.oppen_delning] }})</span>{% endif %}</td>
+        <td class="py-1.5 pr-2 whitespace-pre-line text-xs text-stone-500">{{ s.intern_kommentar or "" }}</td>
         <td class="py-1.5 text-xs text-stone-400 whitespace-nowrap">{{ s.besvarat[:10] }}{% if s.besvarat_av %} · {{ s.besvarat_av }}{% endif %}</td>
       </tr>
       {% endfor %}

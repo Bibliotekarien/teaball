@@ -82,7 +82,8 @@ def test_0002_bevarar_data_och_relationer(tmp_path):
     assert barn["foralder_id"] == 5
     bed = conn.execute("SELECT * FROM bedomning ORDER BY funktion_id").fetchall()
     assert [(r["funktion_id"], r["svar"]) for r in bed] == [(2, "kan_vanta"), (7, "golive_krav")]
-    assert bed[0]["workaround"] == "Manuellt." and bed[0]["workaround_delas"] == 1
+    # (0009 later renamed the workaround to the open comment.)
+    assert bed[0]["oppen_kommentar"] == "Manuellt." and bed[0]["oppen_delning"] == "anonym"
     assert conn.execute("SELECT COUNT(*) FROM bedomning_historik").fetchone()[0] == 1
 
     assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
@@ -109,12 +110,48 @@ def test_0002_nya_vokabularet_och_kolumnerna(tmp_path):
     assert conn.execute("SELECT lank_jira FROM funktion WHERE id = 5").fetchone()[0] is None
 
 
+def test_0009_workaround_blir_oppen_kommentar(tmp_path):
+    """Delad workaround → anonym öppen kommentar (samma synlighet som förut),
+    ej delad → privat; kommentaren → intern kommentar. Historiken följer med,
+    och migreringen själv skriver ingen historik."""
+    conn = gammal_produktionsdb(tmp_path)
+    conn.execute("INSERT INTO bedomning (medlem_id, funktion_id, svar, workaround,"
+                 " workaround_delas, kommentar) VALUES (1, 5, 'behovs_ej', 'Ej delad.', 0,"
+                 " 'Intern notis.')")
+    conn.execute("INSERT INTO bedomning_historik (medlem_id, funktion_id, svar, workaround,"
+                 " workaround_delas, kommentar) VALUES (1, 5, 'kan_vanta', 'Gammal.', 1, 'Förr.')")
+    conn.commit()
+    db.init_db(conn)
+
+    rader = {r["funktion_id"]: r for r in conn.execute("SELECT * FROM bedomning")}
+    assert rader[2]["oppen_kommentar"] == "Manuellt." and rader[2]["oppen_delning"] == "anonym"
+    assert rader[5]["oppen_kommentar"] == "Ej delad." and rader[5]["oppen_delning"] == "privat"
+    assert rader[5]["intern_kommentar"] == "Intern notis."
+    assert rader[7]["oppen_delning"] == "privat"              # no text: default
+    assert "workaround" not in rader[2].keys() and "kommentar" not in rader[2].keys()
+
+    hist = conn.execute("SELECT * FROM bedomning_historik ORDER BY id").fetchall()
+    assert len(hist) == 2                                      # nothing added by 0009
+    assert hist[1]["oppen_kommentar"] == "Gammal." and hist[1]["oppen_delning"] == "anonym"
+    assert hist[1]["intern_kommentar"] == "Förr."
+    assert hist[0]["oppen_delning"] is None                    # unknown before 0009
+
+    # The recreated history triggers use the new columns.
+    conn.execute("UPDATE bedomning SET svar = 'golive_krav' WHERE funktion_id = 5")
+    senaste = conn.execute(
+        "SELECT * FROM bedomning_historik ORDER BY id DESC LIMIT 1").fetchone()
+    assert senaste["oppen_kommentar"] == "Ej delad." and senaste["oppen_delning"] == "privat"
+
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("UPDATE bedomning SET oppen_delning = 'alla' WHERE funktion_id = 5")
+
+
 def test_migration_tar_sakerhetskopia_fore(tmp_path):
     conn = gammal_produktionsdb(tmp_path)
     db.init_db(conn)
 
     # The copy is named for the highest pending version in the batch.
-    kopior = list(tmp_path.glob("gammal.fore-0008-*.db"))
+    kopior = list(tmp_path.glob("gammal.fore-0009-*.db"))
     assert len(kopior) == 1
     gammal = sqlite3.connect(kopior[0])
     gammal.row_factory = sqlite3.Row

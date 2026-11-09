@@ -18,7 +18,7 @@ def _scenario(app_db):
     }
     # 3 of 6 answer. Dubblettdetektering has status 'idé' and fas 'senare' → N2.
     satt_svar(app_db, m["uu"], ids["dubblett"], "golive_krav")
-    satt_svar(app_db, m["uu"], ids["import"], "kan_vanta", workaround="Manuell dedupe.", workaround_delas=0)
+    satt_svar(app_db, m["uu"], ids["import"], "kan_vanta", oppen_kommentar="Manuell dedupe.")
     satt_svar(app_db, m["uu"], ids["export"], "golive_krav")   # status driftsatt → not a blocker
     satt_svar(app_db, m["kth"], ids["dubblett"], "golive_krav")
     satt_svar(app_db, m["kth"], ids["wos"], "golive_krav")     # status planerad → blocker
@@ -34,9 +34,9 @@ def test_n1_n2_n3_via_sidan(client, app_db):
     assert "3 av 6" in sida                                # N3 (§9.5)
     assert "Umeå universitet" in sida                      # listed as non-responder
     assert "blockerar go-live men ligger i" in sida        # N2 flag (§9.5)
-    assert "Workaround-bank:" in sida                      # N4, with names + unshared
+    assert "Öppna kommentarer:" in sida                    # N4, with names + private
     assert "Manuell dedupe." in sida
-    assert "(ej delad)" in sida
+    assert "(bara förvaltarna)" in sida
     assert "Uppsala universitet" in sida
 
 
