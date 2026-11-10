@@ -42,6 +42,42 @@
     }
   });
 
+  // <input|textarea maxlength data-raknare>: teckenräknare under fältet när
+  // det närmar sig gränsen. Utan den slutar webbläsaren bara ta emot tecken
+  // (och ett inklistrat värde kapas) utan att säga varför. Opt-in, eftersom
+  // räknaren läggs in som syskon direkt efter fältet och då bara passar i
+  // formulär där fälten står i en kolumn. Lyssnar på focusin också, så en
+  // befintlig lång text visar räknaren redan när man går in i fältet.
+  document.addEventListener("input", uppdateraRaknare);
+  document.addEventListener("focusin", uppdateraRaknare);
+
+  function uppdateraRaknare(e) {
+    var falt = e.target;
+    if (!falt.hasAttribute || !falt.hasAttribute("data-raknare")) return;
+    var max = falt.maxLength;
+    if (!(max > 0)) return;
+    var langd = falt.value.length;
+    var raknare = falt.nextElementSibling;
+    if (!raknare || !raknare.hasAttribute("data-raknare-for")) {
+      raknare = document.createElement("span");
+      raknare.setAttribute("data-raknare-for", falt.name);
+      raknare.className = "text-right text-xs tabular-nums";
+      // Siffrorna läses inte upp för varje tangenttryck; skärmläsaren får
+      // bara besked när gränsen nås, via den dolda live-regionen.
+      raknare.innerHTML =
+        '<span aria-hidden="true"></span><span class="sr-only" aria-live="polite"></span>';
+      falt.insertAdjacentElement("afterend", raknare);
+    }
+    var vidGrans = langd >= max;
+    raknare.hidden = langd < max * 0.8;
+    raknare.classList.toggle("text-stone-400", !vidGrans);
+    raknare.classList.toggle("text-rose-700", vidGrans);
+    raknare.firstChild.textContent =
+      langd + " / " + max + (vidGrans ? " — maxlängd nådd" : "");
+    raknare.lastChild.textContent =
+      vidGrans ? "Maxlängden " + max + " tecken är nådd." : "";
+  }
+
   // htmx swallows non-2xx responses silently — without this banner a member
   // whose save failed (expired session, network hiccup) believes it succeeded.
   document.addEventListener("htmx:responseError", visaFelbanner);
