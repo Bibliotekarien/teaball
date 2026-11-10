@@ -6,7 +6,7 @@
       class="mb-3 grid gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm sm:grid-cols-2">
   <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
   <label class="grid gap-0.5 text-xs text-stone-500 sm:col-span-2">Ny nod
-    <input name="namn" required maxlength="200" placeholder="namn …"
+    <input name="namn" required maxlength="200" data-raknare placeholder="namn …"
            hx-get="/trad/nod/namnkoll" hx-trigger="input changed delay:300ms"
            hx-target="next .namnkoll" hx-swap="innerHTML"
            class="rounded-md border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700">
@@ -40,7 +40,7 @@
     <span class="text-stone-400">Krävs när status är planerad eller driftsatt.</span>
   </label>
   <label class="grid gap-0.5 text-xs text-stone-500 sm:col-span-2">Beskrivning
-    <textarea name="beskrivning" rows="2" maxlength="4000"
+    <textarea name="beskrivning" rows="2" maxlength="4000" data-raknare
               class="rounded-md border border-stone-300 px-2 py-1 text-sm"></textarea>
   </label>
   <div class="flex items-center justify-between sm:col-span-2">
