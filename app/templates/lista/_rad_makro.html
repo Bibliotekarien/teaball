@@ -1,4 +1,5 @@
 {% from "_ankare.html" import ankare %}
+{% import "_heroicons.html" as hi %}
 {% import "kommentarer/_makro.html" as k %}
 {# En rad i listvyn. Eget makro så raden kan renderas fristående (GET
    /lista/nod/<id>/rad — avbryt i inline-redigeringen byter tillbaka bara den
@@ -36,7 +37,8 @@
   </span>
   {% endif %}
   {% if n.kommentarer is defined %}{{ k.pill(n.id, n.kommentarer) }}{% endif %}
-  {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">dold</span>{% endif %}
+  {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">{{ hi.ikon("eye-slash") }} dold</span>{% endif %}
+  {% if n.rankning_last %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Låst från rankning{% if n.rankning_last_kommentar %}: {{ n.rankning_last_kommentar }}{% endif %}">{{ hi.ikon("lock-closed") }} låst</span>{% endif %}
   <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ TYP_LABEL[n.typ] }}</span>
   <span class="rounded px-1.5 py-0.5 text-xs {{ STATUS[n.status].cls }}" title="{{ STATUS[n.status].beskrivning }}">{{ STATUS[n.status].label }}</span>
   <span class="hidden w-14 text-right text-xs text-stone-400 sm:inline">{{ n.fas or "" }}</span>

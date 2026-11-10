@@ -239,6 +239,26 @@ def test_dolj_driftsatta_i_medlemsvyn(app_db, klient_fabrik):
     assert 'name="dolj_driftsatta" value="1" data-autosubmit checked' in sida
 
 
+def test_dolj_lasta_i_medlemsvyn(app_db, klient_fabrik):
+    ids = seed_trad(app_db)
+    app_db.execute("UPDATE funktion SET rankning_last = 1 WHERE id IN (?, ?)",
+                   (ids["import"], ids["registrera"]))
+    app_db.commit()
+    medlem = skapa_medlem(app_db, "Uppsala universitet")
+    token = ge_token(app_db, medlem)
+    klient = klient_fabrik()
+    klient.get(f"/svara/{token}", follow_redirects=False)
+
+    sida = klient.get("/svara").text
+    assert ">Registrera avhandling</span>" in sida
+    sida = klient.get("/svara?dolj_lasta=1").text
+    assert ">Registrera avhandling</span>" not in sida
+    # Låset ärvs inte: låsta Import står kvar som sammanhang för WoS.
+    assert f'id="gren-{ids["import"]}"' in sida
+    assert ">Import från Web of Science</span>" in sida
+    assert 'name="dolj_lasta" value="1" data-autosubmit checked' in sida
+
+
 def test_raknare_och_filter_i_medlemsvyn(app_db, klient_fabrik):
     seed_trad(app_db)
     medlem = skapa_medlem(app_db, "Uppsala universitet")

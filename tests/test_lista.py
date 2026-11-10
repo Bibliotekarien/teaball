@@ -111,6 +111,25 @@ def test_lista_dolj_dolda(client, app_db):
     assert f'id="rad-{ids["dubblett"]}"' not in rader
 
 
+def test_lista_dolj_lasta(client, app_db):
+    ids = seed_trad(app_db)
+    app_db.execute("UPDATE funktion SET rankning_last = 1 WHERE id IN (?, ?)",
+                   (ids["import"], ids["registrera"]))
+    app_db.commit()
+    logga_in(client, app_db)
+
+    rader = lista_delen(client.get("/lista").text)
+    assert f'id="rad-{ids["import"]}"' in rader and "</svg> låst" in rader
+    # Listan är platt — ingen kontext att bevara, så låsta rader försvinner
+    # även när de har olåsta barn.
+    rader = lista_delen(client.get("/lista?dolj_lasta=1").text)
+    for nod in ("import", "registrera"):
+        assert f'id="rad-{ids[nod]}"' not in rader
+    assert f'id="rad-{ids["wos"]}"' in rader
+    assert "dolj_lasta=1" in rader  # sorteringslänkarna bär filtret
+    assert 'name="dolj_lasta" value="1" checked' in client.get("/lista?dolj_lasta=1").text
+
+
 def test_lista_vyvaxling(client, app_db):
     seed_trad(app_db)
     skapa_funktion(app_db, "Med detaljer", typ="funktion",

@@ -465,6 +465,7 @@ def test_trad_dolj_dolda(client, app_db):
 
     sida = client.get("/trad").text
     assert f'id="rad-{ids["wos"]}"' in sida and 'name="dolj_dolda"' in sida
+    assert '</svg> dold</span>' in sida  # dold-taggen bär ikonen (överkorsat öga)
     sida = client.get("/trad?dolj_dolda=1").text
     token = csrf_fran(sida)  # inte _token: en ren GET /trad nollställer filtret
     for nod in ("import", "wos", "dubblett"):
@@ -476,3 +477,21 @@ def test_trad_dolj_dolda(client, app_db):
                        data={"riktning": "ner", "csrf_token": token},
                        headers={"HX-Request": "true"})
     assert f'id="rad-{ids["wos"]}"' not in svar.text
+
+
+def test_trad_dolj_lasta(client, app_db):
+    ids = seed_trad(app_db)
+    # Låset ärvs inte: Import är låst men dess barn WoS går att bedöma.
+    app_db.execute("UPDATE funktion SET rankning_last = 1 WHERE id IN (?, ?)",
+                   (ids["import"], ids["registrera"]))
+    app_db.commit()
+    logga_in(client, app_db)
+
+    sida = client.get("/trad").text
+    assert f'id="rad-{ids["registrera"]}"' in sida and 'name="dolj_lasta"' in sida
+    sida = client.get("/trad?dolj_lasta=1").text
+    assert f'id="rad-{ids["registrera"]}"' not in sida
+    # Den låsta föräldern står kvar som sammanhang för sitt olåsta barn.
+    assert f'id="rad-{ids["import"]}"' in sida
+    assert f'id="rad-{ids["wos"]}"' in sida
+    assert 'name="dolj_lasta" value="1" checked' in sida

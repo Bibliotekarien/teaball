@@ -1,4 +1,5 @@
 {% from "_ankare.html" import ankare %}
+{% import "_heroicons.html" as hi %}
 {# Medlemmens roadmap-grupper. Egen mall i stället för roadmap/_grupper.html:
    den bär redigeringsläge, dold-markering och avgångsväljare bakom villkor,
    och en medlemsvy ska inte kunna råka rendera någon av dem. Här finns bara
@@ -32,7 +33,7 @@
           {{ SVAR[eff.svar].kort }}{% if eff.arvd %} <span class="italic opacity-80">(ärvt)</span>{% endif %}</span>
         {% elif n.typ != "förmåga" and n.rankning_last %}
         <span class="rounded border border-dashed border-stone-300 px-1.5 py-0.5 text-xs text-stone-400"
-              title="{{ n.rankning_last_kommentar or 'Låst från rankning' }}">🔒 låst</span>
+              title="{{ n.rankning_last_kommentar or 'Låst från rankning' }}">{{ hi.ikon("lock-closed") }} låst</span>
         {% elif n.typ != "förmåga" and n.status not in ej_rankbara %}
         <span class="rounded border border-dashed border-stone-300 px-1.5 py-0.5 text-xs text-stone-400">ej bedömd</span>
         {% endif %}

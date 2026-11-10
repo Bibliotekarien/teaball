@@ -1,4 +1,5 @@
 {% from "_ankare.html" import ankare %}
+{% import "_heroicons.html" as hi %}
 {% import "kommentarer/_makro.html" as k %}
 {# Recursive tree node. The row sits inside <summary> when the node has
    children, so expand/collapse is pure <details> — no JavaScript (T1/I2). #}
@@ -54,8 +55,8 @@
 
   <span class="flex shrink-0 items-center gap-1.5">
     {% if n.kommentarer is defined %}{{ k.pill(n.id, n.kommentarer) }}{% endif %}
-    {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">dold</span>{% endif %}
-    {% if n.rankning_last %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Låst från rankning{% if n.rankning_last_kommentar %}: {{ n.rankning_last_kommentar }}{% endif %}">🔒 låst</span>{% endif %}
+    {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">{{ hi.ikon("eye-slash") }} dold</span>{% endif %}
+    {% if n.rankning_last %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Låst från rankning{% if n.rankning_last_kommentar %}: {{ n.rankning_last_kommentar }}{% endif %}">{{ hi.ikon("lock-closed") }} låst</span>{% endif %}
     <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ TYP_LABEL[n.typ] }}</span>
     {% if n.djup < 2 %}
     {# Grennivåerna (djup 0–1) sammanfattar undergrenen i stället för att visa

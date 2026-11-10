@@ -137,6 +137,18 @@ def utan_driftsatta(rotter):
     return ut
 
 
+def utan_lasta(rotter):
+    """The 'dölj låsta' filter: prune nodes locked from ranking. The lock is
+    per node, so a locked node with assessable children stays as context —
+    same shape as utan_driftsatta."""
+    ut = []
+    for n in rotter:
+        barn = utan_lasta(n["barn"])
+        if barn or not n["rankning_last"]:
+            ut.append({**n, "barn": barn})
+    return ut
+
+
 def satt_svar(conn, medlem_id: int, funktion_id: int, svar: str, besvarat_av: str):
     """B3: clicking the already-selected answer removes it; otherwise upsert.
     Changing the answer keeps both comments (the old row goes to history

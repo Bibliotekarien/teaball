@@ -1,4 +1,5 @@
 {% from "_ankare.html" import ankare %}
+{% import "_heroicons.html" as hi %}
 {# Assessment tree node (B3–B6, B8). Imported WITH CONTEXT: reads direkta,
    effektiva, oppna, bas, visa_dold, skrivbar and request from the render
    context. bas = URL prefix for saves: /bedomning/<medlem_id> (proxy) or
@@ -42,7 +43,7 @@
       <span class="text-sm {{ 'line-through text-stone-400' if n.status == 'utgår' else TYP_CLS[n.typ] }}"
             {%- if n.beskrivning and not detaljerad_har %} title="{{ n.beskrivning }}"{% endif %}>{{ n.namn }}</span>{{ ankare(n.id, n.namn) }}
       {% if visa_dold and not n.synlig_stig %}
-      <span class="ml-1 rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400" title="Visas inte för medlemmar">dold för medlemmar</span>
+      <span class="ml-1 rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400" title="Visas inte för medlemmar">{{ hi.ikon("eye-slash") }} dold för medlemmar</span>
       {% endif %}
       {% if n.beskrivning and detaljerad_har %}<p class="mt-0.5 whitespace-pre-line text-xs text-stone-400">{{ n.beskrivning }}</p>{% endif %}
       {% if oppna_har %}
@@ -92,7 +93,7 @@
               class="rounded-full border px-2 py-1.5 text-xs sm:py-0.5 {{ 'border-stone-300 bg-stone-100 text-stone-500' if vald else 'border-stone-200 bg-stone-50 text-stone-300' }}">{{ s.kort }}</button>
       {% endfor %}
     </div>
-    <p class="w-72 max-w-full text-right text-[11px] text-stone-500">🔒 Låst från rankning{% if n.rankning_last_kommentar %}: {{ n.rankning_last_kommentar }}{% endif %}</p>
+    <p class="w-72 max-w-full text-right text-[11px] text-stone-500">{{ hi.ikon("lock-closed") }} Låst från rankning{% if n.rankning_last_kommentar %}: {{ n.rankning_last_kommentar }}{% endif %}</p>
     {% else %}
     {% if skrivbar_har %}
     <form method="post" action="{{ bas }}/{{ n.id }}/svar"
@@ -127,7 +128,7 @@
     <p class="w-72 max-w-full whitespace-pre-line rounded border px-2 py-1 text-right text-xs {{ SVAR[eget.svar].notis }}">{{ eget.oppen_kommentar }} <span class="opacity-80">({{ OPPEN_DELNING[eget.oppen_delning] }})</span></p>
     {% endif %}
     {% if eget.intern_kommentar %}
-    <p class="w-72 max-w-full whitespace-pre-line text-right text-[11px] text-stone-500">💬 {{ eget.intern_kommentar }}</p>
+    <p class="w-72 max-w-full whitespace-pre-line text-right text-[11px] text-stone-500">{{ hi.ikon("chat-bubble-left") }} {{ eget.intern_kommentar }}</p>
     {% endif %}
     {% elif eget %}
     <details class="w-72 max-w-full">
@@ -151,7 +152,7 @@
       </form>
     </details>
     <details class="w-72 max-w-full">
-      <summary class="cursor-pointer text-right text-[11px] {{ 'text-blue-800' if eget.intern_kommentar else 'text-stone-400' }}">💬 Intern kommentar{{ ' ✓' if eget.intern_kommentar else '' }}</summary>
+      <summary class="cursor-pointer text-right text-[11px] {{ 'text-blue-800' if eget.intern_kommentar else 'text-stone-400' }}">{{ hi.ikon("chat-bubble-left") }} Intern kommentar{{ ' ✓' if eget.intern_kommentar else '' }}</summary>
       <form method="post" action="{{ bas }}/{{ n.id }}/intern-kommentar"
             hx-post="{{ bas }}/{{ n.id }}/intern-kommentar" hx-swap="none"
             hx-trigger="submit, change delay:500ms"

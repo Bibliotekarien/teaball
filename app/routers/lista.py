@@ -25,7 +25,7 @@ router = APIRouter(prefix="/lista", dependencies=[Depends(krav_csrf)])
 audit = logging.getLogger("teaball.audit")
 
 TOMT_FILTER = {"q": "", "typ": [], "status": [], "fas": "", "dolj_dolda": False,
-               "sortera": "skapad", "riktning": "fallande"}
+               "dolj_lasta": False, "sortera": "skapad", "riktning": "fallande"}
 
 
 def _listsvar(request, conn, principal, fel: str | None = None,
@@ -42,6 +42,7 @@ def _listsvar(request, conn, principal, fel: str | None = None,
         filter["status"] or None, filter["fas"] or None,
         endast_synliga=filter.get("dolj_dolda", False),
         sortera=filter["sortera"], stigande=filter["riktning"] == "stigande",
+        dolj_lasta=filter.get("dolj_lasta", False),
     )
     kommentarer.markera_antal(conn, rader)
     ctx = {
@@ -67,7 +68,7 @@ def _listsvar(request, conn, principal, fel: str | None = None,
 @router.get("")
 def visa_lista(
     request: Request,
-    q: str = "", fas: str = "", vy: str = "", dolj_dolda: str = "",
+    q: str = "", fas: str = "", vy: str = "", dolj_dolda: str = "", dolj_lasta: str = "",
     sortera: str = "", riktning: str = "",
     typ: list[str] = Query([]), status: list[str] = Query([]),
     principal: Principal = Depends(krav_intern),
@@ -77,6 +78,7 @@ def visa_lista(
         request.session["lista_vy"] = vy
     filter = {
         "q": q, "typ": typ, "status": status, "fas": fas, "dolj_dolda": bool(dolj_dolda),
+        "dolj_lasta": bool(dolj_lasta),
         "sortera": sortera if sortera in LISTSORTERING else "skapad",
         "riktning": "stigande" if riktning == "stigande" else "fallande",
     }
