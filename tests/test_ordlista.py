@@ -22,7 +22,7 @@ def test_ordlista_for_medlem(app_db, klient_fabrik):
         # Typer, statusar och svar ur de delade tabellerna, plus egna begrepp.
         assert "Ett behov som ska vara uppfyllt" in sida
         assert "Beslutad att byggas" in sida
-        assert "Ja, kan vänta 6–12 mån" in sida
+        assert "Ja, kan vänta till efter go-live" in sida
         assert ">Ärvt svar</dt>" in sida
         # Förvaltarbegrepp visas inte för medlemmar.
         assert ">Proxy</dt>" not in sida

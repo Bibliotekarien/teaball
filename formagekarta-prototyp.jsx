@@ -46,7 +46,7 @@ const START_BEDOMNINGAR = {
 
 const SVAR = {
   golive:    { label: "Ja, för go-live",    kort: "Go-live",  dot: "bg-rose-600",  pill: "bg-rose-600 text-white border-rose-600",  ghost: "text-rose-700 border-rose-200 hover:bg-rose-50" },
-  kan_vanta: { label: "Ja, kan vänta 6–12 mån", kort: "Kan vänta", dot: "bg-amber-500", pill: "bg-amber-500 text-white border-amber-500", ghost: "text-amber-700 border-amber-200 hover:bg-amber-50" },
+  kan_vanta: { label: "Ja, kan vänta till efter go-live", kort: "Kan vänta", dot: "bg-amber-500", pill: "bg-amber-500 text-white border-amber-500", ghost: "text-amber-700 border-amber-200 hover:bg-amber-50" },
   behovs_ej: { label: "Behövs ej",          kort: "Behövs ej", dot: "bg-stone-400", pill: "bg-stone-500 text-white border-stone-500", ghost: "text-stone-500 border-stone-200 hover:bg-stone-100" },
 };
 

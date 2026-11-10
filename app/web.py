@@ -49,7 +49,7 @@ SVAR = {
         "notis": "border-rose-200 bg-rose-50 text-rose-900",
     },
     "kan_vanta": {
-        "label": "Ja, kan vänta 6–12 mån",
+        "label": "Ja, kan vänta till efter go-live",
         "kort": "Kan vänta",
         "dot": "bg-amber-500",
         # Deliberate deviation from the prototype: white on amber-500 is 2.15:1
