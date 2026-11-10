@@ -162,6 +162,7 @@ def visa(
     dolj_bedomda: str = "",
     dolj_driftsatta: str = "",
     dolj_formagor: str = "",
+    dolj_lasta: str = "",
     vy: str = "",
     principal: Principal = Depends(krav_medlem),
     conn: sqlite3.Connection = Depends(get_conn),
@@ -175,6 +176,8 @@ def visa(
         rotter = tjanst.utan_formagor(rotter)
     if dolj_driftsatta:
         rotter = tjanst.utan_driftsatta(rotter)
+    if dolj_lasta:
+        rotter = tjanst.utan_lasta(rotter)
     if dolj_bedomda:
         rotter = tjanst.utan_bedomda(rotter, effektiva)
     return templates.TemplateResponse(
@@ -194,6 +197,7 @@ def visa(
             "dolj_bedomda": bool(dolj_bedomda),
             "dolj_driftsatta": bool(dolj_driftsatta),
             "dolj_formagor": bool(dolj_formagor),
+            "dolj_lasta": bool(dolj_lasta),
         },
     )
 

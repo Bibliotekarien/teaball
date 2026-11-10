@@ -69,9 +69,14 @@ def undergren_ids(conn: sqlite3.Connection, nod_id: int) -> set[int]:
     return {r["id"] for r in rows}
 
 
-def _traff(rad, q, typ, status, fas) -> bool:
+def _traff(rad, q, typ, status, fas, dolj_lasta=False) -> bool:
     """The T4 filter predicate, shared by the tree and the list view so
-    "same filters" stays literally true: OR within a filter, AND between."""
+    "same filters" stays literally true: OR within a filter, AND between.
+    dolj_lasta drops nodes locked from ranking; in the tree a locked node
+    with unlocked children still shows as their context, since the lock is
+    per node (migration 0008)."""
+    if dolj_lasta and rad["rankning_last"]:
+        return False
     if q and q.lower() not in rad["namn"].lower():
         return False
     if typ and rad["typ"] not in typ:
@@ -83,7 +88,8 @@ def _traff(rad, q, typ, status, fas) -> bool:
     return True
 
 
-def hamta_trad(conn, q=None, typ=None, status=None, fas=None, endast_synliga=False):
+def hamta_trad(conn, q=None, typ=None, status=None, fas=None, endast_synliga=False,
+               dolj_lasta=False):
     """The whole tree in display order as nested dicts. With filters (T4),
     matching nodes are kept together with their ancestors for context.
     typ and status accept several values — OR within a filter, AND between.
@@ -128,8 +134,8 @@ def hamta_trad(conn, q=None, typ=None, status=None, fas=None, endast_synliga=Fal
         nod["antal_under"] = sum(nod["status_under"].values())
 
     inkludera = None
-    if q or typ or status or fas:
-        traffar = {r["id"] for r in rows if _traff(r, q, typ, status, fas)}
+    if q or typ or status or fas or dolj_lasta:
+        traffar = {r["id"] for r in rows if _traff(r, q, typ, status, fas, dolj_lasta)}
         inkludera = set()
         for nod_id in traffar:
             aktuell = nod_id
@@ -153,7 +159,8 @@ LISTSORTERING = ("skapad", "uppdaterad")
 
 
 def hamta_lista(conn, q=None, typ=None, status=None, fas=None,
-                endast_synliga=False, sortera="skapad", stigande=False):
+                endast_synliga=False, sortera="skapad", stigande=False,
+                dolj_lasta=False):
     """All nodes as a flat list for the list view: same filter semantics as
     hamta_trad (T4); each row carries its ancestors as "stig" (root first)
     so the list can show where the node belongs, since the flat order says
@@ -176,7 +183,7 @@ def hamta_lista(conn, q=None, typ=None, status=None, fas=None,
     karta = _foralderkarta(conn)
     rader = []
     for r in rows:
-        if _traff(r, q, typ, status, fas):
+        if _traff(r, q, typ, status, fas, dolj_lasta):
             rad = dict(r)
             rad["stig"] = _stig(karta, r["foralder_id"])
             rader.append(rad)

@@ -1,3 +1,4 @@
+{% import "_heroicons.html" as hi %}
 {# The blockerar-rankning section of the PDF report. Context: rankning (rows
    from analys.rankning), tackning. Mirrors the analys view: status badge,
    N2 warning and the stacked go-live/kan vänta/behövs ej bar. #}
@@ -10,7 +11,7 @@
     <span class="badge status-{{ r.status }}">{{ STATUS[r.status].label }}</span>
     {% if r.fas %}<span class="fas">avgång: {{ r.fas }}</span>{% endif %}
     {% if r.varning %}
-    <span class="badge varning">⚠ blockerar go-live men ligger i ”{{ r.fas if r.fas == 'senare' else r.status }}”</span>
+    <span class="badge varning">{{ hi.ikon("exclamation-triangle") }} blockerar go-live men ligger i ”{{ r.fas if r.fas == 'senare' else r.status }}”</span>
     {% endif %}
   </div>
   <div class="stapel">

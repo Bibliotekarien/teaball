@@ -13,6 +13,8 @@
 {% for t in filter.typ %}{% set _ = fparametrar.append("typ=" ~ t|urlencode) %}{% endfor %}
 {% for s in filter.status %}{% set _ = fparametrar.append("status=" ~ s|urlencode) %}{% endfor %}
 {% if filter.fas %}{% set _ = fparametrar.append("fas=" ~ filter.fas|urlencode) %}{% endif %}
+{% if filter.dolj_dolda %}{% set _ = fparametrar.append("dolj_dolda=1") %}{% endif %}
+{% if filter.dolj_lasta %}{% set _ = fparametrar.append("dolj_lasta=1") %}{% endif %}
 <div id="lista-rot">
   {% if fel %}
   <div id="lista-fel" class="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{{ fel }}</div>

@@ -36,7 +36,8 @@ def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | N
     #trad-rot and survives the swap. Without it an edit while filtering swaps
     in the whole unfiltered tree under an untouched filter form."""
     filter = filter or request.session.get("trad_filter") \
-        or {"q": "", "typ": [], "status": [], "fas": "", "dolj_dolda": False}
+        or {"q": "", "typ": [], "status": [], "fas": "", "dolj_dolda": False,
+            "dolj_lasta": False}
     if not is_htmx(request) and fel is None and request.method == "POST":
         return RedirectResponse("/trad", status_code=303)
     rotter = tjanst.hamta_trad(
@@ -45,6 +46,7 @@ def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | N
         # "Dölj dolda" gives staff the member selection — including the
         # subtree counts, so the bars then show what members see.
         endast_synliga=principal.roll == "extern" or filter.get("dolj_dolda", False),
+        dolj_lasta=filter.get("dolj_lasta", False),
     )
     # Internal comments never reach the extern role: unmarked rows render
     # without the comment counter and block.
@@ -71,14 +73,15 @@ def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | N
 @router.get("")
 def visa_trad(
     request: Request,
-    q: str = "", fas: str = "", vy: str = "", dolj_dolda: str = "",
+    q: str = "", fas: str = "", vy: str = "", dolj_dolda: str = "", dolj_lasta: str = "",
     typ: list[str] = Query([]), status: list[str] = Query([]),
     principal: Principal = Depends(krav_forvaltare),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     if vy in ("kompakt", "detaljerad"):
         request.session["trad_vy"] = vy
-    filter = {"q": q, "typ": typ, "status": status, "fas": fas, "dolj_dolda": bool(dolj_dolda)}
+    filter = {"q": q, "typ": typ, "status": status, "fas": fas, "dolj_dolda": bool(dolj_dolda),
+              "dolj_lasta": bool(dolj_lasta)}
     # Remembered for POST responses (see _tradsvar). A bare GET /trad clears
     # it — exactly what the then-empty filter form shows.
     request.session["trad_filter"] = filter

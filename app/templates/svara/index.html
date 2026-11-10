@@ -18,6 +18,10 @@
     Dölj driftsatta — sådant som redan finns i systemet
   </label>
   <label class="mt-1 flex cursor-pointer items-center gap-1.5 text-stone-600">
+    <input type="checkbox" name="dolj_lasta" value="1" data-autosubmit {% if dolj_lasta %}checked{% endif %}>
+    Dölj låsta — sådant som inte går att bedöma just nu
+  </label>
+  <label class="mt-1 flex cursor-pointer items-center gap-1.5 text-stone-600">
     <input type="checkbox" name="dolj_formagor" value="1" data-autosubmit {% if dolj_formagor %}checked{% endif %}>
     Dölj förmågor — visa bara funktioner och behov
   </label>

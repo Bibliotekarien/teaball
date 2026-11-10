@@ -63,7 +63,7 @@ def test_roadmap_doljer_dolda_grenar_och_forvaltarkontroller(app_db, klient_fabr
     assert "Dubblettdetektering" not in sida
     assert "Registrera avhandling" in sida
     # Inget av förvaltarnas roadmap läcker in i medlemsvyn.
-    for kontroll in ("Redigera roadmap", "greppyta", ">dold<", "Confluence",
+    for kontroll in ("Redigera roadmap", "greppyta", "Utelämnas ur exporten", "Confluence",
                      "Markdown", "Ladda ner", "/roadmap/flytta", "/export/"):
         assert kontroll not in sida, kontroll
     # Flikraden finns och markerar roadmapen som aktiv.

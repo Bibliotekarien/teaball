@@ -45,7 +45,8 @@ def test_lasning_sparas_och_syns_i_tradet(client, app_db):
                          " WHERE id = ?", (ids["registrera"],)).fetchone()
     assert (rad[0], rad[1]) == (1, KOMMENTAR)
     sida = client.get("/trad").text
-    assert f'title="Låst från rankning: {KOMMENTAR}">🔒 låst</span>' in sida
+    assert f'title="Låst från rankning: {KOMMENTAR}"><svg' in sida
+    assert '</svg> låst</span>' in sida
     # Formuläret visar läget, så en ny redigering inte råkar låsa upp.
     form = client.get(f"/trad/nod/{ids['registrera']}/redigera").text
     assert "checked" in form.split('name="rankning_last"', 1)[1].split(">", 1)[0]
@@ -85,7 +86,7 @@ def test_medlem_ser_utgraade_knappar_och_kan_inte_svara(client, app_db, klient_f
     assert rad.count("disabled") == 3
     intryckt = rad.split('aria-pressed="true"', 1)[1].split("</button>", 1)[0]
     assert intryckt.endswith(">Kan vänta")
-    assert f"🔒 Låst från rankning: {KOMMENTAR}" in rad
+    assert f"</svg> Låst från rankning: {KOMMENTAR}" in rad
     assert f'action="/svara/{ids["registrera"]}/svar"' not in rad
     # Tjänsten spärrar även en direkt POST, och svaret står kvar.
     svar = klient.post(f"/svara/{ids['registrera']}/svar", data={"svar": "golive_krav"},
@@ -110,4 +111,4 @@ def test_last_nod_raknas_inte_och_doljs_inte_som_obedomd(app_db, klient_fabrik, 
     # Roadmapen märker noden som låst i stället för "ej bedömd".
     roadmap = klient.get("/svara/roadmap").text
     rad = roadmap.split(f'id="rad-{ids["registrera"]}"', 1)[1].split("</li>", 1)[0]
-    assert "🔒 låst" in rad and "ej bedömd" not in rad
+    assert "</svg> låst" in rad and "ej bedömd" not in rad
