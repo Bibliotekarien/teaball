@@ -52,7 +52,25 @@ Driftsättningschecklista (första gången):
 
 `teaball-backup.timer` kör `scripts/backup.sh` varje natt (unit + timer i
 `deploy/`) mot volymen under `/var/lib/docker/volumes/`, till
-`/opt/teaball/backups`. `scripts/deploy.sh` startar samma unit innan den rör
+`/opt/teaball/backups`. Jobbet kör som `teaball` (uid 1505), inte root,
+med `CAP_DAC_READ_SEARCH` för att nå in i `/var/lib/docker` och skrivrätt
+bara till målet och datakatalogen (se kommentaren i uniten).
+`/opt/teaball/backups` måste därför ägas av `teaball`.
+
+**En gång, när uniten byts från root till teaball.** deploy.sh installerar
+inga units, så den deploy som för in den nya uniten går igenom med den gamla
+(root-)uniten som redan ligger i `/etc/systemd/system`. Gör stegen nedan
+direkt efter den deployen. Ägarbytet måste komma före kopieringen av uniten,
+annars fallerar nattens backup och nästa deploy avbryts:
+
+```bash
+sudo install -d -o teaball -g teaball -m 700 /opt/teaball/backups
+sudo chown -R teaball:teaball /opt/teaball/backups
+sudo cp /opt/teaball/app/deploy/teaball-backup.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl start teaball-backup.service
+journalctl -u teaball-backup.service -n 20    # "Backup klar: …"
+``` `scripts/deploy.sh` startar samma unit innan den rör
 arbetskopian — ingen kodändring driftsätts utan en färsk, verifierad kopia.
 Misslyckas kopian avbryts deployen. Kontrollera läget med
 `systemctl list-timers teaball-backup.timer` och

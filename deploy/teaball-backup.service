@@ -4,7 +4,18 @@
 #
 # Tar en konsistent kopia av SQLite-filen i named-volymen (spec I4:
 # .backup-API, integritetskontroll, utrymmeskoll, rotation 30 dagliga +
-# 12 månatliga). Körs som root — volymsökvägen ligger under /var/lib/docker.
+# 12 månatliga).
+#
+# Körs som teaball (uid 1505), samma användare som containern, inte som root.
+# Datakatalogen är skrivbar för containern; root ska inte öppna en databas
+# som en komprometterad container har kunnat preparera. Den enda förmåga
+# jobbet behöver utöver det är att ta sig igenom /var/lib/docker (root-only):
+# CAP_DAC_READ_SEARCH, som bara ger läsning. Skrivbart är enbart målet och
+# datakatalogen (SQLite kan behöva röra -shm-filen när WAL används).
+#
+# Backupkatalogen måste ägas av teaball:
+#   sudo install -d -o teaball -g teaball -m 700 /opt/teaball/backups
+#   sudo chown -R teaball:teaball /opt/teaball/backups   # befintliga kopior
 
 [Unit]
 Description=teaball SQLite backup
@@ -13,6 +24,16 @@ After=docker.service
 
 [Service]
 Type=oneshot
+User=teaball
+Group=teaball
+UMask=0077
+AmbientCapabilities=CAP_DAC_READ_SEARCH
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/opt/teaball/backups /var/lib/docker/volumes/teaball_teaball-data/_data
 ExecStart=/opt/teaball/app/scripts/backup.sh \
     /var/lib/docker/volumes/teaball_teaball-data/_data/teaball.db \
     /opt/teaball/backups

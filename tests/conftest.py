@@ -1,3 +1,4 @@
+import base64
 import re
 
 import pytest
@@ -84,6 +85,15 @@ def huvuddel(sida: str) -> str:
 
 def csrf_fran(html: str) -> str:
     return re.search(r'name="csrf_token" value="([^"]+)"', html).group(1)
+
+
+def sessionsinnehall(client) -> str:
+    """The session cookie decoded. Starlette signs it but does not encrypt it
+    (base64 JSON before the first dot), so anything placed in the session is
+    readable by whoever holds the cookie — secrets must never end up here."""
+    kaka = client.cookies.get("teaball_session", "")
+    data = kaka.split(".", 1)[0]
+    return base64.b64decode(data + "=" * (-len(data) % 4)).decode("utf-8", "replace")
 
 
 def logga_in(client, conn, namn="anna", losenord="hemligt-losen", roll="admin"):

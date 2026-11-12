@@ -8,10 +8,17 @@
 #                                              ▼
 #                              ${TEABALL_DATA_DIR:-./teaball-data}/teaball.db
 #
-# Porten binds BARA till 127.0.0.1. Appen litar på proxyns X-Forwarded-For
-# (uvicorn --forwarded-allow-ips '*' i Dockerfile) — inloggningsspärren och
-# statistiken räknar per klient-IP. Nås porten direkt utifrån kan vem som
-# helst förfalska sin IP. Ändra inte till 0.0.0.0.
+# Porten binds BARA till 127.0.0.1 — ändra inte till 0.0.0.0.
+#
+# Klientens IP (inloggningsspärren och statistiken räknar per IP) läses ur
+# X-Forwarded-For, men bara från de avsändare FORWARDED_ALLOW_IPS anger, och
+# då högerifrån: första obetrodda adressen är klienten. Er proxy når
+# containern via Dockers port-vidarebefordran, så avsändaren är Docker-nätets
+# gateway — standardvärdet nedan täcker Dockers egna adresspooler. Det håller
+# även om proxyn lägger till i stället för att skriva över headern, så att en
+# klient inte kan skicka med en falsk adress. Visar loggen proxyns/gatewayens
+# adress för alla besökare har er Docker andra nät: sätt FORWARDED_ALLOW_IPS
+# i .env till gatewayens adress (`docker network inspect teaball_default`).
 #
 # Datakatalogen är en bind-mount i stället för en named volume, så att
 # databasfilen ligger på en känd plats för backup.sh och för import av en
@@ -34,6 +41,7 @@ services:
       DB_PATH: /data/teaball.db
       SECRET_KEY: ${SECRET_KEY:?Sätt SECRET_KEY i .env}
       COOKIE_SECURE: "1"
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-172.16.0.0/12,192.168.0.0/16}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Sätt PUBLIC_BASE_URL i .env}
       # Instansens texter (INSTALL.md avsnitt 2) — tomma ger neutral text.
       ORGANISATION: ${ORGANISATION:-}
