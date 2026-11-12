@@ -1,13 +1,14 @@
 name: tests
 
-# Anropar de delade kontrollerna i bibliotekarien-platform. All logik bor där,
-# så en ändring av hur tester körs sker på ett ställe och inte i sju repon.
-# Se bibliotekarien-platform/.github/README.md.
+# Teaballs egna testjobb. Tidigare anropades de delade workflowerna i
+# bibliotekarien-platform, men det repot är privat, och ett publikt repo får
+# inte anropa workflows i ett privat. När teaball gjordes publikt 2026-11-12
+# startade därför inga körningar alls. Jobben ligger nu här, kopierade därifrån
+# (samma SHA-pinnade actions och samma hållning), så att repot fungerar för
+# den som tar över det. Säkerhetskontrollerna ligger i sakerhet.yml.
 #
 # Pythonversionen kommer från .python-version (3.12, samma som Dockerfilens
-# python:3.12-slim): den delade workflowen kör uv sync --locked, och uv läser
-# den filen. Ingen ruff: teaball har varken ruff som dev-beroende eller
-# ruff-konfiguration.
+# python:3.12-slim); uv läser den filen.
 
 on:
   pull_request:
@@ -16,18 +17,123 @@ on:
   push:
     branches: [main]
 
-# Utan permissions: får workflowen repots standardbehörighet, som kan vara
-# skrivrätt. Den anropade workflowen i bibliotekarien-platform läser bara
-# (dess egen permissions: är contents: read), så mer än så behövs inte.
+# Läs-only token och inga secrets, så att jobben fungerar oförändrade på
+# PR:er från forkar och en manipulerad PR inte har något att exfiltrera.
+# Undantaget är jobbet badge nedan, som själv begär skrivrätt.
 permissions:
   contents: read
 
 jobs:
-  tests:
-    uses: Bibliotekarien/bibliotekarien-platform/.github/workflows/python-tests.yml@main
+  pytest:
+    runs-on: ubuntu-latest
+    # Hela beståndet kör på under två minuter. Taket är rundligt men bundet,
+    # så en hängande testsession inte äter en runner i sex timmar.
+    timeout-minutes: 15
+    steps:
+      # SHA-pinnade, inte flytande taggar. Taggkommentaren är för läsbarhet;
+      # det är SHA:n som gäller. Dependabot bumpar båda.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Lämna inte kvar checkout-tokenet i .git/config där senare steg
+          # (eller kod ur PR:en) kan använda det.
+          persist-credentials: false
 
-  # Hemligheter i hela historiken, kända sårbarheter i uv.lock och SBOM på
-  # main — se bibliotekarien-platform/.github/README.md,
-  # "Säkerhetskontroller".
-  sakerhet:
-    uses: Bibliotekarien/bibliotekarien-platform/.github/workflows/security-checks.yml@main
+      - name: Installera uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      # --locked failar om uv.lock inte matchar pyproject.toml: en ändrad
+      # dependency som inte låsts om ger annars olika beroenden i CI och i
+      # produktion.
+      - name: Installera beroenden exakt enligt lockfilen
+        run: uv sync --locked
+
+      # Hela sviten, prestandatesterna inräknade.
+      - name: pytest
+        run: uv run --no-sync pytest -q
+
+  # Täckningen mäts i ett eget jobb: instrumenteringen gör varje rad
+  # långsammare, så prestandatesternas tidsbudgetar spricker. Jobbet ovan
+  # förblir grinden för dem.
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      procent: ${{ steps.total.outputs.procent }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Installera uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Installera beroenden exakt enligt lockfilen
+        run: uv sync --locked
+
+      - name: pytest under coverage
+        run: uv run --no-sync coverage run -m pytest -q -m "not slow"
+
+      # Före rapporten, som failar under golvet: siffran ska finnas även då.
+      - name: Total
+        id: total
+        run: echo "procent=$(uv run --no-sync coverage report --format=total --fail-under=0)" >> "$GITHUB_OUTPUT"
+
+      # Tabellen hamnar i körningens sammanfattning, så varje PR visar sin
+      # täckning per fil. Failar jobbet om totalen går under fail_under i
+      # pyproject.toml.
+      - name: Rapport
+        run: uv run --no-sync coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+
+  # README-badgen. Ett eget jobb så att skrivrätten aldrig delas med kod som
+  # kommer ur en PR: det kör bara efter push till main, och bara det som
+  # redan finns på main. Badgen ersätts med en enda commit på grenen badges
+  # (force-push), så grenen växer inte och historiken på main rörs inte.
+  badge:
+    needs: coverage
+    # always(): även när coverage-jobbet failat på golvet ska badgen visa den
+    # sänkta siffran, inte stå kvar på den förra. Saknas siffran (testerna
+    # kom aldrig så långt) finns inget att rita.
+    if: >-
+      always() && needs.coverage.outputs.procent != ''
+      && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    # Två merger tätt efter varandra ska inte tävla om grenen.
+    concurrency:
+      group: coverage-badge
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Rita badgen
+        env:
+          PROCENT: ${{ needs.coverage.outputs.procent }}
+        run: |
+          mkdir "$RUNNER_TEMP/badges"
+          python3 .github/scripts/coverage_badge.py "$PROCENT" > "$RUNNER_TEMP/badges/coverage.svg"
+
+      - name: Publicera på grenen badges
+        working-directory: ${{ runner.temp }}/badges
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROCENT: ${{ needs.coverage.outputs.procent }}
+        run: |
+          git init -q -b badges
+          git add coverage.svg
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "Täckning ${PROCENT} % på main (${GITHUB_SHA::7})"
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" badges

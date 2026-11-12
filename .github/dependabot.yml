@@ -36,3 +36,12 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+
+  # De SHA-pinnade actions i .github/workflows. Bumpades tidigare i
+  # bibliotekarien-platform, när jobben låg där.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7

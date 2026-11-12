@@ -23,3 +23,4 @@ teaball-data/
 .vscode
 .zprofile
 .zshrc
+.coverage

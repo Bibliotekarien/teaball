@@ -1,5 +1,8 @@
 # Teaball
 
+[![tests](https://github.com/Bibliotekarien/teaball/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/Bibliotekarien/teaball/actions/workflows/tests.yml?query=branch%3Amain)
+[![coverage](https://raw.githubusercontent.com/Bibliotekarien/teaball/badges/coverage.svg)](https://github.com/Bibliotekarien/teaball/actions/workflows/tests.yml?query=branch%3Amain)
+
 Behovsdatabas och förmågekarta för ett gemensamt system som byts ut, med
 många medlemsorganisationer som var och en har sina behov. Verktyget håller en
 hierarkisk funktions-/behovsstruktur, en roadmap och medlemmarnas bedömning av
@@ -161,9 +164,16 @@ bibliotekarien-vps kör skriptet från en systemd-timer
 uv sync                       # beroenden (Python 3.12+)
 uv run pytest -m "not slow"   # testsvit
 uv run pytest                 # inkl. prestandatest (500 noder/50 medlemmar/10k svar)
+uv run coverage run -m pytest -m "not slow" && uv run coverage report   # täckning
 uv run uvicorn app.main:app --reload
 python scripts/seed_demo.py   # deterministisk demodata till en tom databas
 ```
+
+Täckningen mäts i CI (jobbet `coverage` i `.github/workflows/tests.yml`)
+med grenmätning över `app/` och `scripts/`. Varje körning visar tabellen per
+fil i sin sammanfattning, och jobbet failar under golvet `fail_under` i
+`pyproject.toml`. Badgen ovan ritas av CI efter varje push till main och ligger
+på grenen `badges`; ingen extern tjänst är inblandad.
 
 CSS:en är förkompilerad Tailwind och incheckad (`static/css/app.css`) — ingen
 build-kedja i drift. Efter template-ändringar, regenerera med standalone-CLI:t:

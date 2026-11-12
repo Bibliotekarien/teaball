@@ -24,7 +24,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Beroendena installeras exakt från uv.lock — samma versioner som CI provar
-# (uv sync --locked i den delade python-tests.yml). --locked avbryter bygget
+# (uv sync --locked i .github/workflows/tests.yml). --locked avbryter bygget
 # om låsfilen inte stämmer med pyproject.toml i stället för att lösa om.
 # UV_PYTHON_DOWNLOADS=never håller imagens egen Python 3.12 som tolk.
 # venv:en ligger först i PATH, så CMD:ns uvicorn, healthcheckens python3 och

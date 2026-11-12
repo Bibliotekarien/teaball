@@ -13,3 +13,4 @@ data/*.db-shm
 # Datakatalogen för fristående drift — driftdatabasen ska aldrig in i imagen
 # (och ägs av uid 1505, så bygget skulle inte kunna läsa den).
 teaball-data
+.coverage

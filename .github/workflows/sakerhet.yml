@@ -1,0 +1,155 @@
+name: sakerhet
+
+# Säkerhetskontroller: hemligheter i hela historiken, kända sårbarheter i
+# beroendena och en SBOM per commit på main. Kopierade från
+# bibliotekarien-platforms security-checks.yml, som teaball inte längre kan
+# anropa sedan repot blev publikt (se tests.yml), och förenklade till det
+# teaball har: en uv.lock, inga npm-paket.
+#
+# Inga secrets, läs-only token, SHA-pinnade actions, persist-credentials:
+# false. Kontrollerna fungerar alltså oförändrade på fork-PR:er.
+#
+# Verktygen är binärer pinnade per version OCH kontrollsumma, inte actions:
+#   - gitleaks-action kräver en licensnyckel för org-konton, alltså en secret.
+#   - osv-scanner-action pekar på sin docker-image med en flytande tagg;
+#     kontrollsumman här är starkare.
+# Dependabot kan inte bumpa dem. Byt version och kontrollsumma i samma PR när
+# en ny release kommer (summan står i releasens checksumfil).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  GITLEAKS_VERSION: "8.30.1"
+  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+  OSV_SCANNER_VERSION: "2.7.0"
+  OSV_SCANNER_SHA256: "160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b"
+
+jobs:
+  hemligheter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Hela historiken, inte bara PR:ens diff. En hemlighet som en gång
+          # checkats in finns kvar i historiken även när den tagits bort ur
+          # koden, och ska då betraktas som röjd.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Installera gitleaks
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+
+      # Standardreglerna, med ett undantag: den generiska entropiregeln
+      # (generic-api-key) gäller inte i testfiler, där fixturlösenord annars
+      # ger falsklarm. De konkreta reglerna (GitHub-token, privata nycklar,
+      # molnnycklar) gäller även i tester. Ett enskilt falsklarm utanför
+      # testerna undantas med sitt fingeravtryck i .gitleaksignore, med en
+      # kommentar om varför.
+      - name: Konfiguration
+        run: |
+          cat > "$RUNNER_TEMP/gitleaks.toml" <<'EOF'
+          [extend]
+          useDefault = true
+
+          [[rules]]
+          id = "generic-api-key"
+            [[rules.allowlists]]
+            description = "Fixturer i testfiler"
+            paths = [
+              '''(^|/)tests?/''',
+              '''(^|/)conftest\.py$''',
+            ]
+          EOF
+
+      # --redact: ett fynd skrivs aldrig i klartext i körningsloggen.
+      - name: gitleaks
+        run: >-
+          "$RUNNER_TEMP/gitleaks" git .
+          --config "$RUNNER_TEMP/gitleaks.toml"
+          --redact --no-banner --verbose
+
+  beroenden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Installera osv-scanner
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/osv-scanner" \
+            "https://github.com/google/osv-scanner/releases/download/v${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64"
+          echo "${OSV_SCANNER_SHA256}  $RUNNER_TEMP/osv-scanner" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/osv-scanner"
+
+      # Slår upp varje paket i uv.lock mot osv.dev och blir röd när ett
+      # beroende har en känd sårbarhet. Kompletterar Dependabot, som har sju
+      # dagars cooldown: här syns en sårbarhet från dagen den publiceras.
+      #
+      # En sårbarhet som inte går att åtgärda än, eller inte når oss, undantas
+      # i osv-scanner.toml bredvid uv.lock ([[IgnoredVulns]] med id, reason
+      # och ignoreUntil), aldrig utan skäl och slutdatum.
+      - name: osv-scanner
+        run: |
+          set +e
+          "$RUNNER_TEMP/osv-scanner" --recursive --format markdown . > "$RUNNER_TEMP/osv.md"
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/osv.md"
+          if [ "$rc" -ne 0 ]; then
+            {
+              echo "## Kända sårbarheter i beroendena"
+              echo
+              cat "$RUNNER_TEMP/osv.md"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$rc"
+
+  # Förteckning över beroendena (CycloneDX) för varje commit på main, alltså
+  # det som driftsätts. Två varianter: drift utan utvecklingsberoenden (det
+  # som körs i produktion) och alla (det som bygget drar in). uv skriver
+  # formatet själv. Ligger som artefakt på körningen i 90 dagar.
+  sbom:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Installera uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+
+      # uv skriver filen men ekar den också till stdout; det ekot vill vi inte
+      # ha i loggen.
+      - name: Skriv SBOM
+        run: |
+          mkdir -p sbom
+          uv export --frozen --format cyclonedx1.5 --preview-features sbom-export \
+            --no-dev -o sbom/teaball-python-drift.cdx.json > /dev/null
+          uv export --frozen --format cyclonedx1.5 --preview-features sbom-export \
+            --all-groups -o sbom/teaball-python-alla.cdx.json > /dev/null
+          ls -l sbom
+
+      - name: Spara SBOM
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom-${{ github.sha }}
+          path: sbom/
+          retention-days: 90
