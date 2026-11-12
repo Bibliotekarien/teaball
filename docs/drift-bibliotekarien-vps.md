@@ -15,9 +15,11 @@ plattformens `edge/ANUBIS.md`). Databasen ligger i named-volymen
 `teaball-data`. Teaball är **stängd för sökmotorer** — `/robots.txt`
 (serveras av appen) säger `Disallow: /`, eftersom allt utom inloggningen
 kräver konto. uvicorns accesslogg är på, med medlemmarnas token maskade
-(`app/accesslog.py`). Instansens texter (`ORGANISATION=DiVA-konsortiet`,
-`NUVARANDE_SYSTEM=DiVA Classic`) och `ROBOTSKYDD=1` har standardvärden i
-`docker-compose.prod.yml`; `.env` behöver bara sätta dem för att ändra dem.
+(`app/accesslog.py`). Instansens texter ligger i databasen och ändras under
+Inställningar i appen. `docker-compose.prod.yml` har `ORGANISATION=DiVA-konsortiet`
+och `NUVARANDE_SYSTEM=DiVA Classic` som standard; de fyller databasen en gång,
+vid första start efter migration 0010, och läses sedan inte. `ROBOTSKYDD=1`
+står också där.
 
 Driftsättningschecklista (första gången):
 

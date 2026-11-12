@@ -11,7 +11,7 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
-from app import config
+from app import config, instans
 
 logger = logging.getLogger("teaball.db")
 
@@ -109,6 +109,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     assert_sqlite_version()
     migrate(conn)
     create_views_and_triggers(conn)
+    instans.fyll_fran_miljon(conn)
 
 
 def get_conn():
