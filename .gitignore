@@ -6,6 +6,8 @@ __pycache__/
 *.db
 *.db-wal
 *.db-shm
+# Datakatalogen i docker-compose.standalone.yml (ägs av uid 1505).
+teaball-data/
 .pytest_cache/
 
 # Artefakter från körsandlådan / harnesset — inte del av projektet

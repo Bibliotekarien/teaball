@@ -1,0 +1,54 @@
+# Fristående drift på egen server — se INSTALL.md.
+#
+#   internet ──▶ er reverse proxy (TLS, säkerhetsheadrar)
+#                    │
+#                    ▼
+#        127.0.0.1:${TEABALL_PORT:-8000} ──▶ web:8000
+#                                              │
+#                                              ▼
+#                              ${TEABALL_DATA_DIR:-./teaball-data}/teaball.db
+#
+# Porten binds BARA till 127.0.0.1. Appen litar på proxyns X-Forwarded-For
+# (uvicorn --forwarded-allow-ips '*' i Dockerfile) — inloggningsspärren och
+# statistiken räknar per klient-IP. Nås porten direkt utifrån kan vem som
+# helst förfalska sin IP. Ändra inte till 0.0.0.0.
+#
+# Datakatalogen är en bind-mount i stället för en named volume, så att
+# databasfilen ligger på en känd plats för backup.sh och för import av en
+# migrerad databas. Containern kör som uid/gid 1505 (Dockerfile) — katalogen
+# måste ägas av 1505:1505. Lokal disk, aldrig nätverksmontering.
+#
+# Start: docker compose -f docker-compose.standalone.yml up -d --build
+name: teaball
+
+services:
+  web:
+    build: .
+    image: teaball:latest
+    container_name: teaball-web
+    ports:
+      - "127.0.0.1:${TEABALL_PORT:-8000}:8000"
+    volumes:
+      - ${TEABALL_DATA_DIR:-./teaball-data}:/data
+    environment:
+      DB_PATH: /data/teaball.db
+      SECRET_KEY: ${SECRET_KEY:?Sätt SECRET_KEY i .env}
+      COOKIE_SECURE: "1"
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Sätt PUBLIC_BASE_URL i .env}
+      # Server-side Matomo (Tracking HTTP API) — tomma värden stänger av.
+      MATOMO_URL: ${MATOMO_URL:-}
+      MATOMO_SITE_ID: ${MATOMO_SITE_ID:-}
+      MATOMO_TOKEN: ${MATOMO_TOKEN:-}
+    healthcheck:
+      # python i stället för curl — curl finns inte i python:3.12-slim.
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    restart: unless-stopped
