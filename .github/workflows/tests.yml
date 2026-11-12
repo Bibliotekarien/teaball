@@ -19,6 +19,7 @@ on:
 # Utan permissions: får workflowen repots standardbehörighet, som kan vara
 # skrivrätt. Den anropade workflowen i bibliotekarien-platform läser bara
 # (dess egen permissions: är contents: read), så mer än så behövs inte.
+# Undantaget är jobbet badge nedan, som själv begär skrivrätt.
 permissions:
   contents: read
 
@@ -31,3 +32,90 @@ jobs:
   # "Säkerhetskontroller".
   sakerhet:
     uses: Bibliotekarien/bibliotekarien-platform/.github/workflows/security-checks.yml@main
+
+  # Täckning körs här och inte i den delade python-tests.yml: bara teaball
+  # mäter den, och de andra repona ska inte behöva ha coverage i lockfilen.
+  # Testerna körs alltså två gånger. De är snabba, och det delade jobbet
+  # förblir den vanliga grinden.
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      procent: ${{ steps.total.outputs.procent }}
+    steps:
+      # Samma SHA-pinnade versioner som i bibliotekarien-platform.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Installera uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Installera beroenden exakt enligt lockfilen
+        run: uv sync --locked
+
+      # Utan prestandatesterna: instrumenteringen gör varje rad långsammare,
+      # så tidsbudgetarna spricker. De körs i det delade testjobbet.
+      - name: pytest under coverage
+        run: uv run --no-sync coverage run -m pytest -q -m "not slow"
+
+      # Före rapporten, som failar under golvet: siffran ska finnas även då.
+      - name: Total
+        id: total
+        run: echo "procent=$(uv run --no-sync coverage report --format=total --fail-under=0)" >> "$GITHUB_OUTPUT"
+
+      # Tabellen hamnar i körningens sammanfattning, så varje PR visar sin
+      # täckning per fil. Failar jobbet om totalen går under fail_under i
+      # pyproject.toml.
+      - name: Rapport
+        run: uv run --no-sync coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+
+  # README-badgen. Ett eget jobb så att skrivrätten aldrig delas med kod som
+  # kommer ur en PR: det kör bara efter push till main, och bara det som
+  # redan finns på main. Badgen ersätts med en enda commit på grenen badges
+  # (force-push), så grenen växer inte och historiken på main rörs inte.
+  badge:
+    needs: coverage
+    # always(): även när coverage-jobbet failat på golvet ska badgen visa den
+    # sänkta siffran, inte stå kvar på den förra. Saknas siffran (testerna
+    # kom aldrig så långt) finns inget att rita.
+    if: >-
+      always() && needs.coverage.outputs.procent != ''
+      && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    # Två merger tätt efter varandra ska inte tävla om grenen.
+    concurrency:
+      group: coverage-badge
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Rita badgen
+        env:
+          PROCENT: ${{ needs.coverage.outputs.procent }}
+        run: |
+          mkdir "$RUNNER_TEMP/badges"
+          python3 .github/scripts/coverage_badge.py "$PROCENT" > "$RUNNER_TEMP/badges/coverage.svg"
+
+      - name: Publicera på grenen badges
+        working-directory: ${{ runner.temp }}/badges
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROCENT: ${{ needs.coverage.outputs.procent }}
+        run: |
+          git init -q -b badges
+          git add coverage.svg
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "Täckning ${PROCENT} % på main (${GITHUB_SHA::7})"
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" badges

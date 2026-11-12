@@ -5,6 +5,7 @@ session-switch confirmation, robust 404s instead of 500s, and /health."""
 from tests.conftest import (
     csrf_fran,
     ge_token,
+    huvuddel,
     logga_in,
     seed_trad,
     skapa_forvaltare,
@@ -33,6 +34,40 @@ def test_login_sparras_efter_upprepade_misslyckanden(client, app_db):
     assert svar.status_code == 429
     assert "För många misslyckade försök" in svar.text
     inloggning._misslyckanden.clear()  # don't leak state into other tests
+
+
+def test_okant_anvandarnamn_hashar_anda(client, app_db, monkeypatch):
+    """An unknown username must cost an argon2 hash like a wrong password
+    does, or the response time reveals which accounts exist. Same 401 and
+    same message as a wrong password, too."""
+    from app.auth import password
+    from app.routers import inloggning
+
+    inloggning._misslyckanden.clear()
+    skapa_forvaltare(app_db, "anna", "hemligt-losen")
+    hashade = []
+    riktig = password._hasher
+
+    class RaknandeHasher:  # PasswordHasher has __slots__, so wrap it instead
+        def hash(self, losen):
+            hashade.append(losen)
+            return riktig.hash(losen)
+
+        def verify(self, *args):
+            return riktig.verify(*args)
+
+    monkeypatch.setattr(password, "_hasher", RaknandeHasher())
+    token = csrf_fran(client.get("/login").text)
+
+    okand = client.post("/login", data={"anvandarnamn": "finns-inte", "losenord": "x",
+                                        "csrf_token": token})
+    fel_losen = client.post("/login", data={"anvandarnamn": "anna", "losenord": "x",
+                                            "csrf_token": token})
+
+    assert hashade == ["x"]
+    assert okand.status_code == fel_losen.status_code == 401
+    assert huvuddel(okand.text) == huvuddel(fel_losen.text)
+    inloggning._misslyckanden.clear()
 
 
 def test_losenordsbyte_dodar_sessionen(client, app_db):
