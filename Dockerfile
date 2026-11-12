@@ -2,7 +2,7 @@
 # oföränderlig och ingen pip i kedjan. Ett eget FROM-steg och inte
 # COPY --from=<image>, eftersom Dependabots docker-post bara läser FROM-rader;
 # så bumpas uv som andra images.
-FROM ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.8@sha256:5cc1805e2426484abca4ad46ea783bab281fdb225fd82d8ce6d66a81254bac85 AS uv
 
 # Pinnad på digest (3.12-slim, hämtad 2026-08-25) — bumpa medvetet, inte via
 # oannonserad :latest-glidning. Samma policy som Anubis-imagen i prod-composen.
