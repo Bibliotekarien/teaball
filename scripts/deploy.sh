@@ -68,7 +68,7 @@ foralder=$(dirname "$APP_DIR")
 if [[ -L "$APP_DIR" || "$(stat -c %u "$foralder")" != 0 \
       || -n "$(find "$foralder" -maxdepth 0 -perm /022)" ]]; then
   echo "$foralder måste vara root-ägd och skrivskyddad för andra, och $APP_DIR" >&2
-  echo "får inte vara en symlänk. Rätta enligt README, \"Root-ägd arbetskopia\":" >&2
+  echo "får inte vara en symlänk. Rätta enligt docs/drift-bibliotekarien-vps.md, \"Root-ägd arbetskopia\":" >&2
   echo "  chown root:root $foralder && chmod 755 $foralder" >&2
   exit 1
 fi
@@ -82,7 +82,7 @@ osakra=$(find "$APP_DIR" ! -type l \( ! -user root -o -perm /022 \) -print | hea
 if [[ -n "$osakra" ]]; then
   echo "Arbetskopian $APP_DIR är inte root-ägd och skrivskyddad för andra, t.ex.:" >&2
   echo "$osakra" >&2
-  echo "Rätta enligt README, \"Root-ägd arbetskopia\":" >&2
+  echo "Rätta enligt docs/drift-bibliotekarien-vps.md, \"Root-ägd arbetskopia\":" >&2
   echo "  chown -R root:root $APP_DIR && chmod -R go-w $APP_DIR" >&2
   exit 1
 fi
@@ -141,7 +141,7 @@ if [[ "$SKIP_BACKUP" == "1" ]]; then
   echo "==> Hoppar över databaskopian (SKIP_BACKUP=1)"
 elif ! backup_unit_finns; then
   echo "AVBRYTER: backup-uniten '$BACKUP_UNIT' finns inte — ingen kopia före deploy." >&2
-  echo "Installera deploy/teaball-backup.{service,timer} (README, systemd-steget)," >&2
+  echo "Installera deploy/teaball-backup.{service,timer} (docs/drift-bibliotekarien-vps.md, systemd-steget)," >&2
   echo "eller sätt SKIP_BACKUP=1 vid första bring-up medan databasen ännu är tom." >&2
   exit 1
 else
