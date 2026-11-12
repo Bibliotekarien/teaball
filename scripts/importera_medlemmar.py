@@ -1,11 +1,12 @@
 """Load the member list from CSV or JSON (columns/keys: namn, kategori).
 
 Usage:
-    python scripts/importera_medlemmar.py [fil] [--db sökväg]
+    python scripts/importera_medlemmar.py <fil> [--db sökväg]
 
-Without a file argument the bundled DiVA consortium list is used
-(data/diva_medlemmar.csv). Members whose name already exists are skipped,
-so the import can be rerun when the upstream list changes."""
+The file is required: every instance has its own members. The DiVA
+consortium list in data/diva_medlemmar.csv is an example of the format.
+Members whose name already exists are skipped, so the import can be rerun
+when the upstream list changes."""
 
 import argparse
 import sys
@@ -16,12 +17,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app import db  # noqa: E402
 from app.services.importera import importera_medlemmar, las_rader  # noqa: E402
 
-STANDARDFIL = Path(__file__).resolve().parent.parent / "data" / "diva_medlemmar.csv"
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="Läs in medlemslistan från CSV/JSON.")
-    parser.add_argument("fil", nargs="?", type=Path, default=STANDARDFIL)
+    parser.add_argument("fil", type=Path)
     parser.add_argument("--db", help="Sökväg till databasfilen (annars DB_PATH/standard).")
     args = parser.parse_args()
 

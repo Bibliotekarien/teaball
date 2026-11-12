@@ -28,6 +28,15 @@ services:
       SECRET_KEY: ${SECRET_KEY:?Sätt SECRET_KEY i .env}
       COOKIE_SECURE: "1"
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Sätt PUBLIC_BASE_URL i .env}
+      # Instansens texter. Standardvärdena är den här instansens, så att
+      # .env på servern inte behöver ändras; .env vinner om den sätter dem.
+      ORGANISATION: ${ORGANISATION:-DiVA-konsortiet}
+      NUVARANDE_SYSTEM: ${NUVARANDE_SYSTEM:-DiVA Classic}
+      PERSONUPPGIFTSANSVARIG: ${PERSONUPPGIFTSANSVARIG:-}
+      DATASKYDD_KONTAKT: ${DATASKYDD_KONTAKT:-}
+      # Anubis står framför appen och sätter en egen kaka — integritetssidan
+      # ska nämna den.
+      ROBOTSKYDD: "1"
       # Server-side Matomo (Tracking HTTP API) — tomma värden stänger av.
       MATOMO_URL: ${MATOMO_URL:-}
       MATOMO_SITE_ID: ${MATOMO_SITE_ID:-}

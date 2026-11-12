@@ -86,7 +86,7 @@ STATUS = {
                  "beskrivning": "Beslutad att byggas; avgången i roadmapen anger när."},
     "utreds": {"label": "Utreds", "cls": "bg-sky-200 text-sky-900",
                "stapel": "bg-sky-700",
-               "beskrivning": "Finns i DiVA Classic; identifierad men ännu inte beslutad."},
+               "beskrivning": f"Finns i {config.NUVARANDE_SYSTEM}; identifierad men ännu inte beslutad."},
     "idé": {"label": "Idé", "cls": "bg-sky-100 text-sky-800",
             "stapel": "bg-sky-400",
             "beskrivning": "Nytt förslag som ännu inte är beslutat."},

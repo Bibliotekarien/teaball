@@ -1,13 +1,19 @@
 # Teaball
 
-Behovsdatabas och förmågekarta för ett system under omskrivning, med ca 50
-medlemsorganisationer. Verktyget håller en hierarkisk funktions-/behovsstruktur,
-en roadmap och medlemmarnas bedömning av varje behov — så att gemensamma
-nämnare, blockerare för go-live och migreringsordning blir synliga.
-Kravspecifikationen finns i [`requirements.md`](requirements.md), designen
-följer prototypen i `formagekarta-prototyp.jsx`. (I de dokumenten bär
-tjänsten arbetsnamnet *Förmågekartan* — den heter numera Teaball; dokumenten
-är bevarade oförändrade.)
+Behovsdatabas och förmågekarta för ett gemensamt system som byts ut, med
+många medlemsorganisationer som var och en har sina behov. Verktyget håller en
+hierarkisk funktions-/behovsstruktur, en roadmap och medlemmarnas bedömning av
+varje behov — så att gemensamma nämnare, blockerare för go-live och
+migreringsordning blir synliga.
+
+Teaball byggdes för DiVA-konsortiets byte från DiVA Classic (ca 50
+medlemsorganisationer), men inget i verktyget är bundet till det: namnen på
+organisationen och det nuvarande systemet sätts per instans (se
+[INSTALL.md](INSTALL.md#2-installera)). Kravspecifikationen finns i
+[`requirements.md`](requirements.md), designen följer prototypen i
+`formagekarta-prototyp.jsx`. (I de dokumenten bär tjänsten arbetsnamnet
+*Förmågekartan* — den heter numera Teaball; dokumenten är bevarade
+oförändrade.)
 
 **Stack:** Python/FastAPI + SQLite (all affärslogik som triggers/vyer i
 databasen) + serverrenderad Jinja2 med htmx. Ingen SPA, ingen build-kedja.
@@ -89,26 +95,27 @@ Hela importen är en transaktion — valideringsfel lämnar databasen orörd.
 
 Giltiga statusar är `driftsatt`, `planerad`, `idé`, `utreds` och `utgår`.
 `driftsatt` = finns och fungerar i nya plattformen (räknas inte som blockerare);
-`utreds` = finns i DiVA Classic, identifierad men ännu inte beslutad (behandlas
+`utreds` = finns i det nuvarande systemet (namnet sätts med `NUVARANDE_SYSTEM`),
+identifierad men ännu inte beslutad (behandlas
 som `idé` i analysens varningar). I kravspecen och prototypen heter `driftsatt`
 fortfarande *befintlig* — de dokumenten är bevarade oförändrade; migration
 `0002` döper om värdet i databasen automatiskt vid första uppstarten.
 Förklaringarna visas även i appen, under ”Vad betyder typerna och statusarna?”.
 
-Medlemslistan läses in på samma sätt (kolumner/nycklar: `namn, kategori`).
-Utan filargument används det incheckade underlaget med DiVA-konsortiets
-49 medlemmar (`data/diva_medlemmar.csv`, hämtat från
-[info.diva-portal.org](https://www.info.diva-portal.org/w/diva/konsortiet/)):
+Medlemslistan läses in på samma sätt (kolumner/nycklar: `namn, kategori`):
 
 ```bash
-docker compose exec app python scripts/importera_medlemmar.py            # DiVA:s medlemmar
-docker compose exec app python scripts/importera_medlemmar.py egna.csv   # eget underlag
+docker compose exec app python scripts/importera_medlemmar.py medlemmar.csv
 ```
 
 Medlemmar som redan finns (samma namn) hoppas över, så importen kan köras om
-när medlemslistan ändras uppströms. Det finns även ett litet exempel-underlag
-för själva förmågekartan, `data/diva_formagekarta_exempel.csv`, att läsa in
-med `importera_trad.py` som startskelett.
+när medlemslistan ändras uppströms.
+
+I `data/` finns exempel på båda formaten, från DiVA-konsortiet där Teaball
+började: `diva_medlemmar.csv` (49 medlemmar, hämtat från
+[info.diva-portal.org](https://www.info.diva-portal.org/w/diva/konsortiet/))
+och `diva_formagekarta_exempel.csv`, ett litet startskelett för
+förmågekartan.
 
 ### Medlemslänkar (fas 2)
 

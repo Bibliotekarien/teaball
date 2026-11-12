@@ -35,6 +35,11 @@ services:
       SECRET_KEY: ${SECRET_KEY:?Sätt SECRET_KEY i .env}
       COOKIE_SECURE: "1"
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Sätt PUBLIC_BASE_URL i .env}
+      # Instansens texter (INSTALL.md avsnitt 2) — tomma ger neutral text.
+      ORGANISATION: ${ORGANISATION:-}
+      NUVARANDE_SYSTEM: ${NUVARANDE_SYSTEM:-}
+      PERSONUPPGIFTSANSVARIG: ${PERSONUPPGIFTSANSVARIG:-}
+      DATASKYDD_KONTAKT: ${DATASKYDD_KONTAKT:-}
       # Server-side Matomo (Tracking HTTP API) — tomma värden stänger av.
       MATOMO_URL: ${MATOMO_URL:-}
       MATOMO_SITE_ID: ${MATOMO_SITE_ID:-}
