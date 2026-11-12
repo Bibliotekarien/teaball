@@ -38,8 +38,18 @@ Fyll i `.env`:
 |---|---|
 | `SECRET_KEY` | Slumpad nyckel som signerar sessionscookies. Generera med `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`. Appen vägrar starta utan. |
 | `PUBLIC_BASE_URL` | Den publika adressen, t.ex. `https://teaball.example.org`. Används i medlemmarnas svarslänkar. |
-| `MATOMO_*` | Lämna tomma om ni inte har en egen Matomo — då är statistiken avstängd. |
+| `ORGANISATION` | Namnet på er organisation eller ert samarbete, t.ex. `Exempelkonsortiet`. Visas på integritetssidan. Tomt ger neutral text. |
+| `NUVARANDE_SYSTEM` | Systemet som ska ersättas, t.ex. `Gamla Systemet`. Används i förklaringen av statusen *utreds* ("Finns i …"). Tomt ger "det nuvarande systemet". |
+| `PERSONUPPGIFTSANSVARIG` | Vem som är personuppgiftsansvarig, t.ex. `Exempeluniversitetet`. Visas på `/integritet`. |
+| `DATASKYDD_KONTAKT` | Kontaktväg för dataskyddsfrågor, t.ex. en funktionsadress. Visas på `/integritet`. |
+| `MATOMO_*` | Lämna tomma om ni inte har en egen Matomo — då är statistiken avstängd, och integritetssidan säger det. |
 | `ANUBIS_COOKIE_DOMAIN` | Används inte av den fristående compose-filen; lämna som den är. |
+
+Så länge `PERSONUPPGIFTSANSVARIG` och `DATASKYDD_KONTAKT` saknas visar
+integritetssidan en gul markering om att de ska fyllas i före skarp drift.
+Läs igenom sidan (`/integritet`) innan ni öppnar tjänsten. Den säger till
+exempel att tjänsten och säkerhetskopiorna driftas inom EU, och det måste
+stämma för er.
 
 Skapa datakatalogen. Containern kör som uid/gid 1505, som måste äga den:
 
@@ -131,12 +141,16 @@ Läs in medlemmar och ett startskelett för behovsträdet enligt
 fristående compose-filen blir kommandona:
 
 ```bash
-sudo docker compose -f docker-compose.standalone.yml exec web python scripts/importera_medlemmar.py
-sudo docker compose -f docker-compose.standalone.yml exec web python scripts/importera_trad.py data/diva_formagekarta_exempel.csv
+sudo docker compose -f docker-compose.standalone.yml cp medlemmar.csv web:/tmp/medlemmar.csv
+sudo docker compose -f docker-compose.standalone.yml exec web python scripts/importera_medlemmar.py /tmp/medlemmar.csv
 ```
 
-Egna CSV-filer läggs i en katalog som monteras in, eller kopieras in med
-`docker compose cp`.
+Formatet framgår av exemplen i `data/` (från DiVA-konsortiet, där Teaball
+började). Vill ni börja behovsträdet från exemplets skelett:
+
+```bash
+sudo docker compose -f docker-compose.standalone.yml exec web python scripts/importera_trad.py data/diva_formagekarta_exempel.csv
+```
 
 ## 6. Ta över en databas från en annan instans
 
@@ -184,8 +198,9 @@ filen och eventuella mellanlagrade kopior när allt stämmer.
   **Medlemmar** och skicka ut dem. Länken visas en gång; den gamla blir
   ogiltig samtidigt. Medlemmarnas svar och kommentarer finns kvar — bara
   länken byts.
-- **Integritetssidan:** `app/templates/integritet.html` anger vem som är
-  personuppgiftsansvarig. Uppdatera den så att den beskriver er.
+- **Integritetssidan:** sätt `ORGANISATION`, `PERSONUPPGIFTSANSVARIG` och
+  `DATASKYDD_KONTAKT` i `.env` (avsnitt 2), så att `/integritet` beskriver
+  er och inte den gamla instansens ägare.
 
 ## 7. Backup
 
@@ -231,4 +246,6 @@ verifierad.
   (`/robots.txt` säger `Disallow: /`) och allt utom inloggningen kräver
   konto, så det är inget krav. Lägger ni Anubis framför appen måste
   CSP:n tillåta dess PoW-worker (`'wasm-unsafe-eval'`, `worker-src blob:`),
-  och proxyn då sätta CSP:n i stället för appen.
+  och proxyn då sätta CSP:n i stället för appen. Sätt också `ROBOTSKYDD=1`
+  i `.env` och för in den i compose-filens `environment`, så att
+  integritetssidan nämner Anubis kaka.

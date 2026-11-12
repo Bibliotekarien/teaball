@@ -74,9 +74,9 @@ def create_app() -> FastAPI:
         is the same Disallow, but only by default; bibliotekarien-platform
         edge/ANUBIS.md). Anubis lets /robots.txt through unchallenged."""
         return PlainTextResponse(
-            "# Teaball är ett slutet verktyg för DiVA-konsortiet: allt utom\n"
-            "# inloggningen kräver konto, och /svara/<token> är medlemmarnas\n"
-            "# hemliga länkar. Inget att indexera.\n"
+            "# Teaball är ett slutet verktyg: allt utom inloggningen kräver\n"
+            "# konto, och /svara/<token> är medlemmarnas hemliga länkar.\n"
+            "# Inget att indexera.\n"
             "User-agent: *\n"
             "Disallow: /\n"
         )
@@ -90,7 +90,14 @@ def create_app() -> FastAPI:
     def integritet(request: Request):
         """Public privacy notice, linked from the footer. Standalone template
         (no CSRF/htmx) so an anonymous reader is not handed a session cookie."""
-        return templates.TemplateResponse(request, "integritet.html", {"principal": None})
+        return templates.TemplateResponse(request, "integritet.html", {
+            "principal": None,
+            "organisation": config.ORGANISATION,
+            "personuppgiftsansvarig": config.PERSONUPPGIFTSANSVARIG,
+            "dataskydd_kontakt": config.DATASKYDD_KONTAKT,
+            "matomo": config.MATOMO_ENABLED,
+            "robotskydd": config.ROBOTSKYDD,
+        })
 
     @app.middleware("http")
     async def sakerhetsheaders(request, call_next):

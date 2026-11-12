@@ -290,7 +290,7 @@ def test_lankar_och_detaljerad_vy(client, app_db):
     assert "https://jira.example/DIVA-123" not in sida
     assert "Detaljerad vy" in sida
     assert "Vad betyder typerna och statusarna?" in sida     # legend
-    assert "Finns i DiVA Classic" in sida                    # utreds explained
+    assert "Finns i det nuvarande systemet" in sida          # utreds explained
 
     # The detailed view shows both, and sticks in the session.
     sida = client.get("/trad", params={"vy": "detaljerad"}).text

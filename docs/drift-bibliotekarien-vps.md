@@ -15,7 +15,9 @@ plattformens `edge/ANUBIS.md`). Databasen ligger i named-volymen
 `teaball-data`. Teaball är **stängd för sökmotorer** — `/robots.txt`
 (serveras av appen) säger `Disallow: /`, eftersom allt utom inloggningen
 kräver konto. uvicorns accesslogg är på, med medlemmarnas token maskade
-(`app/accesslog.py`).
+(`app/accesslog.py`). Instansens texter (`ORGANISATION=DiVA-konsortiet`,
+`NUVARANDE_SYSTEM=DiVA Classic`) och `ROBOTSKYDD=1` har standardvärden i
+`docker-compose.prod.yml`; `.env` behöver bara sätta dem för att ändra dem.
 
 Driftsättningschecklista (första gången):
 
@@ -30,7 +32,8 @@ Driftsättningschecklista (första gången):
    /opt/teaball/app`.
 4. **Matomo:** registrera sajten på `https://bibstats.bibliotekarien.se`
    (Administration → Websites → Manage → Add a new website, URL
-   `https://teaball.bibliotekarien.se`) och sätt `MATOMO_SITE_ID` +
+   `https://teaball.bibliotekarien.se`) och sätt
+   `MATOMO_URL=https://bibstats.bibliotekarien.se`, `MATOMO_SITE_ID` och
    `MATOMO_TOKEN` i `.env`. Trackingen sker **server-side** (Tracking HTTP API)
    — ingen matomo.js i klienten, DNT/GPC respekteras, `/svara/<token>` maskas.
 5. `sudo SKIP_BACKUP=1 /opt/teaball/app/scripts/deploy.sh` (skapar nätet;
