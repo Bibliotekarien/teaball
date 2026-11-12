@@ -1,6 +1,7 @@
 """Member management: CRUD plus generating, regenerating and revoking the
 personal answer-link tokens (spec B2). The raw link is shown exactly once,
-via a session flash after the redirect. The list is readable for the intern
+rendered straight into the POST response — never via the session, whose
+cookie is signed but not encrypted. The list is readable for the intern
 role (names and link status only — never tokens); every mutation and the
 delete confirmation require admin."""
 
@@ -20,8 +21,6 @@ from app.web import templates
 router = APIRouter(prefix="/medlemmar", dependencies=[Depends(krav_csrf)])
 audit = logging.getLogger("teaball.audit")
 
-FLASH_NYCKEL = "ny_token_lank"
-
 
 def _svarslank(request: Request, token: str) -> str:
     bas = config.PUBLIC_BASE_URL.rstrip("/") or str(request.base_url).rstrip("/")
@@ -34,6 +33,10 @@ def lista(
     principal: Principal = Depends(krav_intern),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
+    return _listsida(request, conn, principal)
+
+
+def _listsida(request: Request, conn, principal, ny_lank: dict | None = None):
     medlemmar = conn.execute(
         """
         SELECT m.id, m.namn, m.kategori, m.token IS NOT NULL AS har_token,
@@ -49,7 +52,7 @@ def lista(
             "principal": principal,
             "medlemmar": medlemmar,
             "skrivbar": principal.roll == "admin",
-            "ny_lank": request.session.pop(FLASH_NYCKEL, None),
+            "ny_lank": ny_lank,
         },
     )
 
@@ -140,12 +143,11 @@ def generera_token(
     conn.execute("UPDATE medlem SET token = ? WHERE id = ?", (tokenhash, medlem_id))
     conn.commit()
     rad = conn.execute("SELECT namn FROM medlem WHERE id = ?", (medlem_id,)).fetchone()
-    request.session[FLASH_NYCKEL] = {
+    audit.info("forvaltare=%s op=token_generera medlem=%s", principal.namn, medlem_id)
+    return _listsida(request, conn, principal, ny_lank={
         "namn": rad["namn"] if rad else "?",
         "lank": _svarslank(request, token),
-    }
-    audit.info("forvaltare=%s op=token_generera medlem=%s", principal.namn, medlem_id)
-    return RedirectResponse("/medlemmar", status_code=303)
+    })
 
 
 @router.post("/{medlem_id}/token/ta-bort")

@@ -61,10 +61,17 @@ USER appuser
 
 EXPOSE 8000
 # --proxy-headers: scheme/host from the edge (Secure cookies, Matomo URLs).
-# --forwarded-allow-ips '*': the proxy hop is Anubis/Caddy on the compose
-# network; the container publishes no host ports, so the header is trustworthy.
+# Which peers may set X-Forwarded-For is FORWARDED_ALLOW_IPS, read by uvicorn
+# itself. With "*" uvicorn takes the LEFTMOST address — right behind
+# edge-Caddy (which overwrites the header) and Anubis (which appends), and
+# with no host ports, as in docker-compose.prod.yml. With a list of addresses
+# or networks it walks from the right and takes the first untrusted one,
+# which holds even behind a proxy that appends to a client-sent header;
+# docker-compose.standalone.yml sets that. The login throttle and Matomo
+# count per client IP, so this decides whether a client can fake its own.
 # The access log is on: members' tokens in GET /svara/<token> are masked by
 # app/accesslog.py before the line is written (the platform pattern — mask,
 # don't turn off; bibliotekarien-platform LOGGNING.md).
+ENV FORWARDED_ALLOW_IPS="*"
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", \
-     "--proxy-headers", "--forwarded-allow-ips", "*"]
+     "--proxy-headers"]

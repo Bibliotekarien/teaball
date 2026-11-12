@@ -8,8 +8,9 @@
 # Målkatalogen förutsätts vara en separat montering (t.ex. CIFS) — aldrig samma
 # katalog som databasfilen. Rotation: 30 dagliga + 12 månatliga kopior behålls.
 #
-# Cron-exempel (dagligen 03:10):
-#   10 3 * * * /srv/teaball/scripts/backup.sh /srv/teaball/data/teaball.db /mnt/backup/teaball
+# Kör som databasens ägare (uid 1505 i containeruppsättningarna), inte som
+# root. Cron-exempel (dagligen 03:10, i roots crontab):
+#   10 3 * * * setpriv --reuid=1505 --regid=1505 --clear-groups /srv/teaball/scripts/backup.sh /srv/teaball/teaball-data/teaball.db /mnt/backup/teaball
 set -euo pipefail
 
 DBFIL="${1:?Användning: backup.sh <dbfil> <målkatalog>}"
@@ -30,9 +31,10 @@ datum=$(date +%F)
 fil="$MAL/dagliga/teaball-$datum.db"
 
 # sqlite3-CLI:t om det finns, annars Pythons inbyggda sqlite3 — båda använder
-# SQLite:s backup-API och ger en konsistent kopia även under drift.
+# SQLite:s backup-API och ger en konsistent kopia även under drift. Källan
+# öppnas skrivskyddad i båda grenarna: backupen ska aldrig kunna ändra den.
 if command -v sqlite3 >/dev/null; then
-  sqlite3 "$DBFIL" ".backup '$fil'"
+  sqlite3 -readonly "$DBFIL" ".backup '$fil'"
   kontroll=$(sqlite3 "$fil" "PRAGMA integrity_check;")
 else
   kontroll=$(python3 - "$DBFIL" "$fil" <<'PYEOF'

@@ -60,7 +60,8 @@ sudo chmod 700 teaball-data
 ```
 
 Vill ni ha databasen någon annanstans, sätt `TEABALL_DATA_DIR=/sökväg` i
-`.env`. Porten (`127.0.0.1:8000`) ändras med `TEABALL_PORT`.
+`.env`. Porten (`127.0.0.1:8000`) ändras med `TEABALL_PORT`, och vilka
+avsändare som får ange klientens IP med `FORWARDED_ALLOW_IPS` (se avsnitt 3).
 
 Bygg och starta:
 
@@ -73,14 +74,21 @@ Databasen skapas och migreras automatiskt vid första starten.
 
 ## 3. Reverse proxy
 
-Appen lyssnar **bara** på `127.0.0.1` och ska alltid nås via proxyn. Den litar
-på proxyns `X-Forwarded-For` för klientens IP (inloggningsspärren räknar per
-IP) — publicera aldrig porten utåt, då kan klienter förfalska sin adress.
+Appen lyssnar **bara** på `127.0.0.1` och ska alltid nås via proxyn —
+publicera aldrig porten utåt.
+
+Klientens IP (inloggningsspärren räknar per IP) läses ur proxyns
+`X-Forwarded-For`. Appen litar bara på headern när den kommer från Dockers
+interna nät, dit proxyn ansluter via port-vidarebefordran, och läser den
+högerifrån. Det fungerar oavsett om proxyn skriver över headern eller lägger
+till i den. Om accessloggen (`docker compose logs web`) visar samma
+172.x-/192.168.x-adress för alla besökare använder er Docker andra nät; sätt
+då `FORWARDED_ALLOW_IPS` i `.env` till nätets gateway, som
+`docker network inspect teaball_default` visar.
 
 Appen sätter själv sina säkerhetsheadrar (Content-Security-Policy,
 X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Cache-Control på
-sidor med bedömningar). Proxyn behöver bara lägga till **HSTS** och
-**ersätta**, inte förlänga, `X-Forwarded-For`.
+sidor med bedömningar). Proxyn behöver bara lägga till **HSTS**.
 
 **Caddy** (hämtar och förnyar certifikat själv; skriver över
 `X-Forwarded-For` som standard):
@@ -206,11 +214,21 @@ filen och eventuella mellanlagrade kopior när allt stämmer.
 
 `scripts/backup.sh` tar en konsistent kopia även under drift, verifierar den
 med `PRAGMA integrity_check`, kontrollerar ledigt utrymme och roterar (30
-dagliga + 12 månatliga). Den behöver `sqlite3` eller `python3` på servern och
-körs som root (datakatalogen ägs av 1505). Cron-exempel:
+dagliga + 12 månatliga). Den behöver `sqlite3` eller `python3` på servern.
+
+Kör den som uid 1505, samma användare som containern och ägaren till
+datakatalogen — **inte som root**. Datakatalogen är skrivbar för containern,
+och root ska inte öppna en databas som en komprometterad container har
+kunnat preparera. Backupmålet ska därför ägas av 1505:
+
+```bash
+sudo install -d -o 1505 -g 1505 -m 700 /mnt/backup/teaball
+```
+
+Cron-exempel, i roots crontab (`setpriv` byter till uid 1505 före körningen):
 
 ```
-10 3 * * * /srv/teaball/scripts/backup.sh /srv/teaball/teaball-data/teaball.db /mnt/backup/teaball
+10 3 * * * setpriv --reuid=1505 --regid=1505 --clear-groups /srv/teaball/scripts/backup.sh /srv/teaball/teaball-data/teaball.db /mnt/backup/teaball
 ```
 
 Målet ska ligga på en annan disk eller server. Övervaka att kopiorna faktiskt
@@ -224,7 +242,7 @@ starta igen.
 
 ```bash
 cd /srv/teaball
-sudo scripts/backup.sh teaball-data/teaball.db /mnt/backup/teaball
+sudo setpriv --reuid=1505 --regid=1505 --clear-groups scripts/backup.sh teaball-data/teaball.db /mnt/backup/teaball
 sudo git pull --ff-only
 sudo docker compose -f docker-compose.standalone.yml up -d --build
 ```

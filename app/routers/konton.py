@@ -3,9 +3,11 @@
 password, delete. The rules that stop an admin from locking everyone out
 live in services/konton.py; this router only renders their messages.
 
-The one-time password travels in a session flash across the redirect, exactly
-like the member answer link in medlemmar.py: the cookie is signed and
-HttpOnly, and the value is popped on the next page view."""
+The one-time password is rendered straight into the POST response, never
+put in the session: Starlette's session cookie is signed but not encrypted,
+so a flashed password would sit base64-readable in the cookie until the next
+page view. Same for the member answer link in medlemmar.py. Error messages
+are not secret and still travel as a flash across the redirect."""
 
 import logging
 import sqlite3
@@ -22,12 +24,11 @@ from app.web import templates
 router = APIRouter(prefix="/konton", dependencies=[Depends(krav_csrf)])
 audit = logging.getLogger("teaball.audit")
 
-FLASH_LOSENORD = "nytt_konto_losenord"
 FLASH_FEL = "konton_fel"
 
 
 def _ctx(request: Request, conn, principal, fel: str | None = None,
-         forslag_namn: str | None = None):
+         forslag_namn: str | None = None, nytt_losenord: dict | None = None):
     konton = conn.execute(
         "SELECT id, anvandarnamn, roll, senast_inloggad FROM forvaltare"
         " ORDER BY anvandarnamn"
@@ -37,7 +38,7 @@ def _ctx(request: Request, conn, principal, fel: str | None = None,
         "konton": konton,
         "roller": tjanst.ROLLER,
         "forslag_namn": forslag_namn or tjanst.slumpa_anvandarnamn(conn),
-        "nytt_losenord": request.session.pop(FLASH_LOSENORD, None),
+        "nytt_losenord": nytt_losenord,
         "fel": fel or request.session.pop(FLASH_FEL, None),
     }
 
@@ -78,10 +79,12 @@ def skapa(
             status_code=400,
         )
     conn.commit()
-    request.session[FLASH_LOSENORD] = {"anvandarnamn": namn, "losenord": losenord,
-                                       "nytt_konto": True}
     audit.info("forvaltare=%s op=konto_skapa konto=%r roll=%s", principal.namn, namn, roll)
-    return RedirectResponse("/konton", status_code=303)
+    return templates.TemplateResponse(
+        request, "konton/index.html",
+        _ctx(request, conn, principal, nytt_losenord={
+            "anvandarnamn": namn, "losenord": losenord, "nytt_konto": True}),
+    )
 
 
 @router.post("/{konto_id}/roll")
@@ -113,10 +116,12 @@ def nytt_losenord(
     except tjanst.Kontofel as fel:
         return _fel_och_tillbaka(request, fel)
     conn.commit()
-    request.session[FLASH_LOSENORD] = {"anvandarnamn": namn, "losenord": losenord,
-                                       "nytt_konto": False}
     audit.info("forvaltare=%s op=konto_nytt_losenord konto=%r", principal.namn, namn)
-    return RedirectResponse("/konton", status_code=303)
+    return templates.TemplateResponse(
+        request, "konton/index.html",
+        _ctx(request, conn, principal, nytt_losenord={
+            "anvandarnamn": namn, "losenord": losenord, "nytt_konto": False}),
+    )
 
 
 @router.get("/{konto_id}/ta-bort")

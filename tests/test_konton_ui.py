@@ -7,7 +7,7 @@ import re
 import pytest
 
 from app.services import konton
-from tests.conftest import csrf_fran, logga_in, skapa_forvaltare
+from tests.conftest import csrf_fran, logga_in, sessionsinnehall, skapa_forvaltare
 
 LOSENORD_I_RUTAN = re.compile(r'value="([^"]+)" data-markera aria-label="Lösenord"')
 
@@ -35,15 +35,18 @@ def test_skapa_konto_med_slumpat_namn_och_losenord(client, klient_fabrik, app_db
     # Förslaget är två ord med bindestreck, redan ifyllt i formuläret.
     assert re.search(r'name="anvandarnamn" value="[a-z]+-[a-z]+"', sida)
 
+    # The password is in the POST response itself — no redirect, no flash.
     svar = client.post("/konton", data={"anvandarnamn": "", "roll": "intern",
                                         "csrf_token": csrf_fran(sida)},
                        follow_redirects=False)
-    assert svar.status_code == 303
-
-    efter = client.get("/konton").text
-    assert "Nytt konto" in efter
-    losenord = LOSENORD_I_RUTAN.search(efter).group(1)
+    assert svar.status_code == 200
+    assert "Nytt konto" in svar.text
+    losenord = LOSENORD_I_RUTAN.search(svar.text).group(1)
     assert len(losenord) >= 16
+    # Never in the (signed but unencrypted) session cookie. The first check
+    # proves the decoding works, so the second cannot pass vacuously.
+    assert "forvaltare_id" in sessionsinnehall(client)
+    assert losenord not in sessionsinnehall(client)
     skapat = app_db.execute(
         "SELECT anvandarnamn, roll FROM forvaltare WHERE anvandarnamn != 'anna'"
     ).fetchone()
@@ -61,7 +64,7 @@ def test_skapa_konto_med_eget_namn_och_fel(client, app_db):
     token = _csrf_konton(client)
     svar = client.post("/konton", data={"anvandarnamn": "styrgrupp-sö", "roll": "extern",
                                         "csrf_token": token}, follow_redirects=False)
-    assert svar.status_code == 303
+    assert svar.status_code == 200
     assert _konto(app_db, "styrgrupp-sö")["roll"] == "extern"
 
     # Dubblett → 400 med feltext, inget nytt konto.
@@ -140,10 +143,11 @@ def test_nytt_losenord_loggar_ut_kontot(client, klient_fabrik, app_db):
 
     svar = client.post(f"/konton/{_konto(app_db, 'berit')['id']}/losenord",
                        data={"csrf_token": _csrf_konton(client)}, follow_redirects=False)
-    assert svar.status_code == 303
-    sida = client.get("/konton").text
-    assert "Nytt lösenord för" in sida and "berit" in sida
-    losenord = LOSENORD_I_RUTAN.search(sida).group(1)
+    assert svar.status_code == 200
+    assert "Nytt lösenord för" in svar.text and "berit" in svar.text
+    losenord = LOSENORD_I_RUTAN.search(svar.text).group(1)
+    assert losenord not in sessionsinnehall(client)
+    assert "Nytt lösenord för" not in client.get("/konton").text   # shown once
     # Berits gamla session är död …
     assert berit.get("/trad", follow_redirects=False).status_code == 303
     # … det gamla lösenordet nekas och det nya fungerar.

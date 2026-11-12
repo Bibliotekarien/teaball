@@ -9,6 +9,7 @@ from tests.conftest import (
     klient_fabrik,  # noqa: F401  (fixture)
     logga_in,
     seed_trad,
+    sessionsinnehall,
     skapa_medlem,
 )
 
@@ -193,12 +194,16 @@ def test_medlemsadmin_tokenflode(client, app_db, klient_fabrik):
                                     "csrf_token": token})
     medlem = app_db.execute("SELECT id FROM medlem WHERE namn = 'Testlärosätet'").fetchone()["id"]
 
-    # Generating shows the link exactly once.
-    svar = client.post(f"/medlemmar/{medlem}/token", data={"csrf_token": token})
+    # Generating shows the link exactly once, in the POST response itself.
+    svar = client.post(f"/medlemmar/{medlem}/token", data={"csrf_token": token},
+                       follow_redirects=False)
+    assert svar.status_code == 200
     forsta = svar.text
     assert "Ny svarslänk för Testlärosätet" in forsta
     lank = re.search(r'value="(http[^"]+/svara/[^"]+)"', forsta).group(1)
-    assert "Ny svarslänk" not in client.get("/medlemmar").text  # flash consumed
+    assert "Ny svarslänk" not in client.get("/medlemmar").text  # not shown again
+    # Never in the (signed but unencrypted) session cookie.
+    assert lank.rsplit("/", 1)[1] not in sessionsinnehall(client)
 
     # The link works (checked with a separate client — following it in the
     # admin's own browser would replace the admin session), and revocation
