@@ -15,6 +15,8 @@
 # En organisation som misslyckas stoppar inte de andra; skriptet avslutas
 # ändå med fel så att cron/övervakningen märker det.
 set -uo pipefail
+# Underkatalogerna per organisation skapas av backup.sh; bara ägaren ska läsa dem.
+umask 077
 
 KATALOG="${1:?Användning: backup_alla.sh <organisationskatalog> <målkatalog>}"
 MAL="${2:?Användning: backup_alla.sh <organisationskatalog> <målkatalog>}"
@@ -27,7 +29,10 @@ antal=0
 misslyckade=()
 for fil in "$KATALOG"/*.db; do
   namn="$(basename "$fil" .db)"
-  # Kopiorna före migration (app/db.py) är inga organisationer.
+  # Kopiorna före migration är inga organisationer. Medveten kopia av _KOPIA i
+  # app/organisationer.py: skriptet körs på värden, utan appens Python-miljö.
+  # Andra filer som appen inte räknar som organisationer (t.ex. med versaler)
+  # backas också upp; det är hellre för mycket än för lite.
   case "$namn" in
     *.fore-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z) continue ;;
   esac

@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app import db  # noqa: E402
 from app.auth.password import hash_losen  # noqa: E402
+from app.services.konton import MINSTA_LOSENORD  # noqa: E402
 
 
 def las_losenord(losenord: str | None) -> str | None:
@@ -30,8 +31,8 @@ def las_losenord(losenord: str | None) -> str | None:
         if losenord != getpass.getpass("Upprepa lösenord: "):
             print("Lösenorden skiljer sig åt.", file=sys.stderr)
             return None
-    if len(losenord) < 8:
-        print("Lösenordet måste vara minst 8 tecken.", file=sys.stderr)
+    if len(losenord) < MINSTA_LOSENORD:
+        print(f"Lösenordet måste vara minst {MINSTA_LOSENORD} tecken.", file=sys.stderr)
         return None
     return losenord
 

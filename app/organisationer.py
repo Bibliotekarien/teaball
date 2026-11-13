@@ -48,6 +48,14 @@ def giltigt_hostnamn(namn: str) -> bool:
     return len(namn) <= _MAX_HOSTNAMN and bool(_HOSTNAMN.match(namn))
 
 
+def kopior_fore_migration(hostnamn: str) -> list[Path]:
+    """Organisationens kopior före migration (db.py), som ligger bredvid den."""
+    return sorted(
+        fil for fil in config.ORGANISATIONER_DIR.glob(f"{hostnamn}.fore-*.db")
+        if _KOPIA.search(fil.name)
+    )
+
+
 def _ar_organisationsfil(fil: Path) -> bool:
     # Kopiorna före migration är aldrig en organisation. (Deras versaler T och Z
     # stoppas redan av _HOSTNAMN; det explicita mönstret gör avsikten synlig.)
