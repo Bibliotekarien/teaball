@@ -2,6 +2,8 @@
 databasfil per hostnamn, och inget — data, texter, sessioner, svarslänkar —
 får läcka mellan dem."""
 
+import sqlite3
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -210,6 +212,23 @@ def test_auditraden_namnger_organisationen(tva, klient, caplog):
     a.post(f"/medlemmar/{medlem}/token", data={"csrf_token": csrf_fran(a.get("/medlemmar").text)})
     rader = [r.getMessage() for r in caplog.records if r.name == "teaball.audit"]
     assert rader and all(r.startswith(f"org={A} ") for r in rader)
+
+
+def test_anrop_skapar_aldrig_en_databas(tva):
+    """En organisation som tas bort medan ett anrop redan valt den: anropet
+    får ett fel, men filen återuppstår inte som en tom organisation."""
+    fil = config.ORGANISATIONER_DIR / f"{A}.db"
+    organisation = organisationer.for_vard(A)
+    tva[A].close()
+    fil.unlink()
+    token = organisationer.satt_aktuell(organisation)
+    try:
+        with pytest.raises(sqlite3.OperationalError):
+            appdb.connect()
+    finally:
+        organisationer.aterstall(token)
+    assert not fil.exists()
+    assert organisationer.for_vard(A) is None
 
 
 def test_utan_anrop_finns_ingen_organisation(tva):
