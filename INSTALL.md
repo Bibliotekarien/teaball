@@ -266,7 +266,8 @@ på första raden. Kopiorna före migration hamnar då i
 - **Statistik:** Teaball kan rapportera sidvisningar server-side till en
   Matomo-instans (Tracking HTTP API — inget skript i webbläsaren, DNT/GPC
   respekteras, svarslänkarnas token maskas). Sätt `MATOMO_URL`,
-  `MATOMO_SITE_ID` och `MATOMO_TOKEN`.
+  `MATOMO_SITE_ID` och `MATOMO_TOKEN`. Med flera organisationer får var
+  och en sin egen sajt, se avsnitt 10.
 - **Botskydd:** instansen på bibliotekarien-vps står bakom
   [Anubis](https://github.com/TecharoHQ/anubis); se
   `docker-compose.prod.yml` för hur. Tjänsten är stängd för sökmotorer
@@ -375,10 +376,44 @@ sudo docker compose -f docker-compose.standalone.yml start web
 
 Starten migrerar filen om backupen har ett äldre schema.
 
+**Proxy och DNS.** Varje organisation behöver ett DNS-namn som pekar på
+servern och ett eget block i proxyn. Med Caddy, som hämtar certifikat
+själv:
+
+```caddy
+teaball.exempel.se, teaball.annan.se {
+    reverse_proxy 127.0.0.1:8000
+    header Strict-Transport-Security "max-age=63072000; includeSubDomains"
+}
+```
+
+(Samma block som i avsnitt 3, med flera namn. Tänk på loggarna, se
+*Proxyloggarna innehåller hemliga länkar*.)
+
+Caddy skickar vidare det ursprungliga hostnamnet. Lägg till ett namn i
+listan och ladda om Caddy när en organisation skapas, och ta bort det
+innan den tas bort. Med nginx: ett `server_name` per organisation (eller
+flera i samma block) och `proxy_set_header Host $host`. Kontrollera efteråt
+att `https://<hostnamn>/health` svarar och att `/login` visar
+organisationens egen sida, inte 404.
+
+**Besöksstatistik.** Organisationerna delar er Matomo (`MATOMO_URL` och
+`MATOMO_TOKEN` i `.env`), men var och en rapporterar till sin egen sajt, så
+statistiken blandas inte. `MATOMO_SITE_ID` används inte med flera
+organisationer. Lägg upp en sajt per organisation i Matomo
+(Administration → Websites → Manage → Add a new website) och koppla den:
+
+```bash
+sudo docker compose -f docker-compose.standalone.yml exec web \
+    python scripts/organisationer.py matomo teaball.exempel.se 12
+```
+
+Utan site-id samlas ingen statistik för organisationen, och dess
+integritetssida säger det. Med site-id säger integritetssidan att
+statistiken samlas hos den som driftar tjänsten. Organisationens admin kan
+inte ändra sajten. `lista` visar varje organisations site-id.
+
 **Inte klart än:**
-- **Matomo:** statistiken är gemensam för alla organisationer, och
-  integritetssidan beskriver den som organisationens egen. Lämna Matomo
-  avstängt med flera organisationer.
 - **Personuppgiftsbiträde:** driver ni Teaball åt andra organisationer är ni
   deras personuppgiftsbiträde och behöver ett biträdesavtal med var och en.
   Integritetssidan nämner ännu inte operatören.
