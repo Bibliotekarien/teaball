@@ -22,6 +22,20 @@ from app import db  # noqa: E402
 from app.auth.password import hash_losen  # noqa: E402
 
 
+def las_losenord(losenord: str | None) -> str | None:
+    """The password from the argument or a double prompt; None (with the
+    reason printed) when it does not match or is too short."""
+    if not losenord:
+        losenord = getpass.getpass("Lösenord: ")
+        if losenord != getpass.getpass("Upprepa lösenord: "):
+            print("Lösenorden skiljer sig åt.", file=sys.stderr)
+            return None
+    if len(losenord) < 8:
+        print("Lösenordet måste vara minst 8 tecken.", file=sys.stderr)
+        return None
+    return losenord
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Skapa eller uppdatera ett förvaltarkonto.")
     parser.add_argument("anvandarnamn")
@@ -34,14 +48,8 @@ def main() -> int:
                              " <ORGANISATIONER_DIR>/<hostnamn>.db.")
     args = parser.parse_args()
 
-    losenord = args.losenord
-    if not losenord:
-        losenord = getpass.getpass("Lösenord: ")
-        if losenord != getpass.getpass("Upprepa lösenord: "):
-            print("Lösenorden skiljer sig åt.", file=sys.stderr)
-            return 1
-    if len(losenord) < 8:
-        print("Lösenordet måste vara minst 8 tecken.", file=sys.stderr)
+    losenord = las_losenord(args.losenord)
+    if losenord is None:
         return 1
 
     conn = db.connect(args.db)

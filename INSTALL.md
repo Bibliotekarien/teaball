@@ -291,16 +291,26 @@ organisationer.** Se *Inte klart än* nedan.
 - En organisation har exakt ett hostnamn. Ska `www.`-varianten också
   fungera, låt proxyn omdirigera den. Byter en organisation hostnamn:
   byt namn på filen och skicka nya svarslänkar (som i avsnitt 6).
-- En ny organisation skapas med sin första admin:
+- Organisationerna hanteras med `scripts/organisationer.py` (lösenordet
+  frågas efter interaktivt):
 
   ```bash
   sudo docker compose -f docker-compose.standalone.yml exec web \
-      python scripts/skapa_forvaltare.py stilla-lax --db /data/organisationer/teaball.exempel.se.db
+      python scripts/organisationer.py skapa teaball.exempel.se stilla-lax
+  sudo docker compose -f docker-compose.standalone.yml exec web \
+      python scripts/organisationer.py lista
+  sudo docker compose -f docker-compose.standalone.yml exec web \
+      python scripts/organisationer.py ta-bort teaball.exempel.se --bekrafta teaball.exempel.se
   ```
 
-  Skriptet skapar och migrerar databasen, och appen hittar den direkt utan
-  omstart. Ge sedan hostnamnet DNS och TLS i proxyn. Alla skript behöver
-  `--db` med flera organisationer, även importen:
+  `skapa` gör databasen med organisationens första admin, och appen hittar
+  den direkt utan omstart. Ge sedan hostnamnet DNS och TLS i proxyn. `lista`
+  visar konton, medlemmar, noder och senaste inloggning per organisation.
+  `ta-bort` sparar en kopia i `organisationer/borttagna/` innan adressen
+  slutar fungera; radera kopian när den inte längre behövs, och ta bort
+  hostnamnet ur proxyn och DNS.
+
+  Övriga skript behöver `--db` med flera organisationer, även importen:
   `python scripts/importera_medlemmar.py medlemmar.csv --db /data/organisationer/teaball.exempel.se.db`.
 - Instansens texter fylls aldrig från `.env` med flera organisationer; varje
   organisations admin anger dem under **Inställningar**.
@@ -320,13 +330,20 @@ sudo docker compose -f docker-compose.standalone.yml up -d
 Ta en backup först (avsnitt 7). Medlemmarnas länkar fungerar som förut om
 hostnamnet är detsamma, men alla som är inloggade får logga in igen.
 
-**Backup:** `scripts/backup.sh` tar en fil, och kopiorna heter alltid
-`teaball-<datum>.db`. Varje organisation måste därför ha **en egen
-målkatalog**, annars skriver de över varandra. Till exempel:
+**Backup:** `scripts/backup_alla.sh` kör `backup.sh` (avsnitt 7) för varje
+organisation, med en egen underkatalog per organisation i målet. (Kör inte
+`backup.sh` själv mot samma målkatalog för flera organisationer: kopiorna
+heter alltid `teaball-<datum>.db` och skriver över varandra.) En
+organisation som misslyckas stoppar inte de andra, men skriptet avslutas med
+fel. Cron-exempel, med målet ägt av 1505 som i avsnitt 7:
 
 ```
-10 3 * * * for f in /srv/teaball/teaball-data/organisationer/*.db; do case "$f" in *.fore-*) continue;; esac; n=$(basename "$f" .db); install -d -o 1505 -g 1505 -m 700 "/mnt/backup/teaball/$n" && setpriv --reuid=1505 --regid=1505 --clear-groups /srv/teaball/scripts/backup.sh "$f" "/mnt/backup/teaball/$n"; done
+10 3 * * * setpriv --reuid=1505 --regid=1505 --clear-groups /srv/teaball/scripts/backup_alla.sh /srv/teaball/teaball-data/organisationer /mnt/backup/teaball
 ```
+
+Återställning av en organisation: som i avsnitt 7, med
+`organisationer/<hostnamn>.db` (och dess `-wal`/`-shm`) som fil. Starten
+efteråt migrerar den om backupen har ett äldre schema.
 
 **Inte klart än:**
 - **Matomo:** statistiken är gemensam för alla organisationer, och
@@ -338,7 +355,6 @@ målkatalog**, annars skriver de över varandra. Till exempel:
 - **Anubis:** en Anubis-instans tar ett hostnamn (`COOKIE_DOMAIN`), så flera
   organisationer bakom Anubis kräver en instans per hostnamn. Det är inte
   provat.
-- Ett skript för att skapa, lista och ta bort organisationer, och backup av
-  alla i ett svep, kommer senare. En databasfil som kopieras in för hand
-  (t.ex. en återställd backup med äldre schema) migreras först vid nästa
-  omstart, så starta om efter en sådan.
+- En databasfil som kopieras in för hand (t.ex. en återställd backup med
+  äldre schema) migreras först vid nästa omstart, så starta om efter en
+  sådan. `lista` visar om någon väntar på migrering.
