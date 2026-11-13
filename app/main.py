@@ -52,11 +52,11 @@ async def lifespan(app: FastAPI):
     yield
 
 
-def _las_instans(databas) -> instans.Instans:
+def _las_instans() -> instans.Instans:
     """Neutral text hellre än en trasig sida: misslyckas läsningen (t.ex. en
     låst databas) visas standardvärdena och felet loggas."""
     try:
-        conn = db.connect(databas)
+        conn = db.connect()
         try:
             return instans.las(conn)
         finally:
@@ -148,7 +148,7 @@ def create_app() -> FastAPI:
                 "som skickade den.", status_code=404)
         org_token = organisationer.satt_aktuell(organisation)
         try:
-            texter = await run_in_threadpool(_las_instans, organisation.databas)
+            texter = await run_in_threadpool(_las_instans)
             token = instans.satt_aktuell(texter)
             try:
                 return await call_next(request)

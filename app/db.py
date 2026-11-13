@@ -23,11 +23,19 @@ def connect(db_path: str | Path | None = None) -> sqlite3.Connection:
     """Without a path: the database of the request's organisation
     (app/organisationer.py), which is DB_PATH on a single-organisation
     installation."""
-    path = Path(db_path) if db_path is not None else organisationer.aktuell().databas
-    path.parent.mkdir(parents=True, exist_ok=True)
     # check_same_thread=False: each request gets its own connection, but FastAPI
     # may run dependency and endpoint on different threadpool threads.
-    conn = sqlite3.connect(path, check_same_thread=False)
+    if db_path is None and organisationer.flera():
+        # A request never creates an organisation's database (they are made on
+        # the server): mode=rw fails on a missing file instead of creating an
+        # empty one, e.g. when scripts/organisationer.py ta-bort removes it
+        # while a request that already chose it is in flight.
+        uri = organisationer.aktuell().databas.resolve().as_uri() + "?mode=rw"
+        conn = sqlite3.connect(uri, uri=True, check_same_thread=False)
+    else:
+        path = Path(db_path) if db_path is not None else organisationer.aktuell().databas
+        path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA journal_mode=WAL")
