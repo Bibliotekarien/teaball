@@ -20,6 +20,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app import db  # noqa: E402
 from app.auth.password import hash_losen  # noqa: E402
+from app.services.konton import MINSTA_LOSENORD  # noqa: E402
+
+
+def las_losenord(losenord: str | None) -> str | None:
+    """The password from the argument or a double prompt; None (with the
+    reason printed) when it does not match or is too short."""
+    if not losenord:
+        losenord = getpass.getpass("Lösenord: ")
+        if losenord != getpass.getpass("Upprepa lösenord: "):
+            print("Lösenorden skiljer sig åt.", file=sys.stderr)
+            return None
+    if len(losenord) < MINSTA_LOSENORD:
+        print(f"Lösenordet måste vara minst {MINSTA_LOSENORD} tecken.", file=sys.stderr)
+        return None
+    return losenord
 
 
 def main() -> int:
@@ -29,17 +44,13 @@ def main() -> int:
                         help="Roll för kontot. Utelämnad: nya konton blir admin,"
                              " befintliga behåller sin roll.")
     parser.add_argument("--losenord", help="Anges helst inte på kommandoraden; utelämna för prompt.")
-    parser.add_argument("--db", help="Sökväg till databasfilen (annars DB_PATH/standard).")
+    parser.add_argument("--db", help="Sökväg till databasfilen (annars DB_PATH)."
+                             " Krävs när ORGANISATIONER_DIR är satt:"
+                             " <ORGANISATIONER_DIR>/<hostnamn>.db.")
     args = parser.parse_args()
 
-    losenord = args.losenord
-    if not losenord:
-        losenord = getpass.getpass("Lösenord: ")
-        if losenord != getpass.getpass("Upprepa lösenord: "):
-            print("Lösenorden skiljer sig åt.", file=sys.stderr)
-            return 1
-    if len(losenord) < 8:
-        print("Lösenordet måste vara minst 8 tecken.", file=sys.stderr)
+    losenord = las_losenord(args.losenord)
+    if losenord is None:
         return 1
 
     conn = db.connect(args.db)
