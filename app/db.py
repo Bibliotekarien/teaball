@@ -11,7 +11,7 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
-from app import config, instans
+from app import config, instans, organisationer
 
 logger = logging.getLogger("teaball.db")
 
@@ -20,7 +20,10 @@ MIN_SQLITE_VERSION = (3, 34, 0)
 
 
 def connect(db_path: str | Path | None = None) -> sqlite3.Connection:
-    path = Path(db_path) if db_path is not None else config.DB_PATH
+    """Without a path: the database of the request's organisation
+    (app/organisationer.py), which is DB_PATH on a single-organisation
+    installation."""
+    path = Path(db_path) if db_path is not None else organisationer.aktuell().databas
     path.parent.mkdir(parents=True, exist_ok=True)
     # check_same_thread=False: each request gets its own connection, but FastAPI
     # may run dependency and endpoint on different threadpool threads.

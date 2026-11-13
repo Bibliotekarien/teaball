@@ -10,7 +10,7 @@ from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from app import accesslog, config, db, instans, matomo
+from app import accesslog, config, db, instans, matomo, organisationer
 from app.web import templates
 from app.routers import (
     analys, bedomning, exportera, inloggning, installningar, kommentarer, konton, lista,
@@ -33,19 +33,26 @@ async def lifespan(app: FastAPI):
                 "och sätt den i .env."
             )
         logger.warning("SECRET_KEY is unset — using the insecure development key.")
-    conn = db.connect()
-    try:
-        db.init_db(conn)
-    finally:
-        conn.close()
+    # Every organisation's database is migrated before the first request; a
+    # failure stops the start-up, as with a single database.
+    alla = organisationer.alla()
+    if organisationer.flera():
+        logger.info("Flera organisationer i %s: %s", config.ORGANISATIONER_DIR,
+                    ", ".join(o.nyckel for o in alla) or "inga ännu")
+    for organisation in alla:
+        conn = db.connect(organisation.databas)
+        try:
+            db.init_db(conn)
+        finally:
+            conn.close()
     yield
 
 
-def _las_instans() -> instans.Instans:
+def _las_instans(databas) -> instans.Instans:
     """Neutral text hellre än en trasig sida: misslyckas läsningen (t.ex. en
     låst databas) visas standardvärdena och felet loggas."""
     try:
-        conn = db.connect()
+        conn = db.connect(databas)
         try:
             return instans.las(conn)
         finally:
@@ -117,18 +124,28 @@ def create_app() -> FastAPI:
         })
 
     @app.middleware("http")
-    async def instansens_texter(request, call_next):
-        """The instance texts for this request (app/instans.py). Read per
-        request, not once at start-up, so a change on /installningar shows at
-        once even with several processes. One row from a tiny table; static
-        files and the health check skip it."""
+    async def organisation_och_texter(request, call_next):
+        """Chooses the request's organisation from the Host header
+        (app/organisationer.py) and reads its instance texts (app/instans.py),
+        once per request: everything downstream — get_conn, the session check,
+        the templates — sees the same organisation. Texts are read per request,
+        not at start-up, so a change on /installningar shows at once even with
+        several processes. Static files and the health check need neither."""
         if request.url.path.startswith("/static") or request.url.path == "/health":
             return await call_next(request)
-        token = instans.satt_aktuell(await run_in_threadpool(_las_instans))
+        organisation = organisationer.for_vard(request.headers.get("host", ""))
+        if organisation is None:
+            return PlainTextResponse("Okänd adress.", status_code=404)
+        org_token = organisationer.satt_aktuell(organisation)
         try:
-            return await call_next(request)
+            texter = await run_in_threadpool(_las_instans, organisation.databas)
+            token = instans.satt_aktuell(texter)
+            try:
+                return await call_next(request)
+            finally:
+                instans.aterstall(token)
         finally:
-            instans.aterstall(token)
+            organisationer.aterstall(org_token)
 
     @app.middleware("http")
     async def sakerhetsheaders(request, call_next):

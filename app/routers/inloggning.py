@@ -7,6 +7,7 @@ import time
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 
+from app import organisationer
 from app.auth import password
 from app.auth.core import (
     SESSION_FORVALTARE,
@@ -14,6 +15,7 @@ from app.auth.core import (
     Principal,
     krav_forvaltare,
     losen_digest,
+    starta_session,
 )
 from app.auth.csrf import krav_csrf
 from app.db import get_conn
@@ -24,14 +26,22 @@ router = APIRouter(dependencies=[Depends(krav_csrf)])
 audit = logging.getLogger("teaball.audit")
 
 # Simple in-memory login throttle: after MAX_FORSOK failures for an
-# (ip, username) pair, further attempts are rejected until the window passes.
+# (ip, organisation, username) key, further attempts are rejected until the window passes.
 # Single-process app, so a dict suffices; a restart resetting it is acceptable.
 MAX_FORSOK = 5
 SPARR_SEKUNDER = 300
-_misslyckanden: dict[tuple[str, str], tuple[int, float]] = {}
+# (ip, organisation, username): the same username in another organisation is
+# another account and must not share its lockout.
+Nyckel = tuple[str, str, str]
+_misslyckanden: dict[Nyckel, tuple[int, float]] = {}
 
 
-def _sparrad(nyckel: tuple[str, str]) -> bool:
+def _nyckel(request: Request, anvandarnamn: str) -> Nyckel:
+    return (request.client.host if request.client else "?",
+            organisationer.aktuell().nyckel, anvandarnamn)
+
+
+def _sparrad(nyckel: Nyckel) -> bool:
     antal, senast = _misslyckanden.get(nyckel, (0, 0.0))
     if antal >= MAX_FORSOK and time.monotonic() - senast < SPARR_SEKUNDER:
         return True
@@ -40,7 +50,7 @@ def _sparrad(nyckel: tuple[str, str]) -> bool:
     return False
 
 
-def _registrera_misslyckande(nyckel: tuple[str, str]) -> None:
+def _registrera_misslyckande(nyckel: Nyckel) -> None:
     antal, _ = _misslyckanden.get(nyckel, (0, 0.0))
     _misslyckanden[nyckel] = (antal + 1, time.monotonic())
 
@@ -59,7 +69,7 @@ def logga_in(
     losenord: str = Form(...),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
-    nyckel = (request.client.host if request.client else "?", anvandarnamn.strip())
+    nyckel = _nyckel(request, anvandarnamn.strip())
     if _sparrad(nyckel):
         return templates.TemplateResponse(
             request,
@@ -88,9 +98,10 @@ def logga_in(
     rad = conn.execute(
         "SELECT losen_hash FROM forvaltare WHERE id = ?", (principal.forvaltare_id,)
     ).fetchone()
-    request.session.clear()  # fresh session id state on login (no fixation)
-    request.session[SESSION_FORVALTARE] = principal.forvaltare_id
-    request.session[SESSION_FORVALTARE_HASH] = losen_digest(rad["losen_hash"])
+    starta_session(request, **{
+        SESSION_FORVALTARE: principal.forvaltare_id,
+        SESSION_FORVALTARE_HASH: losen_digest(rad["losen_hash"]),
+    })
     return RedirectResponse("/trad", status_code=303)
 
 
@@ -126,7 +137,7 @@ def byt_losenord(
     # Samma throttle som /login: den som kommit över en öppen session ska
     # inte kunna gissa sig fram till det nuvarande lösenordet och låsa ute
     # ägaren. Nyckeln delas med /login så båda vägarna räknas ihop.
-    nyckel = (request.client.host if request.client else "?", principal.namn)
+    nyckel = _nyckel(request, principal.namn)
     sida = {"principal": principal, "klart": False,
             "minsta": konton_tjanst.MINSTA_LOSENORD}
     if _sparrad(nyckel):

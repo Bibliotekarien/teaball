@@ -268,3 +268,30 @@ verifierad.
   och proxyn då sätta CSP:n i stället för appen. Sätt också `ROBOTSKYDD=1`
   i `.env` och för in den i compose-filens `environment`, så att
   integritetssidan nämner Anubis kaka.
+
+## 10. Flera organisationer (förhandsversion)
+
+En installation kan rymma flera organisationer med varsin databasfil. De
+delar inga konton, medlemmar eller data, och var och en har sin egen admin
+och sina egna texter under **Inställningar**.
+
+- Sätt `ORGANISATIONER_DIR` (t.ex. `/data/organisationer`) i compose-filens
+  `environment`. Då används inte `DB_PATH`, och `PUBLIC_BASE_URL` ignoreras:
+  svarslänkarna byggs på organisationens egen adress.
+- Varje organisation är en fil `<hostnamn>.db` i katalogen, t.ex.
+  `teaball.exempel.se.db`. Anropets `Host`-header avgör vilken som används,
+  så proxyn måste skicka vidare det ursprungliga hostnamnet (Caddy och nginx
+  med `proxy_set_header Host $host` gör det). Ett okänt hostnamn får 404.
+- En ny organisation skapas med sin första admin:
+
+  ```bash
+  sudo docker compose -f docker-compose.standalone.yml exec web \
+      python scripts/skapa_forvaltare.py stilla-lax --db /data/organisationer/teaball.exempel.se.db
+  ```
+
+  Skriptet skapar och migrerar databasen, och appen hittar den direkt utan
+  omstart. Ge sedan hostnamnet DNS och TLS i proxyn. Vid varje start
+  migreras alla organisationers databaser.
+
+**Inte klart än:** backup (avsnitt 7) tar en fil i taget och måste köras per
+organisation, och Matomo-statistiken är gemensam för alla organisationer.

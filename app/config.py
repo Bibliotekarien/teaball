@@ -7,6 +7,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 DB_PATH = Path(os.environ.get("DB_PATH", str(BASE_DIR / "data" / "teaball.db")))
 
+# Several organisations on one installation: one SQLite file per organisation
+# in this directory, named after its hostname (<host>.db), chosen per request
+# by the Host header. Unset = one organisation in DB_PATH. See
+# app/organisationer.py.
+ORGANISATIONER_DIR = (
+    Path(os.environ["ORGANISATIONER_DIR"]) if os.environ.get("ORGANISATIONER_DIR") else None
+)
+
 # Signs session cookies. The default is for local development only;
 # main.py logs a loud warning when it is in use.
 DEV_SECRET_KEY = "dev-only-insecure-key"
