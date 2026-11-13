@@ -38,18 +38,8 @@ Fyll i `.env`:
 |---|---|
 | `SECRET_KEY` | Slumpad nyckel som signerar sessionscookies. Generera med `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`. Appen vägrar starta utan. |
 | `PUBLIC_BASE_URL` | Den publika adressen, t.ex. `https://teaball.example.org`. Används i medlemmarnas svarslänkar. |
-| `ORGANISATION` | Namnet på er organisation eller ert samarbete, t.ex. `Exempelkonsortiet`. Visas på integritetssidan. Tomt ger neutral text. |
-| `NUVARANDE_SYSTEM` | Systemet som ska ersättas, t.ex. `Gamla Systemet`. Används i förklaringen av statusen *utreds* ("Finns i …"). Tomt ger "det nuvarande systemet". |
-| `PERSONUPPGIFTSANSVARIG` | Vem som är personuppgiftsansvarig, t.ex. `Exempeluniversitetet`. Visas på `/integritet`. |
-| `DATASKYDD_KONTAKT` | Kontaktväg för dataskyddsfrågor, t.ex. en funktionsadress. Visas på `/integritet`. |
 | `MATOMO_*` | Lämna tomma om ni inte har en egen Matomo — då är statistiken avstängd, och integritetssidan säger det. |
 | `ANUBIS_COOKIE_DOMAIN` | Används inte av den fristående compose-filen; lämna som den är. |
-
-Så länge `PERSONUPPGIFTSANSVARIG` och `DATASKYDD_KONTAKT` saknas visar
-integritetssidan en gul markering om att de ska fyllas i före skarp drift.
-Läs igenom sidan (`/integritet`) innan ni öppnar tjänsten. Den säger till
-exempel att tjänsten och säkerhetskopiorna driftas inom EU, och det måste
-stämma för er.
 
 Skapa datakatalogen. Containern kör som uid/gid 1505, som måste äga den:
 
@@ -136,7 +126,16 @@ sudo docker compose -f docker-compose.standalone.yml exec web \
 ```
 
 Lösenordet frågas efter interaktivt. Logga in på `/login`; resten av kontona
-sköts under **Konton** i appen. Roller och kontohantering beskrivs i
+sköts under **Konton** i appen.
+
+Fyll sedan i instansens texter under **Inställningar**: organisationen,
+systemet som ersätts (används i förklaringen av statusen *utreds*, "Finns i
+…"), personuppgiftsansvarig och kontaktväg för dataskyddsfrågor. Tomma fält
+ger neutral text. Så länge personuppgiftsansvarig och kontaktväg saknas visar
+integritetssidan en gul markering om att de ska fyllas i före skarp drift.
+Läs igenom sidan (`/integritet`) innan ni öppnar tjänsten. Den säger till
+exempel att tjänsten och säkerhetskopiorna driftas inom EU, och det måste
+stämma för er. Roller och kontohantering beskrivs i
 [README](README.md#skapa-förvaltarkonton).
 
 Har ni migrerat en databas från en annan instans (avsnitt 6) finns kontona
@@ -206,9 +205,11 @@ filen och eventuella mellanlagrade kopior när allt stämmer.
   **Medlemmar** och skicka ut dem. Länken visas en gång; den gamla blir
   ogiltig samtidigt. Medlemmarnas svar och kommentarer finns kvar — bara
   länken byts.
-- **Integritetssidan:** sätt `ORGANISATION`, `PERSONUPPGIFTSANSVARIG` och
-  `DATASKYDD_KONTAKT` i `.env` (avsnitt 2), så att `/integritet` beskriver
-  er och inte den gamla instansens ägare.
+- **Instansens texter:** de ligger i databasen och följer med från den
+  gamla instansen. Ändra organisation, nuvarande system,
+  personuppgiftsansvarig och kontaktväg under **Inställningar**, så att
+  `/integritet` och statusförklaringarna beskriver er och inte den gamla
+  instansens ägare.
 
 ## 7. Backup
 
@@ -267,3 +268,77 @@ verifierad.
   och proxyn då sätta CSP:n i stället för appen. Sätt också `ROBOTSKYDD=1`
   i `.env` och för in den i compose-filens `environment`, så att
   integritetssidan nämner Anubis kaka.
+
+## 10. Flera organisationer (förhandsversion)
+
+En installation kan rymma flera organisationer med varsin databasfil. De
+delar inga konton, medlemmar eller data, och var och en har sin egen admin
+och sina egna texter under **Inställningar**.
+
+Förhandsversion betyder: **ännu inte för skarp drift med flera
+organisationer.** Se *Inte klart än* nedan.
+
+- Sätt `ORGANISATIONER_DIR=/data/organisationer` i `.env` och starta om. Då
+  används inte `DB_PATH`, och `PUBLIC_BASE_URL` behövs inte: svarslänkarna
+  byggs på varje organisations egen adress. Kontrollera att en ny svarslänk
+  börjar med `https://` (schemat kommer från proxyns `X-Forwarded-Proto`).
+- Varje organisation är en fil `<hostnamn>.db` i katalogen, t.ex.
+  `teaball.exempel.se.db`, med hostnamnet i gemener. Anropets `Host`-header
+  avgör vilken som används, så proxyn måste skicka vidare det ursprungliga
+  hostnamnet. Caddy gör det utan inställning; nginx behöver
+  `proxy_set_header Host $host`. Ett okänt hostnamn får 404 och loggas som
+  varning (`Okänt hostnamn`), så ett felstavat filnamn syns i loggen.
+- En organisation har exakt ett hostnamn. Ska `www.`-varianten också
+  fungera, låt proxyn omdirigera den. Byter en organisation hostnamn:
+  byt namn på filen och skicka nya svarslänkar (som i avsnitt 6).
+- En ny organisation skapas med sin första admin:
+
+  ```bash
+  sudo docker compose -f docker-compose.standalone.yml exec web \
+      python scripts/skapa_forvaltare.py stilla-lax --db /data/organisationer/teaball.exempel.se.db
+  ```
+
+  Skriptet skapar och migrerar databasen, och appen hittar den direkt utan
+  omstart. Ge sedan hostnamnet DNS och TLS i proxyn. Alla skript behöver
+  `--db` med flera organisationer, även importen:
+  `python scripts/importera_medlemmar.py medlemmar.csv --db /data/organisationer/teaball.exempel.se.db`.
+- Instansens texter fylls aldrig från `.env` med flera organisationer; varje
+  organisations admin anger dem under **Inställningar**.
+
+**Flytta in en befintlig instans.** Slår du på `ORGANISATIONER_DIR` utan att
+flytta databasen får den egna adressen 404. Stoppa appen, flytta filen och
+starta igen:
+
+```bash
+sudo docker compose -f docker-compose.standalone.yml down
+sudo install -d -o 1505 -g 1505 -m 700 teaball-data/organisationer
+sudo mv teaball-data/teaball.db teaball-data/organisationer/teaball.exempel.se.db
+sudo rm -f teaball-data/teaball.db-wal teaball-data/teaball.db-shm
+sudo docker compose -f docker-compose.standalone.yml up -d
+```
+
+Ta en backup först (avsnitt 7). Medlemmarnas länkar fungerar som förut om
+hostnamnet är detsamma, men alla som är inloggade får logga in igen.
+
+**Backup:** `scripts/backup.sh` tar en fil, och kopiorna heter alltid
+`teaball-<datum>.db`. Varje organisation måste därför ha **en egen
+målkatalog**, annars skriver de över varandra. Till exempel:
+
+```
+10 3 * * * for f in /srv/teaball/teaball-data/organisationer/*.db; do case "$f" in *.fore-*) continue;; esac; n=$(basename "$f" .db); install -d -o 1505 -g 1505 -m 700 "/mnt/backup/teaball/$n" && setpriv --reuid=1505 --regid=1505 --clear-groups /srv/teaball/scripts/backup.sh "$f" "/mnt/backup/teaball/$n"; done
+```
+
+**Inte klart än:**
+- **Matomo:** statistiken är gemensam för alla organisationer, och
+  integritetssidan beskriver den som organisationens egen. Lämna Matomo
+  avstängt med flera organisationer.
+- **Personuppgiftsbiträde:** driver ni Teaball åt andra organisationer är ni
+  deras personuppgiftsbiträde och behöver ett biträdesavtal med var och en.
+  Integritetssidan nämner ännu inte operatören.
+- **Anubis:** en Anubis-instans tar ett hostnamn (`COOKIE_DOMAIN`), så flera
+  organisationer bakom Anubis kräver en instans per hostnamn. Det är inte
+  provat.
+- Ett skript för att skapa, lista och ta bort organisationer, och backup av
+  alla i ett svep, kommer senare. En databasfil som kopieras in för hand
+  (t.ex. en återställd backup med äldre schema) migreras först vid nästa
+  omstart, så starta om efter en sådan.

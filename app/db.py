@@ -11,7 +11,7 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
-from app import config
+from app import config, instans, organisationer
 
 logger = logging.getLogger("teaball.db")
 
@@ -20,11 +20,22 @@ MIN_SQLITE_VERSION = (3, 34, 0)
 
 
 def connect(db_path: str | Path | None = None) -> sqlite3.Connection:
-    path = Path(db_path) if db_path is not None else config.DB_PATH
-    path.parent.mkdir(parents=True, exist_ok=True)
+    """Without a path: the database of the request's organisation
+    (app/organisationer.py), which is DB_PATH on a single-organisation
+    installation."""
     # check_same_thread=False: each request gets its own connection, but FastAPI
     # may run dependency and endpoint on different threadpool threads.
-    conn = sqlite3.connect(path, check_same_thread=False)
+    if db_path is None and organisationer.flera():
+        # A request never creates an organisation's database (they are made on
+        # the server): mode=rw fails on a missing file instead of creating an
+        # empty one, e.g. when scripts/organisationer.py ta-bort removes it
+        # while a request that already chose it is in flight.
+        uri = organisationer.aktuell().databas.resolve().as_uri() + "?mode=rw"
+        conn = sqlite3.connect(uri, uri=True, check_same_thread=False)
+    else:
+        path = Path(db_path) if db_path is not None else organisationer.aktuell().databas
+        path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA journal_mode=WAL")
@@ -109,6 +120,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     assert_sqlite_version()
     migrate(conn)
     create_views_and_triggers(conn)
+    instans.fyll_fran_miljon(conn)
 
 
 def get_conn():

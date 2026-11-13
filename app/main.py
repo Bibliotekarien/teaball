@@ -1,22 +1,25 @@
 """Application factory. Routers are registered here as they are implemented."""
 
 import logging
+import sqlite3
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from app import accesslog, config, db, matomo
+from app import accesslog, config, db, instans, matomo, organisationer
 from app.web import templates
 from app.routers import (
-    analys, bedomning, exportera, inloggning, kommentarer, konton, lista, medlemmar,
-    roadmap, svara, trad,
+    analys, bedomning, exportera, inloggning, installningar, kommentarer, konton, lista,
+    medlemmar, roadmap, svara, trad,
 )
 
 logger = logging.getLogger("teaball")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+logging.getLogger("teaball.audit").addFilter(organisationer.AuditOrganisation())
 
 
 @asynccontextmanager
@@ -31,12 +34,36 @@ async def lifespan(app: FastAPI):
                 "och sätt den i .env."
             )
         logger.warning("SECRET_KEY is unset — using the insecure development key.")
-    conn = db.connect()
-    try:
-        db.init_db(conn)
-    finally:
-        conn.close()
+    if not organisationer.flera() and config.COOKIE_SECURE and not config.PUBLIC_BASE_URL:
+        logger.warning("PUBLIC_BASE_URL saknas: svarslänkarna byggs på anropets adress, "
+                       "kontrollera att de börjar med https://.")
+    # Every organisation's database is migrated before the first request; a
+    # failure stops the start-up, as with a single database.
+    alla = organisationer.alla()
+    if organisationer.flera():
+        logger.info("Flera organisationer i %s: %s", config.ORGANISATIONER_DIR,
+                    ", ".join(o.nyckel for o in alla) or "inga ännu")
+    for organisation in alla:
+        conn = db.connect(organisation.databas)
+        try:
+            db.init_db(conn)
+        finally:
+            conn.close()
     yield
+
+
+def _las_instans() -> instans.Instans:
+    """Neutral text hellre än en trasig sida: misslyckas läsningen (t.ex. en
+    låst databas) visas standardvärdena och felet loggas."""
+    try:
+        conn = db.connect()
+        try:
+            return instans.las(conn)
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        logger.exception("Kunde inte läsa instansens texter; visar neutral text")
+        return instans.Instans()
 
 
 def create_app() -> FastAPI:
@@ -60,6 +87,7 @@ def create_app() -> FastAPI:
     app.include_router(exportera.router)
     app.include_router(medlemmar.router)
     app.include_router(konton.router)
+    app.include_router(installningar.router)
     app.include_router(svara.router)
 
     @app.get("/")
@@ -92,12 +120,42 @@ def create_app() -> FastAPI:
         (no CSRF/htmx) so an anonymous reader is not handed a session cookie."""
         return templates.TemplateResponse(request, "integritet.html", {
             "principal": None,
-            "organisation": config.ORGANISATION,
-            "personuppgiftsansvarig": config.PERSONUPPGIFTSANSVARIG,
-            "dataskydd_kontakt": config.DATASKYDD_KONTAKT,
+            "organisation": instans.aktuell().organisation,
+            "personuppgiftsansvarig": instans.aktuell().personuppgiftsansvarig,
+            "dataskydd_kontakt": instans.aktuell().dataskydd_kontakt,
             "matomo": config.MATOMO_ENABLED,
             "robotskydd": config.ROBOTSKYDD,
         })
+
+    @app.middleware("http")
+    async def organisation_och_texter(request, call_next):
+        """Chooses the request's organisation from the Host header
+        (app/organisationer.py) and reads its instance texts (app/instans.py),
+        once per request: everything downstream — get_conn, the session check,
+        the templates — sees the same organisation. Texts are read per request,
+        not at start-up, so a change on /installningar shows at once even with
+        several processes. Static files and the health check need neither."""
+        if request.url.path.startswith("/static") or request.url.path == "/health":
+            return await call_next(request)
+        host = request.headers.get("host", "")
+        organisation = organisationer.for_vard(host)
+        if organisation is None:
+            # Logged so a misspelt database file or a proxy that rewrites Host
+            # can be found; the edge only forwards configured hostnames.
+            logger.warning("Okänt hostnamn, ingen organisationsdatabas: %r", host[:100])
+            return PlainTextResponse(
+                "Okänd adress. Kontrollera att länken är rätt, eller kontakta den "
+                "som skickade den.", status_code=404)
+        org_token = organisationer.satt_aktuell(organisation)
+        try:
+            texter = await run_in_threadpool(_las_instans)
+            token = instans.satt_aktuell(texter)
+            try:
+                return await call_next(request)
+            finally:
+                instans.aterstall(token)
+        finally:
+            organisationer.aterstall(org_token)
 
     @app.middleware("http")
     async def sakerhetsheaders(request, call_next):

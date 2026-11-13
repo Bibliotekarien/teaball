@@ -29,7 +29,9 @@ def main() -> int:
                         help="Roll för kontot. Utelämnad: nya konton blir admin,"
                              " befintliga behåller sin roll.")
     parser.add_argument("--losenord", help="Anges helst inte på kommandoraden; utelämna för prompt.")
-    parser.add_argument("--db", help="Sökväg till databasfilen (annars DB_PATH/standard).")
+    parser.add_argument("--db", help="Sökväg till databasfilen (annars DB_PATH)."
+                             " Krävs när ORGANISATIONER_DIR är satt:"
+                             " <ORGANISATIONER_DIR>/<hostnamn>.db.")
     args = parser.parse_args()
 
     losenord = args.losenord
