@@ -73,13 +73,17 @@ def test_data_foljer_hostnamnet(tva, klient):
     "..",
     "a.example.org/../b",
     "",
+    "a" * 300 + ":443",                   # längre än ett filnamn får vara
+    ("a" * 63 + ".") * 4 + "org",         # giltiga etiketter, för långt totalt
 ])
-def test_okant_hostnamn_ger_404(tva, klient, vard):
+def test_okant_hostnamn_ger_404(tva, vard, caplog):
     from app.main import create_app
 
     with TestClient(create_app()) as k:
         svar = k.get("/integritet", headers={"host": vard})
     assert svar.status_code == 404
+    assert "Kontrollera att länken är rätt" in svar.text
+    assert "Okänt hostnamn" in caplog.text
 
 
 def test_port_och_versaler_ar_samma_organisation(tva, klient):
@@ -140,18 +144,29 @@ def test_svarslanken_anvander_organisationens_adress(tva, klient, monkeypatch):
     assert "fel.example.org" not in sida
 
 
-def test_inloggningsspärren_ar_per_organisation(tva, klient):
+@pytest.fixture()
+def tom_sparr():
     from app.routers import inloggning
 
     inloggning._misslyckanden.clear()
+    yield inloggning
+    inloggning._misslyckanden.clear()
+
+
+def test_inloggningsspärren_ar_per_organisation(tva, klient, tom_sparr):
     a, b = klient(A), klient(B)
-    logga_in(b, tva[B])                   # skapar anna hos B
-    for _ in range(inloggning.MAX_FORSOK):
+    logga_in(a, tva[A])                   # anna finns hos båda
+    logga_in(b, tva[B])
+    for _ in range(tom_sparr.MAX_FORSOK):
         a.post("/login", data={"anvandarnamn": "anna", "losenord": "fel-losen",
                                "csrf_token": csrf_fran(a.get("/login").text)})
-    b2 = klient(B)
-    logga_in(b2, tva[B])                  # B:s anna är inte spärrad
-    inloggning._misslyckanden.clear()
+    # A:s anna är spärrad, även med rätt lösenord ...
+    svar = a.post("/login", data={"anvandarnamn": "anna", "losenord": "hemligt-losen",
+                                  "csrf_token": csrf_fran(a.get("/login").text)},
+                  follow_redirects=False)
+    assert svar.status_code != 303
+    # ... men B:s anna, från samma IP, är det inte.
+    logga_in(klient(B), tva[B])
 
 
 def test_alla_hoppar_over_kopior(tva):
@@ -159,6 +174,42 @@ def test_alla_hoppar_over_kopior(tva):
     (katalog / f"{A}.fore-0011-20261113T000000Z.db").write_bytes(b"")
     (katalog / "inte en organisation.db").write_bytes(b"")
     assert [o.nyckel for o in organisationer.alla()] == [A, B]
+
+
+def test_fore_i_hostnamnet_ar_en_vanlig_organisation(tva):
+    """Bara kopiornas exakta namnmönster utesluts, inte varje namn med fore-."""
+    fil = config.ORGANISATIONER_DIR / "x.fore-ningen.se.db"
+    conn = appdb.connect(fil)
+    appdb.init_db(conn)
+    conn.close()
+    assert organisationer.for_vard("x.fore-ningen.se") is not None
+    assert "x.fore-ningen.se" in [o.nyckel for o in organisationer.alla()]
+
+
+def test_texterna_fylls_inte_fran_miljon(tva, monkeypatch, caplog):
+    """Serverns .env hör inte till någon organisation: en gammal databas som
+    flyttas in ska inte få en annan organisations personuppgiftsansvarig."""
+    from tests.conftest import skapa_forvaltare
+
+    monkeypatch.setattr(config, "PERSONUPPGIFTSANSVARIG", "Någon annans universitet")
+    conn = tva[A]
+    skapa_forvaltare(conn)                 # i bruk, som före 0010
+    conn.execute("UPDATE instans SET fran_miljon = 0 WHERE id = 1")
+    conn.commit()
+    appdb.init_db(conn)
+    assert instans.las(conn).personuppgiftsansvarig == ""
+    assert "Fylls inte från miljön med flera organisationer" in caplog.text
+
+
+def test_auditraden_namnger_organisationen(tva, klient, caplog):
+    caplog.set_level("INFO", logger="teaball.audit")
+    medlem = skapa_medlem(tva[A], "Uppsala universitet")
+    tva[A].commit()
+    a = klient(A)
+    logga_in(a, tva[A])
+    a.post(f"/medlemmar/{medlem}/token", data={"csrf_token": csrf_fran(a.get("/medlemmar").text)})
+    rader = [r.getMessage() for r in caplog.records if r.name == "teaball.audit"]
+    assert rader and all(r.startswith(f"org={A} ") for r in rader)
 
 
 def test_utan_anrop_finns_ingen_organisation(tva):

@@ -275,13 +275,22 @@ En installation kan rymma flera organisationer med varsin databasfil. De
 delar inga konton, medlemmar eller data, och var och en har sin egen admin
 och sina egna texter under **Inställningar**.
 
-- Sätt `ORGANISATIONER_DIR` (t.ex. `/data/organisationer`) i compose-filens
-  `environment`. Då används inte `DB_PATH`, och `PUBLIC_BASE_URL` ignoreras:
-  svarslänkarna byggs på organisationens egen adress.
+Förhandsversion betyder: **ännu inte för skarp drift med flera
+organisationer.** Se *Inte klart än* nedan.
+
+- Sätt `ORGANISATIONER_DIR=/data/organisationer` i `.env` och starta om. Då
+  används inte `DB_PATH`, och `PUBLIC_BASE_URL` behövs inte: svarslänkarna
+  byggs på varje organisations egen adress. Kontrollera att en ny svarslänk
+  börjar med `https://` (schemat kommer från proxyns `X-Forwarded-Proto`).
 - Varje organisation är en fil `<hostnamn>.db` i katalogen, t.ex.
-  `teaball.exempel.se.db`. Anropets `Host`-header avgör vilken som används,
-  så proxyn måste skicka vidare det ursprungliga hostnamnet (Caddy och nginx
-  med `proxy_set_header Host $host` gör det). Ett okänt hostnamn får 404.
+  `teaball.exempel.se.db`, med hostnamnet i gemener. Anropets `Host`-header
+  avgör vilken som används, så proxyn måste skicka vidare det ursprungliga
+  hostnamnet. Caddy gör det utan inställning; nginx behöver
+  `proxy_set_header Host $host`. Ett okänt hostnamn får 404 och loggas som
+  varning (`Okänt hostnamn`), så ett felstavat filnamn syns i loggen.
+- En organisation har exakt ett hostnamn. Ska `www.`-varianten också
+  fungera, låt proxyn omdirigera den. Byter en organisation hostnamn:
+  byt namn på filen och skicka nya svarslänkar (som i avsnitt 6).
 - En ny organisation skapas med sin första admin:
 
   ```bash
@@ -290,8 +299,46 @@ och sina egna texter under **Inställningar**.
   ```
 
   Skriptet skapar och migrerar databasen, och appen hittar den direkt utan
-  omstart. Ge sedan hostnamnet DNS och TLS i proxyn. Vid varje start
-  migreras alla organisationers databaser.
+  omstart. Ge sedan hostnamnet DNS och TLS i proxyn. Alla skript behöver
+  `--db` med flera organisationer, även importen:
+  `python scripts/importera_medlemmar.py medlemmar.csv --db /data/organisationer/teaball.exempel.se.db`.
+- Instansens texter fylls aldrig från `.env` med flera organisationer; varje
+  organisations admin anger dem under **Inställningar**.
 
-**Inte klart än:** backup (avsnitt 7) tar en fil i taget och måste köras per
-organisation, och Matomo-statistiken är gemensam för alla organisationer.
+**Flytta in en befintlig instans.** Slår du på `ORGANISATIONER_DIR` utan att
+flytta databasen får den egna adressen 404. Stoppa appen, flytta filen och
+starta igen:
+
+```bash
+sudo docker compose -f docker-compose.standalone.yml down
+sudo install -d -o 1505 -g 1505 -m 700 teaball-data/organisationer
+sudo mv teaball-data/teaball.db teaball-data/organisationer/teaball.exempel.se.db
+sudo rm -f teaball-data/teaball.db-wal teaball-data/teaball.db-shm
+sudo docker compose -f docker-compose.standalone.yml up -d
+```
+
+Ta en backup först (avsnitt 7). Medlemmarnas länkar fungerar som förut om
+hostnamnet är detsamma, men alla som är inloggade får logga in igen.
+
+**Backup:** `scripts/backup.sh` tar en fil, och kopiorna heter alltid
+`teaball-<datum>.db`. Varje organisation måste därför ha **en egen
+målkatalog**, annars skriver de över varandra. Till exempel:
+
+```
+10 3 * * * for f in /srv/teaball/teaball-data/organisationer/*.db; do case "$f" in *.fore-*) continue;; esac; n=$(basename "$f" .db); install -d -o 1505 -g 1505 -m 700 "/mnt/backup/teaball/$n" && setpriv --reuid=1505 --regid=1505 --clear-groups /srv/teaball/scripts/backup.sh "$f" "/mnt/backup/teaball/$n"; done
+```
+
+**Inte klart än:**
+- **Matomo:** statistiken är gemensam för alla organisationer, och
+  integritetssidan beskriver den som organisationens egen. Lämna Matomo
+  avstängt med flera organisationer.
+- **Personuppgiftsbiträde:** driver ni Teaball åt andra organisationer är ni
+  deras personuppgiftsbiträde och behöver ett biträdesavtal med var och en.
+  Integritetssidan nämner ännu inte operatören.
+- **Anubis:** en Anubis-instans tar ett hostnamn (`COOKIE_DOMAIN`), så flera
+  organisationer bakom Anubis kräver en instans per hostnamn. Det är inte
+  provat.
+- Ett skript för att skapa, lista och ta bort organisationer, och backup av
+  alla i ett svep, kommer senare. En databasfil som kopieras in för hand
+  (t.ex. en återställd backup med äldre schema) migreras först vid nästa
+  omstart, så starta om efter en sådan.

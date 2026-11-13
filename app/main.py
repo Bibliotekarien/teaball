@@ -19,6 +19,7 @@ from app.routers import (
 
 logger = logging.getLogger("teaball")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+logging.getLogger("teaball.audit").addFilter(organisationer.AuditOrganisation())
 
 
 @asynccontextmanager
@@ -33,6 +34,9 @@ async def lifespan(app: FastAPI):
                 "och sätt den i .env."
             )
         logger.warning("SECRET_KEY is unset — using the insecure development key.")
+    if not organisationer.flera() and config.COOKIE_SECURE and not config.PUBLIC_BASE_URL:
+        logger.warning("PUBLIC_BASE_URL saknas: svarslänkarna byggs på anropets adress, "
+                       "kontrollera att de börjar med https://.")
     # Every organisation's database is migrated before the first request; a
     # failure stops the start-up, as with a single database.
     alla = organisationer.alla()
@@ -133,9 +137,15 @@ def create_app() -> FastAPI:
         several processes. Static files and the health check need neither."""
         if request.url.path.startswith("/static") or request.url.path == "/health":
             return await call_next(request)
-        organisation = organisationer.for_vard(request.headers.get("host", ""))
+        host = request.headers.get("host", "")
+        organisation = organisationer.for_vard(host)
         if organisation is None:
-            return PlainTextResponse("Okänd adress.", status_code=404)
+            # Logged so a misspelt database file or a proxy that rewrites Host
+            # can be found; the edge only forwards configured hostnames.
+            logger.warning("Okänt hostnamn, ingen organisationsdatabas: %r", host[:100])
+            return PlainTextResponse(
+                "Okänd adress. Kontrollera att länken är rätt, eller kontakta den "
+                "som skickade den.", status_code=404)
         org_token = organisationer.satt_aktuell(organisation)
         try:
             texter = await run_in_threadpool(_las_instans, organisation.databas)
