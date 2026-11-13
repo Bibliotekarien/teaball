@@ -1,18 +1,20 @@
 """Application factory. Routers are registered here as they are implemented."""
 
 import logging
+import sqlite3
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from app import accesslog, config, db, matomo
+from app import accesslog, config, db, instans, matomo
 from app.web import templates
 from app.routers import (
-    analys, bedomning, exportera, inloggning, kommentarer, konton, lista, medlemmar,
-    roadmap, svara, trad,
+    analys, bedomning, exportera, inloggning, installningar, kommentarer, konton, lista,
+    medlemmar, roadmap, svara, trad,
 )
 
 logger = logging.getLogger("teaball")
@@ -39,6 +41,20 @@ async def lifespan(app: FastAPI):
     yield
 
 
+def _las_instans() -> instans.Instans:
+    """Neutral text hellre än en trasig sida: misslyckas läsningen (t.ex. en
+    låst databas) visas standardvärdena och felet loggas."""
+    try:
+        conn = db.connect()
+        try:
+            return instans.las(conn)
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        logger.exception("Kunde inte läsa instansens texter; visar neutral text")
+        return instans.Instans()
+
+
 def create_app() -> FastAPI:
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     accesslog.install()
@@ -60,6 +76,7 @@ def create_app() -> FastAPI:
     app.include_router(exportera.router)
     app.include_router(medlemmar.router)
     app.include_router(konton.router)
+    app.include_router(installningar.router)
     app.include_router(svara.router)
 
     @app.get("/")
@@ -92,12 +109,26 @@ def create_app() -> FastAPI:
         (no CSRF/htmx) so an anonymous reader is not handed a session cookie."""
         return templates.TemplateResponse(request, "integritet.html", {
             "principal": None,
-            "organisation": config.ORGANISATION,
-            "personuppgiftsansvarig": config.PERSONUPPGIFTSANSVARIG,
-            "dataskydd_kontakt": config.DATASKYDD_KONTAKT,
+            "organisation": instans.aktuell().organisation,
+            "personuppgiftsansvarig": instans.aktuell().personuppgiftsansvarig,
+            "dataskydd_kontakt": instans.aktuell().dataskydd_kontakt,
             "matomo": config.MATOMO_ENABLED,
             "robotskydd": config.ROBOTSKYDD,
         })
+
+    @app.middleware("http")
+    async def instansens_texter(request, call_next):
+        """The instance texts for this request (app/instans.py). Read per
+        request, not once at start-up, so a change on /installningar shows at
+        once even with several processes. One row from a tiny table; static
+        files and the health check skip it."""
+        if request.url.path.startswith("/static") or request.url.path == "/health":
+            return await call_next(request)
+        token = instans.satt_aktuell(await run_in_threadpool(_las_instans))
+        try:
+            return await call_next(request)
+        finally:
+            instans.aterstall(token)
 
     @app.middleware("http")
     async def sakerhetsheaders(request, call_next):

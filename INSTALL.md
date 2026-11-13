@@ -38,18 +38,8 @@ Fyll i `.env`:
 |---|---|
 | `SECRET_KEY` | Slumpad nyckel som signerar sessionscookies. Generera med `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`. Appen vägrar starta utan. |
 | `PUBLIC_BASE_URL` | Den publika adressen, t.ex. `https://teaball.example.org`. Används i medlemmarnas svarslänkar. |
-| `ORGANISATION` | Namnet på er organisation eller ert samarbete, t.ex. `Exempelkonsortiet`. Visas på integritetssidan. Tomt ger neutral text. |
-| `NUVARANDE_SYSTEM` | Systemet som ska ersättas, t.ex. `Gamla Systemet`. Används i förklaringen av statusen *utreds* ("Finns i …"). Tomt ger "det nuvarande systemet". |
-| `PERSONUPPGIFTSANSVARIG` | Vem som är personuppgiftsansvarig, t.ex. `Exempeluniversitetet`. Visas på `/integritet`. |
-| `DATASKYDD_KONTAKT` | Kontaktväg för dataskyddsfrågor, t.ex. en funktionsadress. Visas på `/integritet`. |
 | `MATOMO_*` | Lämna tomma om ni inte har en egen Matomo — då är statistiken avstängd, och integritetssidan säger det. |
 | `ANUBIS_COOKIE_DOMAIN` | Används inte av den fristående compose-filen; lämna som den är. |
-
-Så länge `PERSONUPPGIFTSANSVARIG` och `DATASKYDD_KONTAKT` saknas visar
-integritetssidan en gul markering om att de ska fyllas i före skarp drift.
-Läs igenom sidan (`/integritet`) innan ni öppnar tjänsten. Den säger till
-exempel att tjänsten och säkerhetskopiorna driftas inom EU, och det måste
-stämma för er.
 
 Skapa datakatalogen. Containern kör som uid/gid 1505, som måste äga den:
 
@@ -136,7 +126,16 @@ sudo docker compose -f docker-compose.standalone.yml exec web \
 ```
 
 Lösenordet frågas efter interaktivt. Logga in på `/login`; resten av kontona
-sköts under **Konton** i appen. Roller och kontohantering beskrivs i
+sköts under **Konton** i appen.
+
+Fyll sedan i instansens texter under **Inställningar**: organisationen,
+systemet som ersätts (används i förklaringen av statusen *utreds*, "Finns i
+…"), personuppgiftsansvarig och kontaktväg för dataskyddsfrågor. Tomma fält
+ger neutral text. Så länge personuppgiftsansvarig och kontaktväg saknas visar
+integritetssidan en gul markering om att de ska fyllas i före skarp drift.
+Läs igenom sidan (`/integritet`) innan ni öppnar tjänsten. Den säger till
+exempel att tjänsten och säkerhetskopiorna driftas inom EU, och det måste
+stämma för er. Roller och kontohantering beskrivs i
 [README](README.md#skapa-förvaltarkonton).
 
 Har ni migrerat en databas från en annan instans (avsnitt 6) finns kontona
@@ -206,9 +205,11 @@ filen och eventuella mellanlagrade kopior när allt stämmer.
   **Medlemmar** och skicka ut dem. Länken visas en gång; den gamla blir
   ogiltig samtidigt. Medlemmarnas svar och kommentarer finns kvar — bara
   länken byts.
-- **Integritetssidan:** sätt `ORGANISATION`, `PERSONUPPGIFTSANSVARIG` och
-  `DATASKYDD_KONTAKT` i `.env` (avsnitt 2), så att `/integritet` beskriver
-  er och inte den gamla instansens ägare.
+- **Instansens texter:** de ligger i databasen och följer med från den
+  gamla instansen. Ändra organisation, nuvarande system,
+  personuppgiftsansvarig och kontaktväg under **Inställningar**, så att
+  `/integritet` och statusförklaringarna beskriver er och inte den gamla
+  instansens ägare.
 
 ## 7. Backup
 
