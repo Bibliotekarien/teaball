@@ -4,12 +4,18 @@
 {% if sparat %}
 <div class="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">Sparat.</div>
 {% endif %}
-{% if not instans.personuppgiftsansvarig %}
+{% if saknas %}
 <div class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-  Personuppgiftsansvarig saknas — integritetssidan visar en markering om att den
-  ska fyllas i före skarp drift.
+  Saknas: {{ saknas | join(" och ") }}. Integritetssidan visar en markering om att
+  det ska fyllas i före skarp drift.
 </div>
 {% endif %}
+
+<p class="mb-4 max-w-2xl text-sm text-stone-600">
+  Texterna visas på den publika integritetssidan och i statusförklaringarna, även
+  för medlemmarna. Ändringar gäller direkt. Har databasen tagits över från en
+  annan organisation: kontrollera alla fält.
+</p>
 
 <form method="post" action="/installningar" class="grid max-w-2xl gap-4 rounded-lg border border-stone-200 bg-white p-4 text-sm">
   <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
@@ -40,7 +46,7 @@
     <input name="dataskydd_kontakt" value="{{ instans.dataskydd_kontakt }}"
            maxlength="{{ maxlangd.dataskydd_kontakt }}"
            class="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm text-stone-800">
-    <span class="text-stone-400">T.ex. dataskyddsombudets e-postadress.</span>
+    <span class="text-stone-400">T.ex. en funktionsadress till dataskyddsombudet.</span>
   </label>
 
   <div>

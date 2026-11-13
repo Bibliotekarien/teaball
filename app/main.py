@@ -1,6 +1,7 @@
 """Application factory. Routers are registered here as they are implemented."""
 
 import logging
+import sqlite3
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -41,11 +42,17 @@ async def lifespan(app: FastAPI):
 
 
 def _las_instans() -> instans.Instans:
-    conn = db.connect()
+    """Neutral text hellre än en trasig sida: misslyckas läsningen (t.ex. en
+    låst databas) visas standardvärdena och felet loggas."""
     try:
-        return instans.las(conn)
-    finally:
-        conn.close()
+        conn = db.connect()
+        try:
+            return instans.las(conn)
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        logger.exception("Kunde inte läsa instansens texter; visar neutral text")
+        return instans.Instans()
 
 
 def create_app() -> FastAPI:
@@ -111,10 +118,10 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def instansens_texter(request, call_next):
-        """Instansens texter för just det här anropet (app/instans.py). Läses
-        per anrop, inte en gång vid start: en ändring på /installningar syns
-        direkt, även med flera processer. En rad ur en liten tabell; statiska
-        filer och healthcheck hoppar över den."""
+        """The instance texts for this request (app/instans.py). Read per
+        request, not once at start-up, so a change on /installningar shows at
+        once even with several processes. One row from a tiny table; static
+        files and the health check skip it."""
         if request.url.path.startswith("/static") or request.url.path == "/health":
             return await call_next(request)
         token = instans.satt_aktuell(await run_in_threadpool(_las_instans))

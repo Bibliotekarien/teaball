@@ -25,9 +25,16 @@ def visa(
     principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
+    aktuell = instans.las(conn)
+    # Samma villkor som de gula markeringarna på /integritet.
+    saknas = [namn for namn, varde in (
+        ("personuppgiftsansvarig", aktuell.personuppgiftsansvarig),
+        ("kontakt för dataskydd", aktuell.dataskydd_kontakt),
+    ) if not varde]
     return templates.TemplateResponse(request, "installningar/index.html", {
         "principal": principal,
-        "instans": instans.las(conn),
+        "instans": aktuell,
+        "saknas": saknas,
         "maxlangd": instans.MAXLANGD,
         "neutralt_system": instans.NEUTRALT_SYSTEM,
         "sparat": request.session.pop(FLASH_SPARAT, False),

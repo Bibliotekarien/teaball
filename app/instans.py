@@ -78,12 +78,14 @@ def spara(conn: sqlite3.Connection, **varden: str) -> Instans:
 
 
 def fyll_fran_miljon(conn: sqlite3.Connection) -> None:
-    """En gång per databas: kopiera ORGANISATION m.fl. från miljön till
-    tabellen. Så behåller en instans som konfigurerats med .env sina texter
-    när den uppgraderas. Därefter gäller databasen, och miljövariablerna
-    läses inte mer för den här databasen."""
+    """Uppgraderingsväg från .env: en databas som redan var i bruk när
+    migration 0010 kom får ORGANISATION m.fl. kopierade från miljön, en gång,
+    så att instansen behåller sina texter. En ny, tom databas fylls inte: med
+    en databasfil per organisation skulle den annars ärva serverns texter,
+    t.ex. en annan organisations personuppgiftsansvarig. Därefter gäller
+    databasen; satta variabler som inte används loggas som varning."""
     rad = conn.execute("SELECT fran_miljon FROM instans WHERE id = 1").fetchone()
-    if rad is None or rad["fran_miljon"]:
+    if rad is None:
         return
     fran_miljo = {
         "organisation": config.ORGANISATION,
@@ -91,12 +93,24 @@ def fyll_fran_miljon(conn: sqlite3.Connection) -> None:
         "personuppgiftsansvarig": config.PERSONUPPGIFTSANSVARIG,
         "dataskydd_kontakt": config.DATASKYDD_KONTAKT,
     }
-    spara(conn, **fran_miljo)
+    satta = [f.upper() for f, v in fran_miljo.items() if v]
+    if rad["fran_miljon"]:
+        if satta:
+            logger.warning("Ignoreras, instansens texter ändras under Inställningar: %s",
+                           ", ".join(satta))
+        return
+    i_bruk = conn.execute(
+        "SELECT EXISTS (SELECT 1 FROM forvaltare) OR EXISTS (SELECT 1 FROM funktion)"
+    ).fetchone()[0]
+    if i_bruk:
+        spara(conn, **fran_miljo)
+        if satta:
+            logger.info("Instansens texter fyllda från miljön: %s", ", ".join(satta))
+    elif satta:
+        logger.warning("Ny databas fylls inte från miljön, ange texterna under "
+                       "Inställningar: %s", ", ".join(satta))
     conn.execute("UPDATE instans SET fran_miljon = 1 WHERE id = 1")
     conn.commit()
-    ifyllda = [f for f, v in fran_miljo.items() if v]
-    if ifyllda:
-        logger.info("Instansens texter fyllda från miljön: %s", ", ".join(ifyllda))
 
 
 class Instanstext:

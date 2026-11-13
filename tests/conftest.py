@@ -8,6 +8,16 @@ from app import config
 from app import db as appdb
 
 
+@pytest.fixture(autouse=True)
+def utan_instanstexter_i_miljon(monkeypatch):
+    """Tests must not depend on the process environment: with ORGANISATION
+    etc. set (a sourced .env, the prod container) init_db could seed them and
+    tests expecting neutral texts would fail."""
+    for namn in ("ORGANISATION", "NUVARANDE_SYSTEM", "PERSONUPPGIFTSANSVARIG",
+                 "DATASKYDD_KONTAKT"):
+        monkeypatch.setattr(config, namn, "")
+
+
 @pytest.fixture()
 def conn(tmp_path):
     """A migrated file-backed database (WAL mode needs a real file)."""

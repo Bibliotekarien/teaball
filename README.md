@@ -65,7 +65,8 @@ eller nedgraderas. Skriptet ovan fungerar fortfarande som reservväg
 Kontot får en av tre roller:
 
 - **admin** — full behörighet (skapa/ändra/ta bort i alla vyer, samt
-  instansens texter under **Inställningar**). Default för nya konton, och alla konton som fanns före rollstödet blir admin.
+  instansens texter under **Inställningar**). Default för nya konton, och
+  alla konton som fanns före rollstödet blir admin.
 - **intern** — ser allt (även dolda noder, bedömningar med privata kommentarer,
   analys, export och medlemslistan) men kan inte ändra något.
 - **extern** — skrivskyddad och ser bara externt synligt innehåll: behovsträdet

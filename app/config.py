@@ -29,10 +29,12 @@ MATOMO_ENABLED = bool(MATOMO_URL and MATOMO_SITE_ID)
 
 # Instance texts: the organisation, the system being replaced, and the privacy
 # page's data controller and contact. They live in the database (table
-# instans, edited by admins on /installningar); these variables only seed it
-# ONCE per database, at the first start after migration 0010, so an instance
-# configured through .env keeps its texts. Changing them afterwards has no
-# effect. See app/instans.py.
+# instans, edited by admins on /installningar). These variables are only an
+# upgrade path: a database already in use when migration 0010 arrives is
+# seeded from them ONCE, so an instance configured through .env keeps its
+# texts. New databases are never seeded, and changing the variables later has
+# no effect (a warning is logged). Do not read them elsewhere; use
+# instans.aktuell(). See app/instans.py.
 ORGANISATION = os.environ.get("ORGANISATION", "").strip()
 NUVARANDE_SYSTEM = os.environ.get("NUVARANDE_SYSTEM", "").strip()
 PERSONUPPGIFTSANSVARIG = os.environ.get("PERSONUPPGIFTSANSVARIG", "").strip()
