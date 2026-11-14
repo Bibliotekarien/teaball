@@ -7,7 +7,7 @@ import sqlite3
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 
-from app import instans
+from app import instans, matomo, organisationer
 from app.auth.core import Principal, krav_admin
 from app.auth.csrf import krav_csrf
 from app.db import get_conn
@@ -38,6 +38,10 @@ def visa(
         "maxlangd": instans.MAXLANGD,
         "neutralt_system": instans.NEUTRALT_SYSTEM,
         "sparat": request.session.pop(FLASH_SPARAT, False),
+        # Skrivskyddat här: organisationen ska se om statistik samlas in om
+        # dess besökare, men sajten är operatörens (matomo.site_id).
+        "matomo_site_id": matomo.site_id(),
+        "matomo_hos_operatoren": organisationer.flera(),
     })
 
 

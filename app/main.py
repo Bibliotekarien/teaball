@@ -34,6 +34,12 @@ async def lifespan(app: FastAPI):
                 "och sätt den i .env."
             )
         logger.warning("SECRET_KEY is unset — using the insecure development key.")
+    if organisationer.flera() and config.MATOMO_SITE_ID:
+        # Typically an instance that was just moved in (INSTALL.md avsnitt
+        # 10): its statistics stop until the site is connected per organisation.
+        logger.warning("MATOMO_SITE_ID=%s används inte med flera organisationer; koppla "
+                       "sajten med scripts/organisationer.py matomo <hostnamn> %s.",
+                       config.MATOMO_SITE_ID, config.MATOMO_SITE_ID)
     if not organisationer.flera() and config.COOKIE_SECURE and not config.PUBLIC_BASE_URL:
         logger.warning("PUBLIC_BASE_URL saknas: svarslänkarna byggs på anropets adress, "
                        "kontrollera att de börjar med https://.")

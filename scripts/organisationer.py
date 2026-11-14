@@ -89,11 +89,13 @@ def skapa(hostnamn: str, anvandarnamn: str, losenord: str | None) -> int:
 
     print(f"Organisationen {hostnamn} är skapad med admin '{anvandarnamn}'.")
     print(f"""
-Ge hostnamnet DNS och TLS i proxyn. Skicka sedan till organisationens admin:
+Lägg till hostnamnet i proxyn (DNS ska redan peka hit; INSTALL.md avsnitt 10) och
+kontrollera att /login svarar. Skicka sedan till organisationens admin:
   1. Logga in på https://{hostnamn}/login som '{anvandarnamn}'.
   2. Byt lösenord (https://{hostnamn}/losenord); det här känner operatören till.
   3. Fyll i organisationen, personuppgiftsansvarig och kontakt under Inställningar.
-  4. Läs https://{hostnamn}/integritet före skarp drift.""")
+  4. Läs https://{hostnamn}/integritet före skarp drift.
+  5. Besöksstatistik: ingen, tills vi kommit överens om en sajt (se Inställningar).""")
     return 0
 
 
@@ -195,6 +197,11 @@ def satt_matomo(hostnamn: str, site_id: str | None) -> int:
     except ValueError as fel:
         print(str(fel), file=sys.stderr)
         return 1
+    except sqlite3.OperationalError as fel:
+        # T.ex. en handkopierad fil som inte migrerats än (ingen kolumn).
+        print(f"Kunde inte spara ({fel}). Starta om appen så att databasen "
+              "migreras, och kör kommandot igen.", file=sys.stderr)
+        return 1
     finally:
         conn.close()
     if not site_id:
@@ -205,6 +212,9 @@ def satt_matomo(hostnamn: str, site_id: str | None) -> int:
     else:
         print(f"{hostnamn} rapporterar till site-id {site_id} i {config.MATOMO_URL}. "
               "Integritetssidan nämner nu besöksstatistiken.")
+        print("Kontrollera i Matomo att MATOMO_TOKEN:s användare har skrivrätt till "
+              f"sajt {site_id} (annars avvisas träffarna) och att IP-anonymisering är "
+              "påslagen (Administration → Privacy → Anonymize data).")
     return 0
 
 

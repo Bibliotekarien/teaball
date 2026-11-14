@@ -1,6 +1,7 @@
 """Instansens texter: organisationen, systemet som ersätts och integritetssidans
 personuppgiftsansvarig och kontaktväg. De bor i tabellen instans (en rad) och
-redigeras av admin på /installningar.
+redigeras av admin på /installningar. Samma rad bär organisationens
+Matomo-sajt, som bara operatören sätter (spara_matomo, migration 0011).
 
 Texterna läses en gång per anrop av en middleware i main.py och läggs i en
 ContextVar. Därifrån når även makron dem som importeras utan kontext (STATUS i
@@ -21,6 +22,9 @@ logger = logging.getLogger("teaball")
 NEUTRALT_SYSTEM = "det nuvarande systemet"
 
 # Övre gränser för formuläret; texterna visas i löptext och tooltips.
+# Nycklarna är också de fält admin får spara (spara). Övriga fält i Instans
+# är operatörens och skrivs bara av egna funktioner; ett nytt adminfält ska
+# alltså in här, ett nytt operatörsfält inte.
 MAXLANGD = {
     "organisation": 200,
     "nuvarande_system": 200,
@@ -84,8 +88,9 @@ def spara(conn: sqlite3.Connection, **varden: str) -> Instans:
 
 def spara_matomo(conn: sqlite3.Connection, site_id: str) -> None:
     """Organisationens Matomo-sajt; tom sträng stänger av statistiken."""
-    if site_id and not (site_id.isascii() and site_id.isdigit()):
-        raise ValueError("Matomos site-id är ett heltal.")
+    if site_id and not (site_id.isascii() and site_id.isdigit()
+                        and len(site_id) <= 10 and int(site_id) >= 1):
+        raise ValueError("Matomos site-id är ett positivt heltal.")
     conn.execute("UPDATE instans SET matomo_site_id = ? WHERE id = 1", (site_id,))
     conn.commit()
 

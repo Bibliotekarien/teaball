@@ -88,7 +88,10 @@ def test_en_organisation_som_forut(app_db, client, traffar):
 
 
 def test_admin_kan_inte_andra_sajten(tva, traffar):
-    """Att spara Inställningar lämnar operatörens Matomo-sajt orörd."""
+    """Att spara Inställningar lämnar operatörens Matomo-sajt orörd. Det som
+    vaktas är att spara inte nollar fält utanför formuläret (den första
+    versionen skrev alla fält i Instans); det extra postade fältet ignoreras
+    redan av routern."""
     instans.spara_matomo(tva[A], "11")
     with _klient(A) as a:
         logga_in(a, tva[A])
@@ -99,7 +102,7 @@ def test_admin_kan_inte_andra_sajten(tva, traffar):
     assert instans.las(tva[A]).organisation == "A"
 
 
-@pytest.mark.parametrize("site_id", ["abc", "1.5", "²", "-1"])
+@pytest.mark.parametrize("site_id", ["abc", "1.5", "²", "-1", "0", "1" * 11])
 def test_site_id_maste_vara_ett_heltal(tva, site_id):
     with pytest.raises(ValueError):
         instans.spara_matomo(tva[A], site_id)
@@ -116,3 +119,30 @@ def test_skriptet_satter_och_tar_bort_sajten(tva, traffar, capsys):
     assert instans.las(tva[A]).matomo_site_id == ""
     assert skript.main(["matomo", A, "abc"]) == 1
     assert skript.main(["matomo", "okand.example.org", "1"]) == 1
+
+
+def test_installningar_visar_statistiklaget(tva, traffar):
+    """Organisationen är personuppgiftsansvarig och ska se om statistik samlas
+    in om dess besökare, men inte kunna ändra det."""
+    with _klient(A) as a:
+        logga_in(a, tva[A])
+        assert "av. Ingen statistik samlas in om besökarna." in a.get("/installningar").text
+        instans.spara_matomo(tva[A], "11")
+        sida = a.get("/installningar").text
+    assert "sajt 11 i driftarens" in sida
+    assert "Ändras av den som driftar tjänsten." in sida
+    assert 'name="matomo_site_id"' not in sida
+
+
+def test_varnar_for_matomo_site_id_med_flera(tva, traffar, caplog):
+    """En instans som flyttats in tappar annars statistiken utan att märka det."""
+    with _klient(A):
+        pass
+    assert "MATOMO_SITE_ID=99 används inte med flera organisationer" in caplog.text
+
+
+def test_skriptet_pa_omigrerad_databas(tva, capsys):
+    tva[A].execute("ALTER TABLE instans DROP COLUMN matomo_site_id")
+    tva[A].commit()
+    assert skript.main(["matomo", A, "11"]) == 1
+    assert "Starta om appen" in capsys.readouterr().err
