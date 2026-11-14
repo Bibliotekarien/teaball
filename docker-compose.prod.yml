@@ -8,7 +8,8 @@
 #                           htmx-anropen bär clearance-cookien)
 #                                   │
 #                                   ▼
-#                       teaball-data (named volume, SQLite)
+#                       teaball-data (named volume, SQLite per
+#                       organisation under organisationer/)
 #
 # Inga host-portar publiceras — edge når containrarna via nätverket.
 # Lokal utveckling använder docker-compose.yml i stället.
@@ -24,25 +25,19 @@ services:
     volumes:
       - teaball-data:/data
     environment:
-      DB_PATH: /data/teaball.db
+      # En databas per organisation, vald på hostnamnet (INSTALL.md avsnitt
+      # 10): /data/organisationer/teaball.bibliotekarien.se.db. Svarslänkarna
+      # byggs på anropets egen adress, så PUBLIC_BASE_URL behövs inte, och
+      # instansens texter ändras under Inställningar i appen.
+      ORGANISATIONER_DIR: /data/organisationer
       SECRET_KEY: ${SECRET_KEY:?Sätt SECRET_KEY i .env}
       COOKIE_SECURE: "1"
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Sätt PUBLIC_BASE_URL i .env}
-      # Instansens texter ligger i databasen (Inställningar i appen). De här
-      # fyller den bara EN gång, vid första start efter migration 0010, så att
-      # instansen behåller sina texter vid uppgraderingen. Därefter läses de
-      # inte (appen loggar en varning) och ska tas bort när den deployen är
-      # gjord. En ny, tom databas fylls aldrig från dem.
-      ORGANISATION: ${ORGANISATION:-DiVA-konsortiet}
-      NUVARANDE_SYSTEM: ${NUVARANDE_SYSTEM:-DiVA Classic}
-      PERSONUPPGIFTSANSVARIG: ${PERSONUPPGIFTSANSVARIG:-}
-      DATASKYDD_KONTAKT: ${DATASKYDD_KONTAKT:-}
       # Anubis står framför appen och sätter en egen kaka — integritetssidan
       # ska nämna den.
       ROBOTSKYDD: "1"
-      # Server-side Matomo (Tracking HTTP API) — tomma värden stänger av.
+      # Server-side Matomo (Tracking HTTP API). Sajten sätts per organisation
+      # med scripts/organisationer.py matomo; MATOMO_SITE_ID används inte.
       MATOMO_URL: ${MATOMO_URL:-}
-      MATOMO_SITE_ID: ${MATOMO_SITE_ID:-}
       MATOMO_TOKEN: ${MATOMO_TOKEN:-}
     healthcheck:
       # python i stället för curl — curl finns inte i python:3.12-slim.

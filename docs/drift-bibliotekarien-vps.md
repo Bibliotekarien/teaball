@@ -11,16 +11,17 @@ stack `/opt/teaball/app`, service-användare `teaball` (UID 1505),
 inga host-portar — edge-Caddy joinar `teaball_proxy` och proxar
 `teaball.bibliotekarien.se` genom **Anubis** (PoW-gate för all trafik;
 htmx-anropen bär clearance-cookien; Anubis standardpolicy enligt
-plattformens `edge/ANUBIS.md`). Databasen ligger i named-volymen
-`teaball-data`. Teaball är **stängd för sökmotorer** — `/robots.txt`
+plattformens `edge/ANUBIS.md`). Instansen körs med en databas per
+organisation (`ORGANISATIONER_DIR`, INSTALL.md avsnitt 10), än så länge med
+en enda: `organisationer/teaball.bibliotekarien.se.db` i named-volymen
+`teaball-data`. Både edge-Caddy och Anubis skickar vidare anropets
+`Host`-header oförändrad, och det är den som väljer databas. (Sätt aldrig
+`TARGET_HOST` på Anubis: då får alla anrop samma hostnamn och svarar 404.)
+Teaball är **stängd för sökmotorer** — `/robots.txt`
 (serveras av appen) säger `Disallow: /`, eftersom allt utom inloggningen
 kräver konto. uvicorns accesslogg är på, med medlemmarnas token maskade
 (`app/accesslog.py`). Instansens texter ligger i databasen och ändras under
-Inställningar i appen. `docker-compose.prod.yml` har `ORGANISATION=DiVA-konsortiet`
-och `NUVARANDE_SYSTEM=DiVA Classic` som standard; de fyller databasen en gång,
-vid första start efter migration 0010, och läses sedan inte. **Ta bort dem ur
-`docker-compose.prod.yml` efter den deployen** — tills dess loggar appen vid
-varje start att de ignoreras. `ROBOTSKYDD=1` står också där.
+Inställningar i appen. `ROBOTSKYDD=1` står i `docker-compose.prod.yml`.
 
 Driftsättningschecklista (första gången):
 
@@ -30,32 +31,118 @@ Driftsättningschecklista (första gången):
 3. Klona repot till `/opt/teaball/app` som root (`sudo git clone`), med
    deploy-nyckeln via `core.sshCommand` i repots `.git/config`. Skapa `.env`
    från `.env.example` med `sudo install -m 600` (SECRET_KEY,
-   PUBLIC_BASE_URL, ANUBIS_COOKIE_DOMAIN; Matomo-värdena nedan). Kör
+   ANUBIS_COOKIE_DOMAIN; Matomo-värdena nedan). Kör
    `sudo chmod -R go-w /opt/teaball/app` och `sudo restorecon -R
    /opt/teaball/app`.
 4. **Matomo:** registrera sajten på `https://bibstats.bibliotekarien.se`
    (Administration → Websites → Manage → Add a new website, URL
    `https://teaball.bibliotekarien.se`) och sätt
-   `MATOMO_URL=https://bibstats.bibliotekarien.se`, `MATOMO_SITE_ID` och
-   `MATOMO_TOKEN` i `.env`. Trackingen sker **server-side** (Tracking HTTP API)
-   — ingen matomo.js i klienten, DNT/GPC respekteras, `/svara/<token>` maskas.
+   `MATOMO_URL=https://bibstats.bibliotekarien.se` och `MATOMO_TOKEN` i
+   `.env`. Sajtens id kopplas till organisationen i steg 7. Trackingen sker
+   **server-side** (Tracking HTTP API) — ingen matomo.js i klienten, DNT/GPC
+   respekteras, `/svara/<token>` maskas.
 5. `sudo SKIP_BACKUP=1 /opt/teaball/app/scripts/deploy.sh` (skapar nätet;
    `SKIP_BACKUP=1` bara denna första gång — backup-uniten kommer i steg 6 och
    databasen är ännu tom), därefter
    `make -C /opt/bibliotekarien-platform edge-recreate` (Caddy joinar nätet).
 6. Systemd: `sudo cp deploy/teaball.service deploy/teaball-backup.{service,timer} /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now teaball.service teaball-backup.timer`.
-7. Skapa förvaltarkonton + läs in underlag (se
-   [README](../README.md#skapa-förvaltarkonton), med
-   `docker compose -f docker-compose.prod.yml exec web ...`).
+7. Skapa organisationen med sin första admin och koppla Matomo-sajten
+   (`docker compose -f docker-compose.prod.yml exec web python
+   scripts/organisationer.py skapa teaball.bibliotekarien.se <användarnamn>`,
+   sedan `... matomo teaball.bibliotekarien.se <site-id>`; INSTALL.md avsnitt
+   10). Läs in underlag med `--db
+   /data/organisationer/teaball.bibliotekarien.se.db` (se
+   [README](../README.md#skapa-förvaltarkonton)).
 8. Observability: avkommentera `teaball.bibliotekarien.se`-proben i
    `observability-platform/stack/prometheus/prometheus.yml` (avsiktligt
    utkommenterad tills sajten är live — inga röda prober i förväg).
 
+## Flytt till en databas per organisation (en gång)
+
+Fram till den deploy som för in `ORGANISATIONER_DIR` i
+`docker-compose.prod.yml` låg databasen i `/data/teaball.db`. Den nya
+compose-filen letar i `/data/organisationer/`, så filen ska flyttas dit
+**innan** den nya koden startar. Annars svarar adressen 404 tills den
+flyttats. Den nya backup-uniten kräver också att filen redan ligger där.
+
+**Före:** deployen med instansinställningarna (migration 0010) ska redan
+vara gjord i det gamla läget, så att Inställningar visar DiVA-texterna.
+Med flera organisationer fylls texterna aldrig från miljön. Har den deployen
+inte gjorts: fyll i Inställningar för hand efter flytten. Säg till
+förvaltarna i förväg att de loggas ut. Medlemmarna klickar på sin länk igen.
+
+```bash
+cd /opt/teaball/app
+D=/var/lib/docker/volumes/teaball_teaball-data/_data
+sudo grep MATOMO_SITE_ID .env                    # anteckna site-id:t
+sudo systemctl start teaball-backup.service      # färsk kopia, med den gamla uniten
+sudo docker compose -f docker-compose.prod.yml stop web
+sudo ls -l $D                                    # se nedan om -wal
+sudo install -d -o teaball -g teaball -m 700 $D/organisationer
+sudo mv $D/teaball.db $D/organisationer/teaball.bibliotekarien.se.db
+sudo SKIP_BACKUP=1 /opt/teaball/app/scripts/deploy.sh
+```
+
+Efter en normal stängning finns ingen `teaball.db-wal`. Finns den ändå,
+flytta den till `$D/organisationer/teaball.bibliotekarien.se.db-wal`: den
+kan innehålla skrivningar som ännu inte nått databasfilen. En `-shm` kan
+tas bort. `SKIP_BACKUP=1` behövs eftersom den gamla uniten pekar på den
+flyttade filen; kopian togs två rader tidigare. Avbryts deploy.sh innan
+`compose up` står appen stoppad. Flytta då tillbaka filen och kör
+`sudo docker compose -f docker-compose.prod.yml start web`.
+
+Byt sedan backup-uniten. De gamla kopiorna flyttas in under organisationen,
+så att de fortsätter roteras:
+
+```bash
+sudo install -d -o teaball -g teaball -m 700 /opt/teaball/backups/teaball.bibliotekarien.se
+sudo mv /opt/teaball/backups/dagliga /opt/teaball/backups/manatliga /opt/teaball/backups/teaball.bibliotekarien.se/
+sudo cp /opt/teaball/app/deploy/teaball-backup.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl start teaball-backup.service
+journalctl -u teaball-backup.service -n 20       # "Backup klar för 1 organisationer."
+```
+
+Koppla Matomo-sajten (compose skickar inte längre `MATOMO_SITE_ID`, så
+statistiken står still tills detta är gjort):
+
+```bash
+sudo docker compose -f docker-compose.prod.yml exec web python scripts/organisationer.py matomo teaball.bibliotekarien.se <site-id>
+sudo docker compose -f docker-compose.prod.yml exec web python scripts/organisationer.py lista
+```
+
+**Kontrollera:**
+
+- `https://teaball.bibliotekarien.se/login` visar inloggningen, inte
+  ”Okänd adress”.
+- Inloggningen fungerar, och Inställningar visar texterna och
+  besöksstatistiken.
+- En ny svarslänk börjar med `https://teaball.bibliotekarien.se/`.
+- Nästa sidvisning syns i Matomo.
+
+`MATOMO_SITE_ID` och `PUBLIC_BASE_URL` i `.env` läses inte längre och kan
+tas bort. Kopiorna före migration (`$D/teaball.fore-*.db`) ligger kvar i
+volymens rot. Appen hittar dem inte längre, och de raderas när de inte
+längre behövs.
+
+**Backa:** stoppa web, flytta tillbaka filen till `$D/teaball.db`, kör
+`sudo git -C /opt/teaball/app reset --hard <commiten före>` och
+`sudo docker compose -f docker-compose.prod.yml up -d --build`. Har uniten
+bytts: lägg tillbaka den gamla med
+`sudo git -C /opt/teaball/app show <commiten före>:deploy/teaball-backup.service`
+till `/etc/systemd/system/`, kör `daemon-reload` och flytta tillbaka
+backupkatalogerna.
+
+**Fler organisationer på den här servern** kräver mer än ett nytt
+hostnamn i edge-Caddy: Anubis `COOKIE_DOMAIN` gäller ett hostnamn, så
+varje organisation behöver en egen Anubis-instans eller en gemensam
+föräldradomän. Det är inte gjort.
+
 ## Backup
 
-`teaball-backup.timer` kör `scripts/backup.sh` varje natt (unit + timer i
-`deploy/`) mot volymen under `/var/lib/docker/volumes/`, till
-`/opt/teaball/backups`. Jobbet kör som `teaball` (uid 1505), inte root,
+`teaball-backup.timer` kör `scripts/backup_alla.sh` varje natt (unit + timer i
+`deploy/`) mot organisationskatalogen i volymen under
+`/var/lib/docker/volumes/`, till `/opt/teaball/backups/<hostnamn>/`. Jobbet kör som `teaball` (uid 1505), inte root,
 med `CAP_DAC_READ_SEARCH` för att nå in i `/var/lib/docker` och skrivrätt
 bara till målet och datakatalogen (se kommentaren i uniten).
 `/opt/teaball/backups` måste därför ägas av `teaball`.
