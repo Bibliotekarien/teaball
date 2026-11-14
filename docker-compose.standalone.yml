@@ -39,15 +39,15 @@ services:
       - ${TEABALL_DATA_DIR:-./teaball-data}:/data
     environment:
       DB_PATH: /data/teaball.db
+      # Flera organisationer (INSTALL.md avsnitt 10), t.ex. /data/organisationer.
+      # Tom = en organisation i DB_PATH.
+      ORGANISATIONER_DIR: ${ORGANISATIONER_DIR:-}
       SECRET_KEY: ${SECRET_KEY:?Sätt SECRET_KEY i .env}
       COOKIE_SECURE: "1"
       FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-172.16.0.0/12,192.168.0.0/16}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Sätt PUBLIC_BASE_URL i .env}
-      # Instansens texter (INSTALL.md avsnitt 2) — tomma ger neutral text.
-      ORGANISATION: ${ORGANISATION:-}
-      NUVARANDE_SYSTEM: ${NUVARANDE_SYSTEM:-}
-      PERSONUPPGIFTSANSVARIG: ${PERSONUPPGIFTSANSVARIG:-}
-      DATASKYDD_KONTAKT: ${DATASKYDD_KONTAKT:-}
+      # Krävs med en organisation; med flera byggs länkarna på varje
+      # organisations egen adress och värdet används inte.
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
       # Server-side Matomo (Tracking HTTP API) — tomma värden stänger av.
       MATOMO_URL: ${MATOMO_URL:-}
       MATOMO_SITE_ID: ${MATOMO_SITE_ID:-}

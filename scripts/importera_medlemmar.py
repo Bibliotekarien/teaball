@@ -20,7 +20,9 @@ from app.services.importera import importera_medlemmar, las_rader  # noqa: E402
 def main() -> int:
     parser = argparse.ArgumentParser(description="Läs in medlemslistan från CSV/JSON.")
     parser.add_argument("fil", type=Path)
-    parser.add_argument("--db", help="Sökväg till databasfilen (annars DB_PATH/standard).")
+    parser.add_argument("--db", help="Sökväg till databasfilen (annars DB_PATH)."
+                             " Krävs när ORGANISATIONER_DIR är satt:"
+                             " <ORGANISATIONER_DIR>/<hostnamn>.db.")
     args = parser.parse_args()
 
     rader = las_rader(args.fil.read_text(encoding="utf-8"), args.fil.name)

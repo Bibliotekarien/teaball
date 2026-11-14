@@ -15,6 +15,7 @@ from app.auth.core import (
     Principal,
     aktuell_principal,
     krav_medlem,
+    starta_session,
 )
 from app.auth.csrf import krav_csrf
 from app.db import get_conn
@@ -34,9 +35,7 @@ def _starta_medlemssession(request: Request, conn, rad) -> RedirectResponse:
         "UPDATE medlem SET senast_anvand = datetime('now') WHERE id = ?", (rad["id"],)
     )
     conn.commit()
-    request.session.clear()
-    request.session[SESSION_MEDLEM] = rad["id"]
-    request.session[SESSION_MEDLEM_HASH] = rad["token"]
+    starta_session(request, **{SESSION_MEDLEM: rad["id"], SESSION_MEDLEM_HASH: rad["token"]})
     return RedirectResponse("/svara", status_code=303)
 
 

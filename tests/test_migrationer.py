@@ -150,8 +150,10 @@ def test_migration_tar_sakerhetskopia_fore(tmp_path):
     conn = gammal_produktionsdb(tmp_path)
     db.init_db(conn)
 
-    # The copy is named for the highest pending version in the batch.
-    kopior = list(tmp_path.glob("gammal.fore-0009-*.db"))
+    # The copy is named for the highest pending version in the batch — the
+    # newest migration file, since the old database predates them all.
+    hogsta = max(p.name.split("_", 1)[0] for p in (ROT / "db" / "migrations").glob("[0-9]*.sql"))
+    kopior = list(tmp_path.glob(f"gammal.fore-{hogsta}-*.db"))
     assert len(kopior) == 1
     gammal = sqlite3.connect(kopior[0])
     gammal.row_factory = sqlite3.Row
