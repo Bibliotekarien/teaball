@@ -8,6 +8,7 @@ from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
 from app import config
+from app.instans import Instanstext
 from app.auth.csrf import csrf_token
 from app.services.bedomning import OPPEN_DELNING
 from app.services.trad import TYP_LABEL
@@ -86,7 +87,7 @@ STATUS = {
                  "beskrivning": "Beslutad att byggas; avgången i roadmapen anger när."},
     "utreds": {"label": "Utreds", "cls": "bg-sky-200 text-sky-900",
                "stapel": "bg-sky-700",
-               "beskrivning": f"Finns i {config.NUVARANDE_SYSTEM}; identifierad men ännu inte beslutad."},
+               "beskrivning": Instanstext("Finns i {system}; identifierad men ännu inte beslutad.")},
     "idé": {"label": "Idé", "cls": "bg-sky-100 text-sky-800",
             "stapel": "bg-sky-400",
             "beskrivning": "Nytt förslag som ännu inte är beslutat."},

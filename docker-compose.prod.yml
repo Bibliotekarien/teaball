@@ -28,8 +28,11 @@ services:
       SECRET_KEY: ${SECRET_KEY:?Sätt SECRET_KEY i .env}
       COOKIE_SECURE: "1"
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Sätt PUBLIC_BASE_URL i .env}
-      # Instansens texter. Standardvärdena är den här instansens, så att
-      # .env på servern inte behöver ändras; .env vinner om den sätter dem.
+      # Instansens texter ligger i databasen (Inställningar i appen). De här
+      # fyller den bara EN gång, vid första start efter migration 0010, så att
+      # instansen behåller sina texter vid uppgraderingen. Därefter läses de
+      # inte (appen loggar en varning) och ska tas bort när den deployen är
+      # gjord. En ny, tom databas fylls aldrig från dem.
       ORGANISATION: ${ORGANISATION:-DiVA-konsortiet}
       NUVARANDE_SYSTEM: ${NUVARANDE_SYSTEM:-DiVA Classic}
       PERSONUPPGIFTSANSVARIG: ${PERSONUPPGIFTSANSVARIG:-}

@@ -64,8 +64,9 @@ eller nedgraderas. Skriptet ovan fungerar fortfarande som reservväg
 
 Kontot får en av tre roller:
 
-- **admin** — full behörighet (skapa/ändra/ta bort i alla vyer). Default för
-  nya konton, och alla konton som fanns före rollstödet blir admin.
+- **admin** — full behörighet (skapa/ändra/ta bort i alla vyer, samt
+  instansens texter under **Inställningar**). Default för nya konton, och
+  alla konton som fanns före rollstödet blir admin.
 - **intern** — ser allt (även dolda noder, bedömningar med privata kommentarer,
   analys, export och medlemslistan) men kan inte ändra något.
 - **extern** — skrivskyddad och ser bara externt synligt innehåll: behovsträdet
@@ -98,7 +99,7 @@ Hela importen är en transaktion — valideringsfel lämnar databasen orörd.
 
 Giltiga statusar är `driftsatt`, `planerad`, `idé`, `utreds` och `utgår`.
 `driftsatt` = finns och fungerar i nya plattformen (räknas inte som blockerare);
-`utreds` = finns i det nuvarande systemet (namnet sätts med `NUVARANDE_SYSTEM`),
+`utreds` = finns i det nuvarande systemet (namnet sätts under Inställningar),
 identifierad men ännu inte beslutad (behandlas
 som `idé` i analysens varningar). I kravspecen och prototypen heter `driftsatt`
 fortfarande *befintlig* — de dokumenten är bevarade oförändrade; migration

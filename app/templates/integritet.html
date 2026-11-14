@@ -23,7 +23,7 @@
     <article class="space-y-6 text-sm leading-relaxed text-stone-700">
       <div>
         <h2 class="font-serif text-2xl text-stone-900">Personuppgifter &amp; integritet</h2>
-        <p class="mt-1 text-xs text-stone-500">Senast uppdaterad 12 november 2026.</p>
+        <p class="mt-1 text-xs text-stone-500">Senast uppdaterad 14 november 2026.</p>
       </div>
 
       <p>
@@ -38,7 +38,7 @@
 
       <section>
         <h3 class="font-semibold text-stone-900">Personuppgiftsansvarig</h3>
-        {# Set per instance: PERSONUPPGIFTSANSVARIG and DATASKYDD_KONTAKT in .env.
+        {# Set per instance by an admin under Inställningar (table instans).
            Whatever is missing keeps the amber marker, so an unfinished notice
            cannot pass for a finished one. #}
         <p class="mt-1">
@@ -128,8 +128,14 @@
         <h3 class="font-semibold text-stone-900">Besöksstatistik</h3>
         <p class="mt-1">
           {% if matomo %}
+          {% if matomo_hos_operatoren %}
+          Anonym besöksstatistik samlas in med en självhostad Matomo-installation
+          hos den som driftar tjänsten, i en egen sajt, åtskild från andra organisationers.
+          {% else %}
           Anonym besöksstatistik samlas in med en egen, självhostad
-          Matomo-installation. Ingen tredjeparts skript laddas och inga
+          Matomo-installation.
+          {% endif %}
+          Ingen tredjeparts skript laddas och inga
           spårningskakor sätts. Signalerna <em>Do Not Track</em> och
           <em>Global Privacy Control</em> respekteras — skickar din webbläsare någon
           av dem registreras inget. Personliga svarslänkar maskas innan de når

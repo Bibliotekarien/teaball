@@ -81,7 +81,9 @@ def seed(conn, slump: random.Random | None = None) -> tuple[int, int]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--db", help="Sökväg till databasfilen (annars DB_PATH/standard).")
+    parser.add_argument("--db", help="Sökväg till databasfilen (annars DB_PATH)."
+                             " Krävs när ORGANISATIONER_DIR är satt:"
+                             " <ORGANISATIONER_DIR>/<hostnamn>.db.")
     args = parser.parse_args()
 
     conn = db.connect(args.db)
