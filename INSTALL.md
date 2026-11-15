@@ -393,8 +393,9 @@ sudo docker compose -f docker-compose.standalone.yml up -d
 Ta en backup först (avsnitt 7). Finns `teaball.db-wal` kvar efter `down`
 (den gör det inte efter en normal stängning): flytta den med, som
 `organisationer/teaball.exempel.se.db-wal`, eftersom den kan innehålla
-skrivningar som inte nått databasfilen. En `-shm` kan tas bort. Medlemmarnas länkar fungerar som förut om
-hostnamnet är detsamma, men alla som är inloggade får logga in igen.
+skrivningar som inte nått databasfilen. En `-shm` kan tas bort.
+Medlemmarnas länkar fungerar som förut om hostnamnet är detsamma, men alla
+som är inloggade får logga in igen.
 Statistiken stannar tills sajten kopplas per organisation (appen varnar vid
 start så länge `MATOMO_SITE_ID` är satt): kör
 `organisationer.py matomo teaball.exempel.se <samma site-id som förut>` och

@@ -217,6 +217,23 @@ def test_backup_alla_fortsatter_efter_ett_fel(katalog, tmp_path):
 
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="bash saknas")
+def test_backup_alla_foljer_inte_symlankar(katalog, tmp_path):
+    """Katalogen är skrivbar för containern; en symlänk får inte leda backupen
+    (som kan läsa allt) till en annan apps databas."""
+    _skapa("a.example.org")
+    annan = tmp_path / "annan-app.db"
+    sqlite3.connect(annan).close()
+    (katalog / "b.example.org.db").symlink_to(annan)
+    mal = tmp_path / "backup"
+    mal.mkdir()
+    svar = _backup_alla(katalog, mal)
+    assert svar.returncode == 1
+    assert "misslyckades för: b.example.org" in svar.stderr
+    assert not (mal / "b.example.org").exists()
+    assert list((mal / "a.example.org" / "dagliga").glob("teaball-*.db"))
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash saknas")
 def test_backup_alla_utan_organisationer_ar_ett_fel(katalog, tmp_path):
     svar = _backup_alla(katalog, tmp_path)
     assert svar.returncode == 1

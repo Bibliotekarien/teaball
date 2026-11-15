@@ -32,7 +32,9 @@
 #   BACKUP_UNIT      Systemd-unit som tar databaskopian (default:
 #                    teaball-backup.service, se deploy/).
 #   SKIP_BACKUP      1 = driftsätt utan kopia. Bara för första bring-up, när
-#                    uniten inte är installerad och databasen ännu är tom.
+#                    uniten inte är installerad och databasen ännu är tom,
+#                    och för flytten till en databas per organisation, där
+#                    kopian tas för hand (docs/drift-bibliotekarien-vps.md).
 #
 # Flaggor:
 #   --check / --dry-run   Hämta + ev. signaturkontroll + kolla att backup-uniten

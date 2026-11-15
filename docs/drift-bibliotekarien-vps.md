@@ -62,37 +62,72 @@ Driftsättningschecklista (första gången):
 Fram till den deploy som för in `ORGANISATIONER_DIR` i
 `docker-compose.prod.yml` låg databasen i `/data/teaball.db`. Den nya
 compose-filen letar i `/data/organisationer/`, så filen ska flyttas dit
-**innan** den nya koden startar. Annars svarar adressen 404 tills den
-flyttats. Den nya backup-uniten kräver också att filen redan ligger där.
+**innan** den nya koden startar. Den nya backup-uniten kräver också att
+filen redan ligger där. Gör hela körplanen i ett pass, dagtid: nattens
+backup (02:50 UTC) misslyckas om den hamnar mitt i.
 
-**Före:** deployen med instansinställningarna (migration 0010) ska redan
-vara gjord i det gamla läget, så att Inställningar visar DiVA-texterna.
-Med flera organisationer fylls texterna aldrig från miljön. Har den deployen
-inte gjorts: fyll i Inställningar för hand efter flytten. Säg till
-förvaltarna i förväg att de loggas ut. Medlemmarna klickar på sin länk igen.
+**Före**
+
+1. **#90–#93 är deployade och kontrollerade.** Merga och deploya dem som
+   vanligt, i det gamla läget. Kontrollera sedan Inställningar: där ska
+   organisation (DiVA-konsortiet), nuvarande system, personuppgiftsansvarig
+   och dataskyddskontakt stå. Kontrollera också att `/integritet` visar dem.
+   Med flera organisationer fylls texterna aldrig från miljön. Saknas något:
+   fyll i Inställningar för hand efter flytten, med värdena som `grep`
+   nedan skriver ut.
+2. **Merga #94 först när körplanen ska köras direkt efteråt.** Kör inte
+   `deploy.sh` eller plattformens `deploy-all` däremellan. Den nya koden
+   hittar ingen fil, och alla sidor svarar 404 (”Okänd adress”). `/health`
+   och Prometheus-proben förblir ändå gröna, så inget larmar.
+3. **Säg till i förväg.** Välj en tid utan pågående svarsomgång. Tjänsten
+   är nere medan imagen byggs; räkna med 5–10 minuter. Förslag till
+   förvaltare och medlemmar:
+
+   > Teaball är nere en kort stund [datum, tid]. Efteråt behöver förvaltare
+   > logga in igen, och medlemmar öppnar sin personliga länk igen. Länken är
+   > densamma. Spara text du håller på att skriva innan dess.
+
+   Integritetssidans text om besöksstatistik ändras till ”hos den som
+   driftar tjänsten, i en egen sajt”. Meddela den personuppgiftsansvarige.
+
+**Flytten.** Först stoppas appen och en kopia tas av exakt den fil som ska
+flyttas, med den gamla uniten. Kopian sparas också under ett eget namn,
+eftersom nästa backup samma dag skriver över dagens fil:
 
 ```bash
 cd /opt/teaball/app
 D=/var/lib/docker/volumes/teaball_teaball-data/_data
-sudo grep MATOMO_SITE_ID .env                    # anteckna site-id:t
-sudo systemctl start teaball-backup.service      # färsk kopia, med den gamla uniten
+sudo git rev-parse HEAD                          # anteckna: commiten att backa till
+sudo grep -E '^(MATOMO_SITE_ID|ORGANISATION|NUVARANDE_SYSTEM|PERSONUPPGIFTSANSVARIG|DATASKYDD_KONTAKT)=' .env
 sudo docker compose -f docker-compose.prod.yml stop web
-sudo ls -l $D                                    # se nedan om -wal
+sudo systemctl start teaball-backup.service
+sudo cp -p /opt/teaball/backups/dagliga/teaball-$(date +%F).db /opt/teaball/backups/fore-flytt.db
+```
+
+Flytta filen. Efter en normal stängning finns ingen `teaball.db-wal`. Finns
+den ändå, flyttas den med av tredje raden, eftersom den kan innehålla
+skrivningar som inte nått databasfilen. En `-shm` återskapas av SQLite:
+
+```bash
 sudo install -d -o teaball -g teaball -m 700 $D/organisationer
 sudo mv $D/teaball.db $D/organisationer/teaball.bibliotekarien.se.db
+sudo test ! -e $D/teaball.db-wal || sudo mv $D/teaball.db-wal $D/organisationer/teaball.bibliotekarien.se.db-wal
+sudo rm -f $D/teaball.db-shm
+sudo ls -lZ $D $D/organisationer                 # samma ägare och SELinux-etikett som förut
+```
+
+Deploya. `SKIP_BACKUP=1` behövs eftersom den gamla uniten pekar på den
+flyttade filen; kopian togs nyss:
+
+```bash
 sudo SKIP_BACKUP=1 /opt/teaball/app/scripts/deploy.sh
 ```
 
-Efter en normal stängning finns ingen `teaball.db-wal`. Finns den ändå,
-flytta den till `$D/organisationer/teaball.bibliotekarien.se.db-wal`: den
-kan innehålla skrivningar som ännu inte nått databasfilen. En `-shm` kan
-tas bort. `SKIP_BACKUP=1` behövs eftersom den gamla uniten pekar på den
-flyttade filen; kopian togs två rader tidigare. Avbryts deploy.sh innan
-`compose up` står appen stoppad. Flytta då tillbaka filen och kör
-`sudo docker compose -f docker-compose.prod.yml start web`.
+Avbryts deploy.sh innan ”Startar stacken” står appen stoppad. Följ *Backa*
+nedan.
 
-Byt sedan backup-uniten. De gamla kopiorna flyttas in under organisationen,
-så att de fortsätter roteras:
+Byt backup-uniten. De gamla kopiorna flyttas in under organisationen, så
+att de fortsätter att roteras:
 
 ```bash
 sudo install -d -o teaball -g teaball -m 700 /opt/teaball/backups/teaball.bibliotekarien.se
@@ -103,8 +138,9 @@ sudo systemctl start teaball-backup.service
 journalctl -u teaball-backup.service -n 20       # "Backup klar för 1 organisationer."
 ```
 
-Koppla Matomo-sajten (compose skickar inte längre `MATOMO_SITE_ID`, så
-statistiken står still tills detta är gjort):
+Koppla Matomo-sajten med site-id:t som `grep` skrev ut. Compose skickar
+inte längre `MATOMO_SITE_ID`, så statistiken står still tills detta är
+gjort:
 
 ```bash
 sudo docker compose -f docker-compose.prod.yml exec web python scripts/organisationer.py matomo teaball.bibliotekarien.se <site-id>
@@ -117,21 +153,45 @@ sudo docker compose -f docker-compose.prod.yml exec web python scripts/organisat
   ”Okänd adress”.
 - Inloggningen fungerar, och Inställningar visar texterna och
   besöksstatistiken.
+- `/integritet` beskriver statistiken som insamlad hos den som driftar
+  tjänsten.
 - En ny svarslänk börjar med `https://teaball.bibliotekarien.se/`.
 - Nästa sidvisning syns i Matomo.
 
-`MATOMO_SITE_ID` och `PUBLIC_BASE_URL` i `.env` läses inte längre och kan
-tas bort. Kopiorna före migration (`$D/teaball.fore-*.db`) ligger kvar i
-volymens rot. Appen hittar dem inte längre, och de raderas när de inte
-längre behövs.
+**Efteråt**, när ni har bestämt att inte backa (senast efter 30 dagar,
+samma tid som de dagliga kopiorna sparas):
 
-**Backa:** stoppa web, flytta tillbaka filen till `$D/teaball.db`, kör
-`sudo git -C /opt/teaball/app reset --hard <commiten före>` och
-`sudo docker compose -f docker-compose.prod.yml up -d --build`. Har uniten
-bytts: lägg tillbaka den gamla med
-`sudo git -C /opt/teaball/app show <commiten före>:deploy/teaball-backup.service`
-till `/etc/systemd/system/`, kör `daemon-reload` och flytta tillbaka
-backupkatalogerna.
+- Ta bort `MATOMO_SITE_ID`, `PUBLIC_BASE_URL` och eventuella textvariabler
+  ur `.env`. De läses inte längre, men den gamla compose-filen kräver
+  `PUBLIC_BASE_URL`, så de ska stå kvar så länge man kan behöva backa.
+- Radera kopiorna med personuppgifter som appen och backupen inte längre
+  ser: `sudo rm $D/teaball.fore-*.db /opt/teaball/backups/fore-flytt.db`.
+
+**Backa.** Ersätt `<commit>` med den som antecknades:
+
+```bash
+cd /opt/teaball/app
+D=/var/lib/docker/volumes/teaball_teaball-data/_data
+sudo docker compose -f docker-compose.prod.yml stop web
+sudo mv $D/organisationer/teaball.bibliotekarien.se.db $D/teaball.db
+sudo test ! -e $D/organisationer/teaball.bibliotekarien.se.db-wal || sudo mv $D/organisationer/teaball.bibliotekarien.se.db-wal $D/teaball.db-wal
+sudo rm -f $D/organisationer/teaball.bibliotekarien.se.db-shm
+sudo git reset --hard <commit>
+sudo docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Har backup-uniten redan bytts, lägg tillbaka den gamla (arbetskopian har
+den efter `reset`) och backupkatalogerna:
+
+```bash
+sudo cp /opt/teaball/app/deploy/teaball-backup.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo mv /opt/teaball/backups/teaball.bibliotekarien.se/dagliga /opt/teaball/backups/teaball.bibliotekarien.se/manatliga /opt/teaball/backups/
+```
+
+Kör sedan inte `deploy.sh` eller `deploy-all` förrän #94 är revertad på
+main eller felet är rättat. Annars drar nästa deploy in den nya
+compose-filen igen, utan att filen flyttats.
 
 **Fler organisationer på den här servern** kräver mer än ett nytt
 hostnamn i edge-Caddy: Anubis `COOKIE_DOMAIN` gäller ett hostnamn, så

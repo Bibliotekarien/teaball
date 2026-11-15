@@ -36,6 +36,15 @@ for fil in "$KATALOG"/*.db; do
   case "$namn" in
     *.fore-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z) continue ;;
   esac
+  # Katalogen är skrivbar för containern, och jobbet kan läsa allt
+  # (CAP_DAC_READ_SEARCH). En symlänk x.db hade annars fått en annan apps
+  # databas kopierad till backupmålet. Jobbet avslutas med fel, eftersom en
+  # symlänk där inte hör hemma.
+  if [ -L "$fil" ] || [ ! -f "$fil" ]; then
+    echo "Hoppar över $fil: inte en vanlig fil." >&2
+    misslyckade+=("$namn")
+    continue
+  fi
   antal=$((antal + 1))
   "$BACKUP" "$fil" "$MAL/$namn" || misslyckade+=("$namn")
 done
