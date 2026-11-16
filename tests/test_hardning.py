@@ -89,6 +89,14 @@ def test_htmx_far_hx_redirect_vid_utloggad(client, app_db):
     assert svar.headers["hx-redirect"] == "/login"
 
 
+def test_inloggningen_hanvisar_medlemmar_till_lanken(client, app_db):
+    """A member whose session expired lands on /login without a password;
+    the page must tell them to open their personal link instead (#95)."""
+    sida = client.get("/login").text
+    assert "Öppna den personliga länk du har" in sida
+    assert "Du behöver inget lösenord." in sida
+
+
 def test_tokenlank_med_aktiv_session_kraver_bekraftelse(client, app_db):
     """A GET with a valid token must not silently replace an existing session
     (login CSRF). The confirmation POST performs the switch."""

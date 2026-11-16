@@ -18,5 +18,11 @@
     </label>
     <button class="mt-1 rounded-md bg-blue-900 py-2 text-white hover:bg-blue-800">Logga in</button>
   </form>
+  {# Members never have a password; they land here when their session has
+     expired (htmx redirects to /login) and need to know what to do instead. #}
+  <p class="mt-4 border-t border-stone-200 pt-4 text-xs text-stone-500">
+    Svarar du för en medlemsorganisation? Öppna den personliga länk du har
+    fått. Du behöver inget lösenord.
+  </p>
 </div>
 {% endblock %}
