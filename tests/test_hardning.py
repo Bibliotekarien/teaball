@@ -93,8 +93,9 @@ def test_inloggningen_hanvisar_medlemmar_till_lanken(client, app_db):
     """A member whose session expired lands on /login without a password;
     the page must tell them to open their personal link instead (#95)."""
     sida = client.get("/login").text
-    assert "Öppna den personliga länk du har" in sida
-    assert "Du behöver inget lösenord." in sida
+    assert "personliga svarslänk" in sida
+    assert "inget lösenord" in sida
+    assert "Hittar du inte länken?" in sida
 
 
 def test_tokenlank_med_aktiv_session_kraver_bekraftelse(client, app_db):
