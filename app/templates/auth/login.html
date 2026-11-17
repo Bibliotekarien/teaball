@@ -18,5 +18,12 @@
     </label>
     <button class="mt-1 rounded-md bg-blue-900 py-2 text-white hover:bg-blue-800">Logga in</button>
   </form>
+  {# Members never have a password; they land here when their session has
+     expired (htmx redirects to /login) and need to know what to do instead. #}
+  <p class="mt-4 border-t border-stone-200 pt-4 text-sm text-stone-600">
+    Svarar du för en medlemsorganisation? Öppna den personliga svarslänk du
+    har fått, du behöver inget lösenord. Hittar du inte länken? Kontakta
+    förvaltarna av Teaball, så får du en ny.
+  </p>
 </div>
 {% endblock %}

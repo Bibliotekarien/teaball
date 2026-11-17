@@ -80,12 +80,13 @@ def trad_csv(conn) -> str:
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["id", "namn", "foralder_id", "foralder_namn", "typ", "status",
-                "fas", "synlig_externt", "djup", "lank_dokumentation", "lank_jira"])
+                "fas", "synlig_externt", "djup", "lank_dokumentation", "lank_jira",
+                "lank_extern"])
     for r in conn.execute(
         """
         SELECT t.id, t.namn, t.foralder_id, f.namn AS foralder_namn,
                t.typ, t.status, t.fas, t.synlig_externt, t.djup,
-               t.lank_dokumentation, t.lank_jira
+               t.lank_dokumentation, t.lank_jira, t.lank_extern
         FROM funktion_trad t
         LEFT JOIN funktion f ON f.id = t.foralder_id
         ORDER BY t.vag
@@ -93,7 +94,7 @@ def trad_csv(conn) -> str:
     ):
         w.writerow(_sakra_rad([r["id"], r["namn"], r["foralder_id"], r["foralder_namn"],
                     r["typ"], r["status"], r["fas"], r["synlig_externt"], r["djup"],
-                    r["lank_dokumentation"], r["lank_jira"]]))
+                    r["lank_dokumentation"], r["lank_jira"], r["lank_extern"]]))
     return buf.getvalue()
 
 

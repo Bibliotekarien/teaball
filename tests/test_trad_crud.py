@@ -295,7 +295,7 @@ def test_lankar_och_detaljerad_vy(client, app_db):
     # The detailed view shows both, and sticks in the session.
     sida = client.get("/trad", params={"vy": "detaljerad"}).text
     assert 'href="https://jira.example/DIVA-123"' in sida
-    assert "Jira&nbsp;↗" in sida and "Dokumentation&nbsp;↗" in sida
+    assert ">Jira<span" in sida and ">Internt kravdokument<span" in sida
     assert "Validering vid inmatning." in sida
     assert "Kompakt vy" in sida
     assert 'href="https://wiki.example/orcid"' in client.get("/trad").text

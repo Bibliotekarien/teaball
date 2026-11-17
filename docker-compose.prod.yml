@@ -3,15 +3,20 @@
 #   internet ──▶ edge-Caddy (/opt/bibliotekarien-platform/edge)
 #                    │  joinar teaball_proxy som external network
 #                    │
-#        allt ──────▶ teaball-anubis:8923 ──▶ teaball-web:8000
-#                          (PoW-gate — all trafik är browsertrafik,
-#                           htmx-anropen bär clearance-cookien)
-#                                   │
-#                                   ▼
-#                       teaball-data (named volume, SQLite per
-#                       organisation under organisationer/)
+#        allt ──────▶ teaball-web:8000
+#                          │
+#                          ▼
+#              teaball-data (named volume, SQLite per
+#              organisation under organisationer/)
 #
-# Inga host-portar publiceras — edge når containrarna via nätverket.
+# Ingen Anubis, med avsikt: utan konto når man bara inloggningen,
+# /integritet, robots.txt, statiska filer och hemliga /svara/<token>-länkar,
+# så det finns inget att skrapa. Lösenordsgissning bromsas av appens spärr
+# per IP och användarnamn (app/routers/inloggning.py). Anubis släppte ändå
+# igenom skript utan webbläsar-user-agent. Bakgrund i bibliotekarien-platform
+# edge/ANUBIS.md.
+#
+# Inga host-portar publiceras — edge når containern via nätverket.
 # Lokal utveckling använder docker-compose.yml i stället.
 # Bring-up: sudo /opt/teaball/app/scripts/deploy.sh
 name: teaball
@@ -32,9 +37,6 @@ services:
       ORGANISATIONER_DIR: /data/organisationer
       SECRET_KEY: ${SECRET_KEY:?Sätt SECRET_KEY i .env}
       COOKIE_SECURE: "1"
-      # Anubis står framför appen och sätter en egen kaka — integritetssidan
-      # ska nämna den.
-      ROBOTSKYDD: "1"
       # Server-side Matomo (Tracking HTTP API). Sajten sätts per organisation
       # med scripts/organisationer.py matomo; MATOMO_SITE_ID används inte.
       MATOMO_URL: ${MATOMO_URL:-}
@@ -51,42 +53,6 @@ services:
         limits:
           cpus: "1.0"
           memory: 512M
-    restart: unless-stopped
-
-  anubis:
-    # Pinnad som tagg@digest (samma version som övriga appar) — med :latest
-    # kan Anubis-versionen bytas oannonserat vid pull. Taggen säger vilken
-    # release som avses, digesten är vad som hämtas. Edge-Caddyfilens CSP för
-    # teaball.bibliotekarien.se är kopplad till hur den här versionen
-    # laddar sin PoW-worker (blob:); bumpa version och CSP ihop, i takt med de
-    # andra apparna (bibliotekarien-platform edge/ANUBIS.md, "Uppgradera
-    # Anubis").
-    image: ghcr.io/techarohq/anubis:v1.28.2@sha256:5fcbce70ee6168be5b226d19bec90111d0acd0daf13028fa06b044cf3ebbbd5f
-    container_name: teaball-anubis
-    depends_on: [web]
-    networks: [proxy]
-    environment:
-      BIND: ":8923"
-      TARGET: "http://web:8000"
-      # Anubis egen standardpolicy (ingen POLICY_FNAME), enligt
-      # bibliotekarien-platform edge/ANUBIS.md. Vår egen policy ersatte den och
-      # utmanade allt med "Mozilla" — samma mönster som stängde ute Google från
-      # de andra apparna. Ingen DIFFICULTY (standardpolicyns trösklar styr) och
-      # ingen SERVE_ROBOTS_TXT: robots.txt serveras av appen (app/main.py) —
-      # teaball är stängd för sökmotorer, men som ett nedskrivet beslut, inte
-      # för att Anubis råkar servera `Disallow: /`.
-      OG_PASSTHROUGH: "true"
-      OG_EXPIRY_TIME: 24h
-      # Måste matcha det publika hostnamnet, annars accepteras inte
-      # clearance-cookien (samma fallgrop som i tOPAC/markrounding).
-      COOKIE_DOMAIN: ${ANUBIS_COOKIE_DOMAIN:?Sätt ANUBIS_COOKIE_DOMAIN i .env}
-      METRICS_BIND: ":9090"
-      CHALLENGE_TITLE: "Teaball"
-    healthcheck:
-      test: ["CMD", "anubis", "--healthcheck"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
     restart: unless-stopped
 
 networks:

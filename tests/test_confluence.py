@@ -18,7 +18,7 @@ def test_kravtrad_markup(conn):
     assert ut.startswith("h1. Behovsträd — Teaball")
     assert f"_Exporterad {DATUM}._" in ut
     assert ("|| Namn || Typ || Status || Avgång || Synlig för medlemmar"
-            " || Jira || Dokumentation ||") in ut
+            " || Jira || Internt kravdokument || Extern dokumentation ||") in ut
     # förmåga is bolded; a child is indented one middot level. The nodnummer
     # follows the name, outside the bold, so it can be cited in text.
     assert f"| *Publicering* ({ids['publicering']}) | förmåga | Driftsatt |" in ut
@@ -29,7 +29,8 @@ def test_kravtrad_lankar_och_beskrivning(conn):
     sso = skapa_funktion(conn, "Inloggning via SSO", typ="funktion",
                          beskrivning="Stöd för SAML mot lärosätenas IdP:er.",
                          lank_jira="https://jira.example/DIVA-1|x]y",
-                         lank_dokumentation="https://wiki.example/sso")
+                         lank_dokumentation="https://wiki.example/sso",
+                         lank_extern="https://docs.example/sso")
     utan = skapa_funktion(conn, "Utan länkar", typ="krav")
     conn.commit()
     ut = confluence.kravtrad(conn, DATUM)
@@ -38,7 +39,8 @@ def test_kravtrad_lankar_och_beskrivning(conn):
             "Stöd för SAML mot lärosätenas IdP:er.{expand} |") in ut
     # Link cells; '|' and ']' in a URL are percent-encoded, not escaped.
     assert "| [Jira|https://jira.example/DIVA-1%7Cx%5Dy] |" in ut
-    assert "| [Dokumentation|https://wiki.example/sso] |" in ut
+    assert "| [Internt kravdokument|https://wiki.example/sso] |" in ut
+    assert "| [Extern dokumentation|https://docs.example/sso] |" in ut
     # Nodes without links get empty cells, and no empty expand appears.
     assert f"| Utan länkar ({utan}) |" in ut
     assert "{expand:Beskrivning}{expand}" not in ut
@@ -75,7 +77,7 @@ def test_lank_kodar_allt_utanfor_url_strukturen(conn):
     conn.commit()
     ut = confluence.kravtrad(conn, DATUM)
     assert "[Jira|https://j.example/a%20b%3Cc%3E%22d%0Ae%7Cf%5Dg]" in ut
-    assert "[Dokumentation|https://w.example/p%20q?x=1&y=%C3%A5#frag]" in ut
+    assert "[Internt kravdokument|https://w.example/p%20q?x=1&y=%C3%A5#frag]" in ut
     # Inga råa radbrytningar inuti tabellen — varje rad är fortfarande en rad.
     assert all(rad.startswith("|") for rad in ut.splitlines()[3:])
 

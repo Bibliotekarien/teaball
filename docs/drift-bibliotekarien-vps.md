@@ -1,7 +1,7 @@
 # Drift på bibliotekarien-vps
 
 Så drivs instansen på `teaball.bibliotekarien.se`. Den bygger på den delade
-plattformen i `bibliotekarien-platform` (edge-Caddy, Anubis, Matomo,
+plattformen i `bibliotekarien-platform` (edge-Caddy, Matomo,
 övervakning) och är **inte** en installationsmall — för egen server, se
 [INSTALL.md](../INSTALL.md).
 
@@ -9,19 +9,18 @@ Produktion körs med **`docker-compose.prod.yml`** enligt plattformens mönster
 (se `bibliotekarien-platform/SERVER_LAYOUT.md`, som är källa-av-sanning):
 stack `/opt/teaball/app`, service-användare `teaball` (UID 1505),
 inga host-portar — edge-Caddy joinar `teaball_proxy` och proxar
-`teaball.bibliotekarien.se` genom **Anubis** (PoW-gate för all trafik;
-htmx-anropen bär clearance-cookien; Anubis standardpolicy enligt
-plattformens `edge/ANUBIS.md`). Instansen körs med en databas per
-organisation (`ORGANISATIONER_DIR`, INSTALL.md avsnitt 10), än så länge med
-en enda: `organisationer/teaball.bibliotekarien.se.db` i named-volymen
-`teaball-data`. Både edge-Caddy och Anubis skickar vidare anropets
-`Host`-header oförändrad, och det är den som väljer databas. (Sätt aldrig
-`TARGET_HOST` på Anubis: då får alla anrop samma hostnamn och svarar 404.)
+`teaball.bibliotekarien.se` direkt till `teaball-web:8000`. Ingen Anubis,
+med avsikt: det finns inget publikt innehåll att skydda, och inloggningen
+har egen spärr (bakgrund i plattformens `edge/ANUBIS.md`). Instansen körs
+med en databas per organisation (`ORGANISATIONER_DIR`, INSTALL.md avsnitt
+10), än så länge med en enda: `organisationer/teaball.bibliotekarien.se.db`
+i named-volymen `teaball-data`. Edge-Caddy skickar vidare anropets
+`Host`-header oförändrad, och det är den som väljer databas.
 Teaball är **stängd för sökmotorer** — `/robots.txt`
 (serveras av appen) säger `Disallow: /`, eftersom allt utom inloggningen
 kräver konto. uvicorns accesslogg är på, med medlemmarnas token maskade
 (`app/accesslog.py`). Instansens texter ligger i databasen och ändras under
-Inställningar i appen. `ROBOTSKYDD=1` står i `docker-compose.prod.yml`.
+Inställningar i appen.
 
 Driftsättningschecklista (första gången):
 
@@ -31,7 +30,7 @@ Driftsättningschecklista (första gången):
 3. Klona repot till `/opt/teaball/app` som root (`sudo git clone`), med
    deploy-nyckeln via `core.sshCommand` i repots `.git/config`. Skapa `.env`
    från `.env.example` med `sudo install -m 600` (SECRET_KEY,
-   ANUBIS_COOKIE_DOMAIN; Matomo-värdena nedan). Kör
+   Matomo-värdena nedan). Kör
    `sudo chmod -R go-w /opt/teaball/app` och `sudo restorecon -R
    /opt/teaball/app`.
 4. **Matomo:** registrera sajten på `https://bibstats.bibliotekarien.se`
@@ -193,10 +192,41 @@ Kör sedan inte `deploy.sh` eller `deploy-all` förrän #94 är revertad på
 main eller felet är rättat. Annars drar nästa deploy in den nya
 compose-filen igen, utan att filen flyttats.
 
-**Fler organisationer på den här servern** kräver mer än ett nytt
-hostnamn i edge-Caddy: Anubis `COOKIE_DOMAIN` gäller ett hostnamn, så
-varje organisation behöver en egen Anubis-instans eller en gemensam
-föräldradomän. Det är inte gjort.
+**Fler organisationer på den här servern:** DNS för hostnamnet, hostnamnet
+på teaball-blockets site-rad i plattformens `edge/caddy/Caddyfile`
+(`edge-validate`, `edge-reload`), `organisationer.py skapa` och vid behov
+`matomo`, en rad i `CHATBOT_SITES` i plattformens `matomo/.env` och en
+blackbox-prob i observability-platform. Ingen Anubis att ordna (se ovan).
+
+## Byte till drift utan Anubis (en gång, 2026-11)
+
+Edge måste sluta peka på `teaball-anubis` **innan** containern försvinner,
+annars svarar sajten 502 tills edge laddats om. Ordning:
+
+1. Merga Bibliotekarien/bibliotekarien-platform#95 (edge pekar på
+   `teaball-web:8000`), dra hem den i `/opt/bibliotekarien-platform`, kopiera
+   `SERVER_LAYOUT.md` till `/opt` enligt filens huvud och kör
+   `make -C /opt/bibliotekarien-platform edge-validate`, sedan `edge-reload`.
+   Nu går trafiken förbi Anubis fast containern kör kvar.
+2. Kontrollera i en webbläsare att sajten svarar utan utmaningssida och att
+   inloggning och en svarslänk fungerar.
+3. Merga teaball#100 och kör `sudo /opt/teaball/app/scripts/deploy.sh`.
+4. Kontrollera att `teaball-anubis` är borta: `sudo docker ps -a --filter
+   name=teaball-anubis`. Den här första gången finns den troligen kvar.
+   Skriptet uppdaterar sig självt med `git merge` medan det kör, och bash
+   läser vidare i den gamla versionen, som saknar `--remove-orphans`. Kör då
+   `sudo docker rm -f teaball-anubis`, eller deploya en gång till.
+5. Ta bort `ANUBIS_COOKIE_DOMAIN` ur `/opt/teaball/app/.env`. Den läses inte
+   längre, så det brådskar inte.
+
+Backa i omvänd ordning, annars pekar edge på en container som inte finns
+och sajten svarar 502:
+
+1. Revertera teaball#100 och lägg tillbaka `ANUBIS_COOKIE_DOMAIN` i `.env`
+   om steg 5 är gjort. Den gamla compose-filen vägrar starta utan den.
+2. Deploya. Anubis-imagen hämtas igen.
+3. Revertera Bibliotekarien/bibliotekarien-platform#95, `edge-validate`,
+   `edge-reload`.
 
 ## Backup
 
