@@ -26,17 +26,6 @@ updates:
       - dependency-name: python
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
-  # En PR för ghcr.io/techarohq/anubis är signalen att köra Anubis-checklistan
-  # i bibliotekarien-platform/edge/ANUBIS.md (edge-CSP/blob-worker,
-  # robots-mallen, policykontrollen) i alla appar samtidigt. Merga inte en
-  # ensam image-bump. Ingen ignore: varje ny version ska ge en påminnelse.
-  - package-ecosystem: docker-compose
-    directory: /
-    schedule:
-      interval: weekly
-    cooldown:
-      default-days: 7
-
   # De SHA-pinnade actions i .github/workflows. Bumpades tidigare i
   # bibliotekarien-platform, när jobben låg där.
   - package-ecosystem: github-actions

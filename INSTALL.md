@@ -39,7 +39,6 @@ Fyll i `.env`:
 | `SECRET_KEY` | Slumpad nyckel som signerar sessionscookies. Generera med `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`. Appen vägrar starta utan. |
 | `PUBLIC_BASE_URL` | Den publika adressen, t.ex. `https://teaball.example.org`. Används i medlemmarnas svarslänkar. |
 | `MATOMO_*` | Lämna tomma om ni inte har en egen Matomo — då är statistiken avstängd, och integritetssidan säger det. |
-| `ANUBIS_COOKIE_DOMAIN` | Används inte av den fristående compose-filen; lämna som den är. |
 
 Skapa datakatalogen. Containern kör som uid/gid 1505, som måste äga den:
 
@@ -268,11 +267,15 @@ på första raden. Kopiorna före migration hamnar då i
   respekteras, svarslänkarnas token maskas). Sätt `MATOMO_URL`,
   `MATOMO_SITE_ID` och `MATOMO_TOKEN`. Med flera organisationer får var
   och en sin egen sajt, se avsnitt 10.
-- **Botskydd:** instansen på bibliotekarien-vps står bakom
-  [Anubis](https://github.com/TecharoHQ/anubis); se
-  `docker-compose.prod.yml` för hur. Tjänsten är stängd för sökmotorer
-  (`/robots.txt` säger `Disallow: /`) och allt utom inloggningen kräver
-  konto, så det är inget krav. Lägger ni Anubis framför appen måste
+- **Botskydd:** behövs inte. Tjänsten är stängd för sökmotorer
+  (`/robots.txt` säger `Disallow: /`), allt utom inloggningen och de hemliga
+  svarslänkarna kräver konto, och inloggningen spärras i fem minuter efter
+  fem misslyckade försök per IP-adress och användarnamn. Spärren ligger i
+  minnet och nollställs när appen startas om. Den bromsar inte den som
+  provar ett lösenord mot många användarnamn eller från många adresser, så
+  välj långa lösenord. Instansen på bibliotekarien-vps körde
+  [Anubis](https://github.com/TecharoHQ/anubis) till 2026-11 men gör det
+  inte längre. Lägger ni ändå Anubis framför appen måste
   CSP:n tillåta dess PoW-worker (`'wasm-unsafe-eval'`, `worker-src blob:`),
   och proxyn då sätta CSP:n i stället för appen. Sätt också `ROBOTSKYDD=1`
   i `.env` och för in den i compose-filens `environment`, så att
@@ -429,9 +432,10 @@ Starten migrerar filen om backupen har ett äldre schema.
   deras personuppgiftsbiträde och behöver ett biträdesavtal med var och en.
   Integritetssidan nämner er bara som den som samlar statistiken, inte vid
   namn och inte som personuppgiftsbiträde.
-- **Anubis:** en Anubis-instans tar ett hostnamn (`COOKIE_DOMAIN`), så flera
-  organisationer bakom Anubis kräver en instans per hostnamn. Det är inte
-  provat.
+- **Anubis:** behövs inte (se "Botskydd" ovan). Lägger ni ändå Anubis
+  framför appen tar `COOKIE_DOMAIN` bara ett hostnamn. Använd
+  `COOKIE_DYNAMIC_DOMAIN=true` i stället, så sätts kakan efter det hostnamn
+  besökaren använde. Det är inte provat.
 - En databasfil som kopieras in för hand (t.ex. en återställd backup med
   äldre schema) migreras först vid nästa omstart, så starta om efter en
   sådan. `lista` visar om någon väntar på migrering.

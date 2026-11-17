@@ -35,6 +35,31 @@ SPARR_SEKUNDER = 300
 Nyckel = tuple[str, str, str]
 _misslyckanden: dict[Nyckel, tuple[int, float]] = {}
 
+# Bounds on the dict, so a flood of failures with unique, long usernames
+# cannot grow memory without limit (the container has 512M). No account name
+# is longer than MAX_NAMNLANGD, so cutting the key there merges nothing real.
+# When MAX_POSTER is reached, expired entries go first; under a sustained
+# flood the oldest go too — that takes about 1000 failed logins a second for
+# the whole window, and shows in the access log.
+MAX_NAMNLANGD = 254
+MAX_POSTER = 100_000
+
+
+def _kortad(nyckel: tuple[str, ...]) -> tuple[str, ...]:
+    return (*nyckel[:-1], nyckel[-1][:MAX_NAMNLANGD])
+
+
+def _rensa() -> None:
+    nu = time.monotonic()
+    for k in [k for k, (_, senast) in _misslyckanden.items()
+              if nu - senast >= SPARR_SEKUNDER]:
+        del _misslyckanden[k]
+    if len(_misslyckanden) >= MAX_POSTER:
+        # Oldest first: dicts keep insertion order. A tenth, so a full dict
+        # isn't rescanned on every failure.
+        for k in list(_misslyckanden)[: MAX_POSTER // 10]:
+            del _misslyckanden[k]
+
 
 def _nyckel(request: Request, anvandarnamn: str) -> Nyckel:
     return (request.client.host if request.client else "?",
@@ -42,6 +67,7 @@ def _nyckel(request: Request, anvandarnamn: str) -> Nyckel:
 
 
 def _sparrad(nyckel: Nyckel) -> bool:
+    nyckel = _kortad(nyckel)
     antal, senast = _misslyckanden.get(nyckel, (0, 0.0))
     if antal >= MAX_FORSOK and time.monotonic() - senast < SPARR_SEKUNDER:
         return True
@@ -51,6 +77,9 @@ def _sparrad(nyckel: Nyckel) -> bool:
 
 
 def _registrera_misslyckande(nyckel: Nyckel) -> None:
+    nyckel = _kortad(nyckel)
+    if nyckel not in _misslyckanden and len(_misslyckanden) >= MAX_POSTER:
+        _rensa()
     antal, _ = _misslyckanden.get(nyckel, (0, 0.0))
     _misslyckanden[nyckel] = (antal + 1, time.monotonic())
 
