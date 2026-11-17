@@ -98,9 +98,9 @@ def create_app() -> FastAPI:
     def robots():
         """Teaball is closed to search engines — decided, not by accident:
         everything but the login needs an account, and /svara/<token> are
-        members' secret links. Served by the app, not Anubis (whose robots.txt
-        is the same Disallow, but only by default; bibliotekarien-platform
-        edge/ANUBIS.md). Anubis lets /robots.txt through unchallenged."""
+        members' secret links. Served by the app so the decision lives here,
+        whatever proxy sits in front (a bot gate such as Anubis serves its own
+        Disallow only by default; bibliotekarien-platform edge/ANUBIS.md)."""
         return PlainTextResponse(
             "# Teaball är ett slutet verktyg: allt utom inloggningen kräver\n"
             "# konto, och /svara/<token> är medlemmarnas hemliga länkar.\n"
