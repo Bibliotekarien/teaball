@@ -216,6 +216,7 @@ def uppdatera_nod(
     beskrivning: str = Form(""),
     lank_dokumentation: str = Form(""),
     lank_jira: str = Form(""),
+    lank_extern: str = Form(""),
     synlig_externt: str = Form(""),
     rankning_last: str = Form(""),
     rankning_last_kommentar: str = Form(""),
@@ -229,6 +230,8 @@ def uppdatera_nod(
     try:
         dok = trad.validera_lank(lank_dokumentation, "Dokumentationslänken")
         jira = trad.validera_lank(lank_jira, "Jira-länken")
+        extern = trad.validera_lank(
+            lank_extern, "Länken till extern dokumentation")
     except ValueError as fel:
         return _vysvar(request, conn, principal, visa, fel=str(fel))
     try:
@@ -238,6 +241,7 @@ def uppdatera_nod(
             1 if synlig_externt else 0, dok, jira,
             rankning_last=1 if rankning_last else 0,
             rankning_last_kommentar=trad.last_kommentar(rankning_last_kommentar),
+            lank_extern=extern,
         )
     except sqlite3.IntegrityError as fel:
         conn.rollback()

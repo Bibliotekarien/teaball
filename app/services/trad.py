@@ -267,14 +267,14 @@ def last_kommentar(varde: str) -> str | None:
 
 def skapa_nod(conn, namn, foralder_id, typ, status, fas, beskrivning, synlig_externt,
               lank_dokumentation=None, lank_jira=None,
-              rankning_last=0, rankning_last_kommentar=None) -> int:
+              rankning_last=0, rankning_last_kommentar=None, lank_extern=None) -> int:
     cur = conn.execute(
         "INSERT INTO funktion (namn, foralder_id, typ, status, fas, beskrivning,"
-        " synlig_externt, sortering, lank_dokumentation, lank_jira,"
+        " synlig_externt, sortering, lank_dokumentation, lank_jira, lank_extern,"
         " rankning_last, rankning_last_kommentar)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)",
+        " VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)",
         (namn, foralder_id, typ, status, fas, beskrivning, synlig_externt,
-         lank_dokumentation, lank_jira, rankning_last, rankning_last_kommentar),
+         lank_dokumentation, lank_jira, lank_extern, rankning_last, rankning_last_kommentar),
     )
     nytt = cur.lastrowid
     # New nodes land first among their siblings (top of the root list when
@@ -286,22 +286,23 @@ def skapa_nod(conn, namn, foralder_id, typ, status, fas, beskrivning, synlig_ext
 
 def uppdatera_nod(conn, nod_id, namn, foralder_id, typ, status, fas, beskrivning,
                   synlig_externt, lank_dokumentation=None, lank_jira=None, *,
-                  rankning_last, rankning_last_kommentar):
+                  rankning_last, rankning_last_kommentar, lank_extern):
     """The edit form's save, shared by the tree, the list and the comment
     view. Writes every content column (the stamp trigger only bumps
     uppdaterad on an actual change) and reparents via flytta_nod only when
     the parent differs, so an untouched parent keeps the node's place among
-    its siblings. The lock fields are required keywords on purpose: a caller
-    that forgot them would otherwise unlock the node on every edit."""
+    its siblings. The lock fields and lank_extern are required keywords on
+    purpose: a caller that forgot them would otherwise unlock the node, or
+    drop the members' documentation link, on every edit."""
     gammal = conn.execute(
         "SELECT foralder_id FROM funktion WHERE id = ?", (nod_id,)
     ).fetchone()
     conn.execute(
         "UPDATE funktion SET namn = ?, typ = ?, status = ?, fas = ?,"
-        " beskrivning = ?, lank_dokumentation = ?, lank_jira = ?,"
+        " beskrivning = ?, lank_dokumentation = ?, lank_jira = ?, lank_extern = ?,"
         " synlig_externt = ?, rankning_last = ?, rankning_last_kommentar = ?"
         " WHERE id = ?",
-        (namn, typ, status, fas, beskrivning, lank_dokumentation, lank_jira,
+        (namn, typ, status, fas, beskrivning, lank_dokumentation, lank_jira, lank_extern,
          synlig_externt, rankning_last, rankning_last_kommentar, nod_id),
     )
     if gammal and gammal["foralder_id"] != foralder_id:

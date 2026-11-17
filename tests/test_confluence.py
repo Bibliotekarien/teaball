@@ -18,7 +18,7 @@ def test_kravtrad_markup(conn):
     assert ut.startswith("h1. Behovsträd — Teaball")
     assert f"_Exporterad {DATUM}._" in ut
     assert ("|| Namn || Typ || Status || Avgång || Synlig för medlemmar"
-            " || Jira || Dokumentation ||") in ut
+            " || Jira || Dokumentation || Extern dokumentation ||") in ut
     # förmåga is bolded; a child is indented one middot level. The nodnummer
     # follows the name, outside the bold, so it can be cited in text.
     assert f"| *Publicering* ({ids['publicering']}) | förmåga | Driftsatt |" in ut
@@ -29,7 +29,8 @@ def test_kravtrad_lankar_och_beskrivning(conn):
     sso = skapa_funktion(conn, "Inloggning via SSO", typ="funktion",
                          beskrivning="Stöd för SAML mot lärosätenas IdP:er.",
                          lank_jira="https://jira.example/DIVA-1|x]y",
-                         lank_dokumentation="https://wiki.example/sso")
+                         lank_dokumentation="https://wiki.example/sso",
+                         lank_extern="https://docs.example/sso")
     utan = skapa_funktion(conn, "Utan länkar", typ="krav")
     conn.commit()
     ut = confluence.kravtrad(conn, DATUM)
@@ -39,6 +40,7 @@ def test_kravtrad_lankar_och_beskrivning(conn):
     # Link cells; '|' and ']' in a URL are percent-encoded, not escaped.
     assert "| [Jira|https://jira.example/DIVA-1%7Cx%5Dy] |" in ut
     assert "| [Dokumentation|https://wiki.example/sso] |" in ut
+    assert "| [Extern dokumentation|https://docs.example/sso] |" in ut
     # Nodes without links get empty cells, and no empty expand appears.
     assert f"| Utan länkar ({utan}) |" in ut
     assert "{expand:Beskrivning}{expand}" not in ut

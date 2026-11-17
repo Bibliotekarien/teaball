@@ -3,7 +3,8 @@ a flat CSV or JSON list.
 
 Tree columns/keys: namn, foralder (parent's name, empty for root), typ, status,
 fas (required when status is planerad/driftsatt — the avgång rule), and
-optionally lank_dokumentation / lank_jira (absolute http(s) URLs).
+optionally lank_dokumentation / lank_jira / lank_extern (absolute http(s)
+URLs).
 Two passes: first create every node in file order (which becomes the
 sibling order), then wire parents by name. A parent name must be unambiguous —
 within the file, or failing that among pre-existing nodes in the database.
@@ -75,16 +76,16 @@ def importera_trad(conn: sqlite3.Connection, rader: list[dict]) -> int:
         if status in ("planerad", "driftsatt") and fas is None:
             raise ValueError(f"Rad {radnr}: status {status!r} kräver en avgång (kolumnen fas).")
         lankar = {}
-        for falt in ("lank_dokumentation", "lank_jira"):
+        for falt in ("lank_dokumentation", "lank_jira", "lank_extern"):
             lank = (rad.get(falt) or "").strip() or None
             if lank and not lank.startswith(("http://", "https://")):
                 raise ValueError(f"Rad {radnr}: {falt} måste börja med http:// eller https://.")
             lankar[falt] = lank
         cur = conn.execute(
             "INSERT INTO funktion (namn, typ, status, fas, sortering,"
-            " lank_dokumentation, lank_jira) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            " lank_dokumentation, lank_jira, lank_extern) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (namn, typ, status, fas, (i + 1) * 10,
-             lankar["lank_dokumentation"], lankar["lank_jira"]),
+             lankar["lank_dokumentation"], lankar["lank_jira"], lankar["lank_extern"]),
         )
         if namn in namn_till_id:
             dubbletter.add(namn)

@@ -18,8 +18,8 @@ def test_kravtrad_markdown(conn):
     assert ut.startswith("# Behovsträd — Teaball\n")
     assert f"_Exporterad {DATUM}._" in ut
     assert ("| Namn | Typ | Status | Avgång | Synlig för medlemmar"
-            " | Beskrivning | Jira | Dokumentation |\n"
-            "| --- | --- | --- | --- | --- | --- | --- | --- |") in ut
+            " | Beskrivning | Jira | Dokumentation | Extern dokumentation |\n"
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |") in ut
     # Förmåga i fetstil; ett barn indraget en mittpunktsnivå. Nodnumret står
     # efter namnet, utanför fetstilen, så noden kan citeras i löptext.
     assert f"| **Publicering** ({ids['publicering']}) | förmåga | Driftsatt |" in ut
@@ -31,7 +31,8 @@ def test_kravtrad_lankar_och_beskrivning(conn):
     skapa_funktion(conn, "Inloggning via SSO", typ="funktion",
                    beskrivning="Stöd för SAML mot lärosätenas IdP:er.",
                    lank_jira="https://jira.example/DIVA-1|x)y",
-                   lank_dokumentation="https://wiki.example/sso")
+                   lank_dokumentation="https://wiki.example/sso",
+                   lank_extern="https://docs.example/sso")
     utan = skapa_funktion(conn, "Utan länkar", typ="krav")
     conn.commit()
     ut = markdown.kravtrad(conn, DATUM)
@@ -40,9 +41,10 @@ def test_kravtrad_lankar_och_beskrivning(conn):
     # '|' och ')' i en URL procentkodas så länkmålet inte klipps av.
     assert "[Jira](https://jira.example/DIVA-1%7Cx%29y)" in ut
     assert "[Dokumentation](https://wiki.example/sso)" in ut
+    assert "[Extern dokumentation](https://docs.example/sso)" in ut
     # Noder utan länkar och beskrivning får tomma celler.
     assert f"| Utan länkar ({utan}) | behov |" in ut
-    assert "|  |  |  |\n" in ut
+    assert "|  |  |  |  |\n" in ut
 
 
 def test_cell_escaping(conn):

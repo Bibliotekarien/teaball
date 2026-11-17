@@ -12,11 +12,16 @@
       <span class="badge status-{{ n.status }}">{{ STATUS[n.status].label }}</span>
       {% if n.fas %}<span class="fas">avgång: {{ n.fas }}</span>{% endif %}
       {% if not endast_synliga and not n.synlig_stig %}<span class="badge intern">intern</span>{% endif %}
-      {% if n.lank_jira or n.lank_dokumentation %}
+      {# The external selection is meant to be shared with members, so it
+         carries only the link members see; Jira and the requirement
+         documentation stay internal. #}
+      {% set lankar = [] %}
+      {% if not endast_synliga and n.lank_jira %}{% set _ = lankar.append((n.lank_jira, "Jira")) %}{% endif %}
+      {% if not endast_synliga and n.lank_dokumentation %}{% set _ = lankar.append((n.lank_dokumentation, "Dokumentation")) %}{% endif %}
+      {% if n.lank_extern %}{% set _ = lankar.append((n.lank_extern, "Dokumentation" if endast_synliga else "Extern dokumentation")) %}{% endif %}
+      {% if lankar %}
       <span class="lankar">
-        {%- if n.lank_jira %}<a href="{{ n.lank_jira }}">Jira</a>{% endif -%}
-        {%- if n.lank_jira and n.lank_dokumentation %} · {% endif -%}
-        {%- if n.lank_dokumentation %}<a href="{{ n.lank_dokumentation }}">Dokumentation</a>{% endif -%}
+        {%- for href, text in lankar %}{% if not loop.first %} · {% endif %}<a href="{{ href }}">{{ text }}</a>{% endfor -%}
       </span>
       {% endif %}
     </div>

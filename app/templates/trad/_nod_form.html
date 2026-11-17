@@ -90,6 +90,12 @@
              value="{{ nod.lank_jira or '' if nod else '' }}"
              class="rounded-md border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700">
     </label>
+    <label class="grid gap-0.5 text-xs text-stone-500 sm:col-span-2">Länk till extern dokumentation
+      <input name="lank_extern" type="url" maxlength="500" placeholder="https://…"
+             value="{{ nod.lank_extern or '' if nod else '' }}"
+             class="rounded-md border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700">
+      <span class="text-stone-400">Visas för medlemmarna. De två länkarna ovan ser bara förvaltarna.</span>
+    </label>
     <div class="flex gap-2 sm:col-span-2">
       <button class="rounded-md bg-blue-900 px-3 py-1.5 text-white hover:bg-blue-800">Spara</button>
       <a href="{{ avbryt_href }}" hx-get="{{ avbryt_hx }}" hx-target="{{ avbryt_mal }}" hx-swap="outerHTML"
