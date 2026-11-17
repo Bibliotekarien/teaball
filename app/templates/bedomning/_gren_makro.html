@@ -46,6 +46,11 @@
       <span class="ml-1 rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-400" title="Visas inte för medlemmar">{{ hi.ikon("eye-slash") }} dold för medlemmar</span>
       {% endif %}
       {% if n.beskrivning and detaljerad_har %}<p class="mt-0.5 whitespace-pre-line text-xs text-stone-400">{{ n.beskrivning }}</p>{% endif %}
+      {# Only the external documentation link reaches members; the internal
+         requirement document and Jira links stay with staff. Shown in the
+         compact view too: unlike the description there is no tooltip to
+         fall back on, so hiding it would make it unreachable. #}
+      {% if n.lank_extern %}<p class="mt-0.5 text-xs"><a href="{{ n.lank_extern }}" target="_blank" rel="noopener noreferrer" class="whitespace-nowrap text-blue-800 underline hover:text-blue-900">Dokumentation<span class="sr-only"> för {{ n.namn }} (öppnas i ny flik)</span>&nbsp;<span aria-hidden="true">↗</span></a></p>{% endif %}
       {% if oppna_har %}
       {# Other members' shared open comments, tinted by the writer's answer.
          The answer is also written out — colour must not be the only cue. #}

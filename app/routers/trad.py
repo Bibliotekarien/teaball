@@ -48,10 +48,13 @@ def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | N
         endast_synliga=principal.roll == "extern" or filter.get("dolj_dolda", False),
         dolj_lasta=filter.get("dolj_lasta", False),
     )
-    # Internal comments never reach the extern role: unmarked rows render
-    # without the comment counter and block.
+    # Internal comments and links never reach the extern role: unmarked rows
+    # render without the comment counter and block, and the requirement
+    # document and Jira links are dropped (members see neither).
     if principal.roll != "extern":
         kommentarer.markera_antal(conn, rotter)
+    else:
+        tjanst.utan_interna_lankar(rotter)
     ctx = {
         "principal": principal,
         "rotter": rotter,
@@ -157,6 +160,7 @@ def skapa_nod(
     beskrivning: str = Form(""),
     lank_dokumentation: str = Form(""),
     lank_jira: str = Form(""),
+    lank_extern: str = Form(""),
     synlig_externt: str = Form(""),
     rankning_last: str = Form(""),
     rankning_last_kommentar: str = Form(""),
@@ -164,8 +168,10 @@ def skapa_nod(
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     try:
-        dok = tjanst.validera_lank(lank_dokumentation, "Dokumentationslänken")
+        dok = tjanst.validera_lank(lank_dokumentation, "Länken till det interna kravdokumentet")
         jira = tjanst.validera_lank(lank_jira, "Jira-länken")
+        extern = tjanst.validera_lank(
+            lank_extern, "Länken till extern dokumentation")
     except ValueError as fel:
         return _tradsvar(request, conn, principal, fel=str(fel))
     try:
@@ -175,6 +181,7 @@ def skapa_nod(
             1 if synlig_externt else 0, dok, jira,
             rankning_last=1 if rankning_last else 0,
             rankning_last_kommentar=tjanst.last_kommentar(rankning_last_kommentar),
+            lank_extern=extern,
         )
     except sqlite3.IntegrityError as fel:
         conn.rollback()
@@ -197,6 +204,7 @@ def uppdatera_nod(
     beskrivning: str = Form(""),
     lank_dokumentation: str = Form(""),
     lank_jira: str = Form(""),
+    lank_extern: str = Form(""),
     synlig_externt: str = Form(""),
     rankning_last: str = Form(""),
     rankning_last_kommentar: str = Form(""),
@@ -204,8 +212,10 @@ def uppdatera_nod(
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     try:
-        dok = tjanst.validera_lank(lank_dokumentation, "Dokumentationslänken")
+        dok = tjanst.validera_lank(lank_dokumentation, "Länken till det interna kravdokumentet")
         jira = tjanst.validera_lank(lank_jira, "Jira-länken")
+        extern = tjanst.validera_lank(
+            lank_extern, "Länken till extern dokumentation")
     except ValueError as fel:
         return _tradsvar(request, conn, principal, fel=str(fel))
     try:
@@ -215,6 +225,7 @@ def uppdatera_nod(
             1 if synlig_externt else 0, dok, jira,
             rankning_last=1 if rankning_last else 0,
             rankning_last_kommentar=tjanst.last_kommentar(rankning_last_kommentar),
+            lank_extern=extern,
         )
     except sqlite3.IntegrityError as fel:
         conn.rollback()
