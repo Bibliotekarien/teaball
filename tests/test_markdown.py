@@ -18,8 +18,8 @@ def test_kravtrad_markdown(conn):
     assert ut.startswith("# Behovsträd — Teaball\n")
     assert f"_Exporterad {DATUM}._" in ut
     assert ("| Namn | Typ | Status | Avgång | Synlig för medlemmar"
-            " | Beskrivning | Jira | Dokumentation |\n"
-            "| --- | --- | --- | --- | --- | --- | --- | --- |") in ut
+            " | Beskrivning | Jira | Internt kravdokument | Extern dokumentation |\n"
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |") in ut
     # Förmåga i fetstil; ett barn indraget en mittpunktsnivå. Nodnumret står
     # efter namnet, utanför fetstilen, så noden kan citeras i löptext.
     assert f"| **Publicering** ({ids['publicering']}) | förmåga | Driftsatt |" in ut
@@ -31,7 +31,8 @@ def test_kravtrad_lankar_och_beskrivning(conn):
     skapa_funktion(conn, "Inloggning via SSO", typ="funktion",
                    beskrivning="Stöd för SAML mot lärosätenas IdP:er.",
                    lank_jira="https://jira.example/DIVA-1|x)y",
-                   lank_dokumentation="https://wiki.example/sso")
+                   lank_dokumentation="https://wiki.example/sso",
+                   lank_extern="https://docs.example/sso")
     utan = skapa_funktion(conn, "Utan länkar", typ="krav")
     conn.commit()
     ut = markdown.kravtrad(conn, DATUM)
@@ -39,10 +40,11 @@ def test_kravtrad_lankar_och_beskrivning(conn):
     assert "| Stöd för SAML mot lärosätenas IdP:er. | [Jira](" in ut
     # '|' och ')' i en URL procentkodas så länkmålet inte klipps av.
     assert "[Jira](https://jira.example/DIVA-1%7Cx%29y)" in ut
-    assert "[Dokumentation](https://wiki.example/sso)" in ut
+    assert "[Internt kravdokument](https://wiki.example/sso)" in ut
+    assert "[Extern dokumentation](https://docs.example/sso)" in ut
     # Noder utan länkar och beskrivning får tomma celler.
     assert f"| Utan länkar ({utan}) | behov |" in ut
-    assert "|  |  |  |\n" in ut
+    assert "|  |  |  |  |\n" in ut
 
 
 def test_cell_escaping(conn):
@@ -77,7 +79,7 @@ def test_lank_kodar_allt_utanfor_url_strukturen(conn):
     conn.commit()
     ut = markdown.kravtrad(conn, DATUM)
     assert "[Jira](https://j.example/a%20b%3Cc%3E%22d%0Ae%7Cf%29g)" in ut
-    assert "[Dokumentation](https://w.example/p%20q?x=1&y=%C3%A5#frag)" in ut
+    assert "[Internt kravdokument](https://w.example/p%20q?x=1&y=%C3%A5#frag)" in ut
     assert all(rad.startswith("|") for rad in ut.splitlines()[4:])
 
 
