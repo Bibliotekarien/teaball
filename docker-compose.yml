@@ -1,5 +1,5 @@
 # LOKAL UTVECKLING. Produktion på bibliotekarien-vps använder
-# docker-compose.prod.yml (Anubis, named volume, inga host-portar).
+# docker-compose.prod.yml (named volume, inga host-portar).
 # Databasfilen ligger på lokal disk via ./data-bind-mounten — aldrig på CIFS.
 services:
   app:

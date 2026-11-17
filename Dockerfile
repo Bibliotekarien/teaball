@@ -5,7 +5,7 @@
 FROM ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 AS uv
 
 # Pinnad på digest (3.12-slim, hämtad 2026-08-25) — bumpa medvetet, inte via
-# oannonserad :latest-glidning. Samma policy som Anubis-imagen i prod-composen.
+# oannonserad :latest-glidning.
 FROM python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1
 
 ENV PYTHONUNBUFFERED=1 \
@@ -63,8 +63,8 @@ EXPOSE 8000
 # --proxy-headers: scheme/host from the edge (Secure cookies, Matomo URLs).
 # Which peers may set X-Forwarded-For is FORWARDED_ALLOW_IPS, read by uvicorn
 # itself. With "*" uvicorn takes the LEFTMOST address — right behind
-# edge-Caddy (which overwrites the header) and Anubis (which appends), and
-# with no host ports, as in docker-compose.prod.yml. With a list of addresses
+# edge-Caddy (which overwrites the header), with no host ports, as in
+# docker-compose.prod.yml. With a list of addresses
 # or networks it walks from the right and takes the first untrusted one,
 # which holds even behind a proxy that appends to a client-sent header;
 # docker-compose.standalone.yml sets that. The login throttle and Matomo
