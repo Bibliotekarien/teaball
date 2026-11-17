@@ -43,7 +43,6 @@ Fyll i `.env`:
 | `PERSONUPPGIFTSANSVARIG` | Vem som är personuppgiftsansvarig, t.ex. `Exempeluniversitetet`. Visas på `/integritet`. |
 | `DATASKYDD_KONTAKT` | Kontaktväg för dataskyddsfrågor, t.ex. en funktionsadress. Visas på `/integritet`. |
 | `MATOMO_*` | Lämna tomma om ni inte har en egen Matomo — då är statistiken avstängd, och integritetssidan säger det. |
-| `ANUBIS_COOKIE_DOMAIN` | Används inte av den fristående compose-filen; lämna som den är. |
 
 Så länge `PERSONUPPGIFTSANSVARIG` och `DATASKYDD_KONTAKT` saknas visar
 integritetssidan en gul markering om att de ska fyllas i före skarp drift.
@@ -258,11 +257,12 @@ verifierad.
   Matomo-instans (Tracking HTTP API — inget skript i webbläsaren, DNT/GPC
   respekteras, svarslänkarnas token maskas). Sätt `MATOMO_URL`,
   `MATOMO_SITE_ID` och `MATOMO_TOKEN`.
-- **Botskydd:** instansen på bibliotekarien-vps står bakom
-  [Anubis](https://github.com/TecharoHQ/anubis); se
-  `docker-compose.prod.yml` för hur. Tjänsten är stängd för sökmotorer
-  (`/robots.txt` säger `Disallow: /`) och allt utom inloggningen kräver
-  konto, så det är inget krav. Lägger ni Anubis framför appen måste
+- **Botskydd:** behövs inte. Tjänsten är stängd för sökmotorer
+  (`/robots.txt` säger `Disallow: /`), allt utom inloggningen och de hemliga
+  svarslänkarna kräver konto, och inloggningen spärras efter fem
+  misslyckade försök. Instansen på bibliotekarien-vps körde
+  [Anubis](https://github.com/TecharoHQ/anubis) till 2026-11 men gör det
+  inte längre. Lägger ni ändå Anubis framför appen måste
   CSP:n tillåta dess PoW-worker (`'wasm-unsafe-eval'`, `worker-src blob:`),
   och proxyn då sätta CSP:n i stället för appen. Sätt också `ROBOTSKYDD=1`
   i `.env` och för in den i compose-filens `environment`, så att

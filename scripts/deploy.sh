@@ -162,7 +162,9 @@ echo "==> Bygger imagen"
 compose build --pull
 
 echo "==> Startar stacken"
-compose up -d
+# --remove-orphans: en tjänst som strukits ur compose-filen (teaball-anubis,
+# 2026-11) ska stoppas, inte bli kvar och köra.
+compose up -d --remove-orphans
 
 echo "==> Status"
 compose ps

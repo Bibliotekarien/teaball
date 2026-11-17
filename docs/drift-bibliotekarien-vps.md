@@ -1,7 +1,7 @@
 # Drift på bibliotekarien-vps
 
 Så drivs instansen på `teaball.bibliotekarien.se`. Den bygger på den delade
-plattformen i `bibliotekarien-platform` (edge-Caddy, Anubis, Matomo,
+plattformen i `bibliotekarien-platform` (edge-Caddy, Matomo,
 övervakning) och är **inte** en installationsmall — för egen server, se
 [INSTALL.md](../INSTALL.md).
 
@@ -9,14 +9,14 @@ Produktion körs med **`docker-compose.prod.yml`** enligt plattformens mönster
 (se `bibliotekarien-platform/SERVER_LAYOUT.md`, som är källa-av-sanning):
 stack `/opt/teaball/app`, service-användare `teaball` (UID 1505),
 inga host-portar — edge-Caddy joinar `teaball_proxy` och proxar
-`teaball.bibliotekarien.se` genom **Anubis** (PoW-gate för all trafik;
-htmx-anropen bär clearance-cookien; Anubis standardpolicy enligt
-plattformens `edge/ANUBIS.md`). Databasen ligger i named-volymen
+`teaball.bibliotekarien.se` direkt till `teaball-web:8000`. Ingen Anubis,
+med avsikt: det finns inget publikt innehåll att skydda, och inloggningen
+har egen spärr (bakgrund i plattformens `edge/ANUBIS.md`). Databasen ligger i named-volymen
 `teaball-data`. Teaball är **stängd för sökmotorer** — `/robots.txt`
 (serveras av appen) säger `Disallow: /`, eftersom allt utom inloggningen
 kräver konto. uvicorns accesslogg är på, med medlemmarnas token maskade
 (`app/accesslog.py`). Instansens texter (`ORGANISATION=DiVA-konsortiet`,
-`NUVARANDE_SYSTEM=DiVA Classic`) och `ROBOTSKYDD=1` har standardvärden i
+`NUVARANDE_SYSTEM=DiVA Classic`) har standardvärden i
 `docker-compose.prod.yml`; `.env` behöver bara sätta dem för att ändra dem.
 
 Driftsättningschecklista (första gången):
@@ -27,7 +27,7 @@ Driftsättningschecklista (första gången):
 3. Klona repot till `/opt/teaball/app` som root (`sudo git clone`), med
    deploy-nyckeln via `core.sshCommand` i repots `.git/config`. Skapa `.env`
    från `.env.example` med `sudo install -m 600` (SECRET_KEY,
-   PUBLIC_BASE_URL, ANUBIS_COOKIE_DOMAIN; Matomo-värdena nedan). Kör
+   PUBLIC_BASE_URL; Matomo-värdena nedan). Kör
    `sudo chmod -R go-w /opt/teaball/app` och `sudo restorecon -R
    /opt/teaball/app`.
 4. **Matomo:** registrera sajten på `https://bibstats.bibliotekarien.se`
@@ -47,6 +47,25 @@ Driftsättningschecklista (första gången):
 8. Observability: avkommentera `teaball.bibliotekarien.se`-proben i
    `observability-platform/stack/prometheus/prometheus.yml` (avsiktligt
    utkommenterad tills sajten är live — inga röda prober i förväg).
+
+## Byte till drift utan Anubis (en gång, 2026-11)
+
+Edge måste sluta peka på `teaball-anubis` **innan** containern försvinner,
+annars svarar sajten 502 tills edge laddats om. Ordning:
+
+1. Merga plattforms-PR:en (edge pekar på `teaball-web:8000`), dra hem den i
+   `/opt/bibliotekarien-platform` och kör
+   `make -C /opt/bibliotekarien-platform edge-validate`, sedan `edge-reload`.
+   Nu går trafiken förbi Anubis fast containern kör kvar.
+2. Kontrollera i en webbläsare att sajten svarar utan utmaningssida och att
+   inloggning och en svarslänk fungerar.
+3. Merga den här PR:en och kör `sudo /opt/teaball/app/scripts/deploy.sh`.
+   `--remove-orphans` stoppar och tar bort `teaball-anubis`.
+4. Ta bort `ANUBIS_COOKIE_DOMAIN` ur `/opt/teaball/app/.env`. Den läses inte
+   längre, så det brådskar inte.
+
+Backa: återställ Caddyfilen (`git revert` i plattformen, `edge-reload`) och
+den här PR:en, och deploya. Anubis-imagen hämtas igen vid behov.
 
 ## Backup
 
