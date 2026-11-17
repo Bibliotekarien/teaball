@@ -53,19 +53,30 @@ Driftsättningschecklista (första gången):
 Edge måste sluta peka på `teaball-anubis` **innan** containern försvinner,
 annars svarar sajten 502 tills edge laddats om. Ordning:
 
-1. Merga plattforms-PR:en (edge pekar på `teaball-web:8000`), dra hem den i
-   `/opt/bibliotekarien-platform` och kör
+1. Merga Bibliotekarien/bibliotekarien-platform#95 (edge pekar på
+   `teaball-web:8000`), dra hem den i `/opt/bibliotekarien-platform`, kopiera
+   `SERVER_LAYOUT.md` till `/opt` enligt filens huvud och kör
    `make -C /opt/bibliotekarien-platform edge-validate`, sedan `edge-reload`.
    Nu går trafiken förbi Anubis fast containern kör kvar.
 2. Kontrollera i en webbläsare att sajten svarar utan utmaningssida och att
    inloggning och en svarslänk fungerar.
-3. Merga den här PR:en och kör `sudo /opt/teaball/app/scripts/deploy.sh`.
-   `--remove-orphans` stoppar och tar bort `teaball-anubis`.
-4. Ta bort `ANUBIS_COOKIE_DOMAIN` ur `/opt/teaball/app/.env`. Den läses inte
+3. Merga teaball#100 och kör `sudo /opt/teaball/app/scripts/deploy.sh`.
+4. Kontrollera att `teaball-anubis` är borta: `sudo docker ps -a --filter
+   name=teaball-anubis`. Den här första gången finns den troligen kvar.
+   Skriptet uppdaterar sig självt med `git merge` medan det kör, och bash
+   läser vidare i den gamla versionen, som saknar `--remove-orphans`. Kör då
+   `sudo docker rm -f teaball-anubis`, eller deploya en gång till.
+5. Ta bort `ANUBIS_COOKIE_DOMAIN` ur `/opt/teaball/app/.env`. Den läses inte
    längre, så det brådskar inte.
 
-Backa: återställ Caddyfilen (`git revert` i plattformen, `edge-reload`) och
-den här PR:en, och deploya. Anubis-imagen hämtas igen vid behov.
+Backa i omvänd ordning, annars pekar edge på en container som inte finns
+och sajten svarar 502:
+
+1. Revertera teaball#100 och lägg tillbaka `ANUBIS_COOKIE_DOMAIN` i `.env`
+   om steg 5 är gjort. Den gamla compose-filen vägrar starta utan den.
+2. Deploya. Anubis-imagen hämtas igen.
+3. Revertera Bibliotekarien/bibliotekarien-platform#95, `edge-validate`,
+   `edge-reload`.
 
 ## Backup
 

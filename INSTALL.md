@@ -259,8 +259,11 @@ verifierad.
   `MATOMO_SITE_ID` och `MATOMO_TOKEN`.
 - **Botskydd:** behövs inte. Tjänsten är stängd för sökmotorer
   (`/robots.txt` säger `Disallow: /`), allt utom inloggningen och de hemliga
-  svarslänkarna kräver konto, och inloggningen spärras efter fem
-  misslyckade försök. Instansen på bibliotekarien-vps körde
+  svarslänkarna kräver konto, och inloggningen spärras i fem minuter efter
+  fem misslyckade försök per IP-adress och användarnamn. Spärren ligger i
+  minnet och nollställs när appen startas om. Den bromsar inte den som
+  provar ett lösenord mot många användarnamn eller från många adresser, så
+  välj långa lösenord. Instansen på bibliotekarien-vps körde
   [Anubis](https://github.com/TecharoHQ/anubis) till 2026-11 men gör det
   inte längre. Lägger ni ändå Anubis framför appen måste
   CSP:n tillåta dess PoW-worker (`'wasm-unsafe-eval'`, `worker-src blob:`),
