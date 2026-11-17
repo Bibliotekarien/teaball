@@ -244,7 +244,7 @@ def uppdatera_nod(
     vid sortering på uppdaterad; lista.js scrollar dit."""
     _hamta_rad(conn, nod_id)
     try:
-        dok = tjanst.validera_lank(lank_dokumentation, "Dokumentationslänken")
+        dok = tjanst.validera_lank(lank_dokumentation, "Länken till det interna kravdokumentet")
         jira = tjanst.validera_lank(lank_jira, "Jira-länken")
         extern = tjanst.validera_lank(
             lank_extern, "Länken till extern dokumentation")

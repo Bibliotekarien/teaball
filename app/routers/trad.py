@@ -48,10 +48,13 @@ def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | N
         endast_synliga=principal.roll == "extern" or filter.get("dolj_dolda", False),
         dolj_lasta=filter.get("dolj_lasta", False),
     )
-    # Internal comments never reach the extern role: unmarked rows render
-    # without the comment counter and block.
+    # Internal comments and links never reach the extern role: unmarked rows
+    # render without the comment counter and block, and the requirement
+    # document and Jira links are dropped (members see neither).
     if principal.roll != "extern":
         kommentarer.markera_antal(conn, rotter)
+    else:
+        tjanst.utan_interna_lankar(rotter)
     ctx = {
         "principal": principal,
         "rotter": rotter,
@@ -165,7 +168,7 @@ def skapa_nod(
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     try:
-        dok = tjanst.validera_lank(lank_dokumentation, "Dokumentationslänken")
+        dok = tjanst.validera_lank(lank_dokumentation, "Länken till det interna kravdokumentet")
         jira = tjanst.validera_lank(lank_jira, "Jira-länken")
         extern = tjanst.validera_lank(
             lank_extern, "Länken till extern dokumentation")
@@ -209,7 +212,7 @@ def uppdatera_nod(
     conn: sqlite3.Connection = Depends(get_conn),
 ):
     try:
-        dok = tjanst.validera_lank(lank_dokumentation, "Dokumentationslänken")
+        dok = tjanst.validera_lank(lank_dokumentation, "Länken till det interna kravdokumentet")
         jira = tjanst.validera_lank(lank_jira, "Jira-länken")
         extern = tjanst.validera_lank(
             lank_extern, "Länken till extern dokumentation")

@@ -228,7 +228,7 @@ def uppdatera_nod(
     _nod(conn, nod_id)
     visa = _visning(request)
     try:
-        dok = trad.validera_lank(lank_dokumentation, "Dokumentationslänken")
+        dok = trad.validera_lank(lank_dokumentation, "Länken till det interna kravdokumentet")
         jira = trad.validera_lank(lank_jira, "Jira-länken")
         extern = trad.validera_lank(
             lank_extern, "Länken till extern dokumentation")

@@ -16,6 +16,8 @@ import io
 import json
 import sqlite3
 
+from app.services.trad import validera_lank
+
 TILLATNA_TYPER = {"förmåga", "funktion", "krav"}
 TILLATNA_STATUS = {"driftsatt", "planerad", "idé", "utreds", "utgår"}
 
@@ -77,10 +79,9 @@ def importera_trad(conn: sqlite3.Connection, rader: list[dict]) -> int:
             raise ValueError(f"Rad {radnr}: status {status!r} kräver en avgång (kolumnen fas).")
         lankar = {}
         for falt in ("lank_dokumentation", "lank_jira", "lank_extern"):
-            lank = (rad.get(falt) or "").strip() or None
-            if lank and not lank.startswith(("http://", "https://")):
-                raise ValueError(f"Rad {radnr}: {falt} måste börja med http:// eller https://.")
-            lankar[falt] = lank
+            # Same rule as the node forms (http/https, at most 500 characters);
+            # str() so a non-string JSON value fails validation, not with a crash.
+            lankar[falt] = validera_lank(str(rad.get(falt) or ""), f"Rad {radnr}: {falt}")
         cur = conn.execute(
             "INSERT INTO funktion (namn, typ, status, fas, sortering,"
             " lank_dokumentation, lank_jira, lank_extern) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",

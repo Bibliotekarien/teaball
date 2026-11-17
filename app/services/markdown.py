@@ -82,7 +82,7 @@ def _dokument(rader) -> str:
 def kravtrad(conn, genererad: str) -> str:
     rader = ["# Behovsträd — Teaball", "", f"_Exporterad {genererad}._", ""]
     rader += _tabellhuvud(["Namn", "Typ", "Status", "Avgång", "Synlig för medlemmar",
-                           "Beskrivning", "Jira", "Dokumentation", "Extern dokumentation"])
+                           "Beskrivning", "Jira", "Internt kravdokument", "Extern dokumentation"])
     for r in conn.execute("SELECT * FROM funktion_trad ORDER BY vag"):
         rader.append(_rad([
             _namncell(r["namn"], r["id"], r["djup"], r["typ"]),
@@ -92,7 +92,7 @@ def kravtrad(conn, genererad: str) -> str:
             "ja" if r["synlig_stig"] else "nej",
             _cell(r["beskrivning"]),
             _lank("Jira", r["lank_jira"]),
-            _lank("Dokumentation", r["lank_dokumentation"]),
+            _lank("Internt kravdokument", r["lank_dokumentation"]),
             _lank("Extern dokumentation", r["lank_extern"]),
         ]))
     return _dokument(rader)

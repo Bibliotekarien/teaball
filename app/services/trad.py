@@ -53,6 +53,18 @@ def validera_lank(varde: str, falt: str) -> str | None:
     return lank or None
 
 
+def utan_interna_lankar(noder: list[dict]) -> None:
+    """Removes the internal links (requirement document, Jira) from every
+    node in a tree, nested children included, so a view for the extern role
+    shows only what members see: the external documentation link."""
+    stack = list(noder)
+    while stack:
+        nod = stack.pop()
+        nod["lank_dokumentation"] = None
+        nod["lank_jira"] = None
+        stack.extend(nod.get("barn", ()))
+
+
 def undergren_ids(conn: sqlite3.Connection, nod_id: int) -> set[int]:
     """The node itself and all its descendants."""
     rows = conn.execute(

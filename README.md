@@ -86,9 +86,10 @@ historik) — datasnålt nog att bara kräva en notis på `/integritet`.
 ### Initial datainläsning
 
 Läs in ett befintligt underlag som CSV eller JSON (kolumner/nycklar:
-`namn, foralder, typ, status, fas` samt valfritt `lank_dokumentation` och
-`lank_jira` — `foralder` är förälderns *namn*, tomt för rotnivå; filordningen
-blir syskonordningen):
+`namn, foralder, typ, status, fas` samt valfritt `lank_dokumentation`
+(internt kravdokument), `lank_jira` och `lank_extern` (extern dokumentation,
+den enda länken som medlemmarna ser) — `foralder` är förälderns *namn*, tomt
+för rotnivå; filordningen blir syskonordningen):
 
 ```bash
 docker compose exec app python scripts/importera_trad.py underlag.csv

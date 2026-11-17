@@ -80,7 +80,7 @@
       <textarea name="beskrivning" rows="2" maxlength="4000" data-raknare
                 class="rounded-md border border-stone-300 px-2 py-1 text-sm">{{ nod.beskrivning or '' if nod else '' }}</textarea>
     </label>
-    <label class="grid gap-0.5 text-xs text-stone-500">Länk till behovsdokumentation
+    <label class="grid gap-0.5 text-xs text-stone-500">Länk till internt kravdokument
       <input name="lank_dokumentation" type="url" maxlength="500" placeholder="https://…"
              value="{{ nod.lank_dokumentation or '' if nod else '' }}"
              class="rounded-md border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700">
@@ -94,7 +94,7 @@
       <input name="lank_extern" type="url" maxlength="500" placeholder="https://…"
              value="{{ nod.lank_extern or '' if nod else '' }}"
              class="rounded-md border border-stone-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700">
-      <span class="text-stone-400">Visas för medlemmarna. De två länkarna ovan ser bara förvaltarna.</span>
+      <span class="text-stone-400">Visas för medlemmarna. Det interna kravdokumentet och Jira ser bara förvaltarna.</span>
     </label>
     <div class="flex gap-2 sm:col-span-2">
       <button class="rounded-md bg-blue-900 px-3 py-1.5 text-white hover:bg-blue-800">Spara</button>

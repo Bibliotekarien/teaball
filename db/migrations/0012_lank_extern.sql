@@ -1,9 +1,9 @@
 -- Länk till extern dokumentation per nod, den enda nodlänken som visas för
--- medlemmarna. lank_dokumentation (behovsdokumentationen) och lank_jira är
+-- medlemmarna. lank_dokumentation (det interna kravdokumentet) och lank_jira är
 -- interna och visas bara för förvaltarna.
 --
 -- Numret 0012, inte 0010: 0010 och 0011 hör till arbetet med flera
--- organisationer (PR #90–#93), som mergas senare. migrate() kör varje fil
+-- organisationer (PR #90–#94), som mergas senare. migrate() kör varje fil
 -- vars nummer saknas i schema_migration, så luckan fylls när de kommer.
 --
 -- funktion_trad och stämpeltriggern räknar upp kolumnerna och återskapas

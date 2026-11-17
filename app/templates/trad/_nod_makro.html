@@ -97,9 +97,9 @@
     {% if n.beskrivning %}<p class="max-w-prose whitespace-pre-line text-stone-400">{{ n.beskrivning }}</p>{% endif %}
     {% if n.lank_dokumentation or n.lank_jira or n.lank_extern %}
     <p class="mt-0.5 flex gap-4">
-      <span class="w-36 shrink-0">{% if n.lank_dokumentation %}<a href="{{ n.lank_dokumentation }}" target="_blank" rel="noopener noreferrer" class="whitespace-nowrap text-blue-800 underline hover:text-blue-900">Dokumentation&nbsp;↗</a>{% endif %}</span>
-      <span class="w-36 shrink-0">{% if n.lank_jira %}<a href="{{ n.lank_jira }}" target="_blank" rel="noopener noreferrer" class="whitespace-nowrap text-blue-800 underline hover:text-blue-900">Jira&nbsp;↗</a>{% endif %}</span>
-      <span>{% if n.lank_extern %}<a href="{{ n.lank_extern }}" target="_blank" rel="noopener noreferrer" title="Visas för medlemmarna" class="whitespace-nowrap text-blue-800 underline hover:text-blue-900">Extern dokumentation&nbsp;↗</a>{% endif %}</span>
+      <span class="w-36 shrink-0">{% if n.lank_dokumentation %}<a href="{{ n.lank_dokumentation }}" target="_blank" rel="noopener noreferrer" class="whitespace-nowrap text-blue-800 underline hover:text-blue-900">Internt kravdokument<span class="sr-only"> för {{ n.namn }} (öppnas i ny flik)</span>&nbsp;<span aria-hidden="true">↗</span></a>{% endif %}</span>
+      <span class="w-36 shrink-0">{% if n.lank_jira %}<a href="{{ n.lank_jira }}" target="_blank" rel="noopener noreferrer" class="whitespace-nowrap text-blue-800 underline hover:text-blue-900">Jira<span class="sr-only"> för {{ n.namn }} (öppnas i ny flik)</span>&nbsp;<span aria-hidden="true">↗</span></a>{% endif %}</span>
+      <span>{% if n.lank_extern %}<a href="{{ n.lank_extern }}" target="_blank" rel="noopener noreferrer" title="Visas för medlemmarna" class="whitespace-nowrap text-blue-800 underline hover:text-blue-900">Extern dokumentation<span class="sr-only"> för {{ n.namn }} (öppnas i ny flik)</span>&nbsp;<span aria-hidden="true">↗</span></a>{% endif %}</span>
     </p>
     {% endif %}
   </div>
