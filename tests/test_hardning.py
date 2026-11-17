@@ -36,6 +36,53 @@ def test_login_sparras_efter_upprepade_misslyckanden(client, app_db):
     inloggning._misslyckanden.clear()  # don't leak state into other tests
 
 
+def test_sparren_kortar_langa_anvandarnamn(client, app_db):
+    """A megabyte username must not become a megabyte key — and cutting it
+    must not let the attempts escape the lockout."""
+    from app.routers import inloggning
+
+    inloggning._misslyckanden.clear()
+    token = csrf_fran(client.get("/login").text)
+    langt = "a" * 100_000
+    for _ in range(inloggning.MAX_FORSOK):
+        client.post("/login", data={"anvandarnamn": langt, "losenord": "fel",
+                                    "csrf_token": token})
+    ((_, namn),) = inloggning._misslyckanden
+    assert len(namn) == inloggning.MAX_NAMNLANGD
+    svar = client.post("/login", data={"anvandarnamn": langt + "b", "losenord": "fel",
+                                       "csrf_token": token})
+    assert svar.status_code == 429
+    inloggning._misslyckanden.clear()
+
+
+def test_sparren_vaxer_inte_utan_grans(monkeypatch):
+    """Unique usernames one after another: the dict stays under MAX_POSTER,
+    expired entries go first, and a fresh lockout survives the pruning."""
+    from app.routers import inloggning
+
+    inloggning._misslyckanden.clear()
+    monkeypatch.setattr(inloggning, "MAX_POSTER", 50)
+    nu = [1000.0]
+    monkeypatch.setattr(inloggning.time, "monotonic", lambda: nu[0])
+
+    for i in range(30):
+        inloggning._registrera_misslyckande(("1.2.3.4", f"gammal{i}"))
+    nu[0] += inloggning.SPARR_SEKUNDER  # the old ones have expired
+    for _ in range(inloggning.MAX_FORSOK):
+        inloggning._registrera_misslyckande(("1.2.3.4", "anna"))
+    for i in range(40):
+        inloggning._registrera_misslyckande(("5.6.7.8", f"ny{i}"))
+
+    assert len(inloggning._misslyckanden) <= 50
+    assert not any(n.startswith("gammal") for _, n in inloggning._misslyckanden)
+    assert inloggning._sparrad(("1.2.3.4", "anna"))
+
+    for i in range(200):  # sustained flood: the oldest go, the size holds
+        inloggning._registrera_misslyckande(("5.6.7.8", f"flod{i}"))
+    assert len(inloggning._misslyckanden) <= 50
+    inloggning._misslyckanden.clear()
+
+
 def test_okant_anvandarnamn_hashar_anda(client, app_db, monkeypatch):
     """An unknown username must cost an argon2 hash like a wrong password
     does, or the response time reveals which accounts exist. Same 401 and
