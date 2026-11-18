@@ -119,6 +119,9 @@ databasen.
 
 ## 4. Första administratören
 
+Med flera organisationer på samma installation: hoppa över avsnitt 4 och 5
+och följ avsnitt 10, där varje organisation skapas med sin första admin.
+
 ```bash
 sudo docker compose -f docker-compose.standalone.yml exec web \
     python scripts/skapa_forvaltare.py stilla-lax
@@ -252,6 +255,11 @@ säkerhetskopia bredvid databasen (`teaball.fore-<version>-<tid>.db` i
 `teaball-data/`); den roteras inte — ta bort den när uppgraderingen är
 verifierad.
 
+Med flera organisationer (avsnitt 10): kör `scripts/backup_alla.sh
+teaball-data/organisationer /mnt/backup/teaball` i stället för `backup.sh`
+på första raden. Kopiorna före migration hamnar då i
+`teaball-data/organisationer/`, en per organisation.
+
 ## 9. Valfritt
 
 - **Statistik:** Teaball kan rapportera sidvisningar server-side till en
@@ -282,9 +290,9 @@ delar inga konton, medlemmar eller data, och var och en har sin egen admin
 och sina egna texter under **Inställningar**.
 
 Kör inte flera organisationer skarpt förrän punkterna under *Inte klart än*
-nedan är lösta. Det som återstår är statistiken per organisation, ett
-biträdesavtal med varje organisation och ett skript för att hantera
-organisationerna. Den som driftar installationen äger alla tre.
+nedan är lösta. Det som återstår är statistiken per organisation och ett
+biträdesavtal med varje organisation. Den som driftar installationen äger
+båda.
 
 - Sätt `ORGANISATIONER_DIR=/data/organisationer` i `.env` och kör
   `sudo docker compose -f docker-compose.standalone.yml up -d` (`restart`
@@ -301,16 +309,39 @@ organisationerna. Den som driftar installationen äger alla tre.
 - En organisation har exakt ett hostnamn. Ska `www.`-varianten också
   fungera, låt proxyn omdirigera den. Byter en organisation hostnamn:
   byt namn på filen och skicka nya svarslänkar (som i avsnitt 6).
-- En ny organisation skapas med sin första admin:
+- Organisationerna hanteras med `scripts/organisationer.py` (lösenordet
+  frågas efter interaktivt):
 
   ```bash
   sudo docker compose -f docker-compose.standalone.yml exec web \
-      python scripts/skapa_forvaltare.py stilla-lax --db /data/organisationer/teaball.exempel.se.db
+      python scripts/organisationer.py skapa teaball.exempel.se stilla-lax
+  sudo docker compose -f docker-compose.standalone.yml exec web \
+      python scripts/organisationer.py lista
+  sudo docker compose -f docker-compose.standalone.yml exec web \
+      python scripts/organisationer.py ta-bort teaball.exempel.se --bekrafta teaball.exempel.se
   ```
 
-  Skriptet skapar och migrerar databasen, och appen hittar den direkt utan
-  omstart. Ge sedan hostnamnet DNS och TLS i proxyn. Alla skript behöver
-  `--db` med flera organisationer, även importen:
+  `skapa` gör databasen med organisationens första admin, och appen hittar
+  den direkt utan omstart. Ge sedan hostnamnet DNS och TLS i proxyn. `lista`
+  visar konton, medlemmar, noder och senaste inloggning per organisation.
+  `skapa` skriver också ut en checklista att skicka till organisationens
+  admin (byt lösenord, fyll i Inställningar inklusive nuvarande system, läs
+  `/integritet`). Träd och medlemmar går inte att ladda upp i appen; skicka
+  filerna till den som driftar, som läser in dem med skripten nedan.
+
+  **Ta bort en organisation:** ta först bort hostnamnet ur proxyn, så att
+  inget anrop hinner skriva under tiden, och kör sedan `ta-bort`. Databasen
+  och dess kopior före migration flyttas till `organisationer/borttagna/`,
+  och adressen ger 404. Kvar finns då organisationens data på två ställen,
+  som ska raderas när de inte längre behövs (t.ex. när data har lämnats
+  tillbaka enligt biträdesavtalet): kopiorna i `borttagna/`, och
+  organisationens katalog i backupmålet (`/mnt/backup/teaball/<hostnamn>/`),
+  som inte längre roteras. `lista` påminner om kopiorna i `borttagna/`.
+  Ångra en borttagning: kopiera tillbaka kopian som
+  `organisationer/<hostnamn>.db` (ägare 1505, läge 600) och lägg tillbaka
+  hostnamnet i proxyn.
+
+  Övriga skript behöver `--db` med flera organisationer, även importen:
   `python scripts/importera_medlemmar.py medlemmar.csv --db /data/organisationer/teaball.exempel.se.db`.
 - Instansens texter fylls aldrig från `.env` med flera organisationer; varje
   organisations admin anger dem under **Inställningar**.
@@ -330,13 +361,31 @@ sudo docker compose -f docker-compose.standalone.yml up -d
 Ta en backup först (avsnitt 7). Medlemmarnas länkar fungerar som förut om
 hostnamnet är detsamma, men alla som är inloggade får logga in igen.
 
-**Backup:** `scripts/backup.sh` tar en fil, och kopiorna heter alltid
-`teaball-<datum>.db`. Varje organisation måste därför ha **en egen
-målkatalog**, annars skriver de över varandra. Till exempel:
+**Backup:** `scripts/backup_alla.sh` kör `backup.sh` (avsnitt 7) för varje
+organisation, med en egen underkatalog per organisation i målet. (Kör inte
+`backup.sh` själv mot samma målkatalog för flera organisationer: kopiorna
+heter alltid `teaball-<datum>.db` och skriver över varandra.) En
+organisation som misslyckas stoppar inte de andra, men skriptet avslutas med
+fel. Cron-exempel, med målet ägt av 1505 som i avsnitt 7:
 
 ```
-10 3 * * * for f in /srv/teaball/teaball-data/organisationer/*.db; do case "$f" in *.fore-*) continue;; esac; n=$(basename "$f" .db); install -d -o 1505 -g 1505 -m 700 "/mnt/backup/teaball/$n" && setpriv --reuid=1505 --regid=1505 --clear-groups /srv/teaball/scripts/backup.sh "$f" "/mnt/backup/teaball/$n"; done
+10 3 * * * setpriv --reuid=1505 --regid=1505 --clear-groups /srv/teaball/scripts/backup_alla.sh /srv/teaball/teaball-data/organisationer /mnt/backup/teaball
 ```
+
+**Återställning av en organisation.** Backuperna ligger i
+`/mnt/backup/teaball/<hostnamn>/dagliga/teaball-<datum>.db` (och
+`manatliga/`). Appen måste stoppas medan filen byts, och det tar ner alla
+organisationer en kort stund:
+
+```bash
+sudo docker compose -f docker-compose.standalone.yml stop web
+sudo rm -f teaball-data/organisationer/teaball.exempel.se.db-wal teaball-data/organisationer/teaball.exempel.se.db-shm
+sudo install -o 1505 -g 1505 -m 600 /mnt/backup/teaball/teaball.exempel.se/dagliga/teaball-2026-11-12.db \
+    teaball-data/organisationer/teaball.exempel.se.db
+sudo docker compose -f docker-compose.standalone.yml start web
+```
+
+Starten migrerar filen om backupen har ett äldre schema.
 
 **Inte klart än:**
 - **Matomo:** statistiken är gemensam för alla organisationer, och
@@ -345,7 +394,6 @@ målkatalog**, annars skriver de över varandra. Till exempel:
 - **Personuppgiftsbiträde:** driver ni Teaball åt andra organisationer är ni
   deras personuppgiftsbiträde och behöver ett biträdesavtal med var och en.
   Integritetssidan nämner ännu inte operatören.
-- Ett skript för att skapa, lista och ta bort organisationer, och backup av
-  alla i ett svep, kommer senare. En databasfil som kopieras in för hand
-  (t.ex. en återställd backup med äldre schema) migreras först vid nästa
-  omstart, så starta om efter en sådan.
+- En databasfil som kopieras in för hand (t.ex. en återställd backup med
+  äldre schema) migreras först vid nästa omstart, så starta om efter en
+  sådan. `lista` visar om någon väntar på migrering.

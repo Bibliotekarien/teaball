@@ -81,6 +81,18 @@ def _kopia_fore_migration(conn: sqlite3.Connection, sista_version: int) -> Path 
     return mal
 
 
+def migrationsfiler() -> list[tuple[int, Path]]:
+    """(version, path) for every migration file, in order."""
+    return [
+        (int(path.name.split("_", 1)[0]), path)
+        for path in sorted(config.MIGRATIONS_DIR.glob("[0-9]*.sql"))
+    ]
+
+
+def senaste_migration() -> int:
+    return migrationsfiler()[-1][0]
+
+
 def migrate(conn: sqlite3.Connection) -> None:
     conn.execute(
         "CREATE TABLE IF NOT EXISTS schema_migration ("
@@ -88,11 +100,7 @@ def migrate(conn: sqlite3.Connection) -> None:
         " applied TEXT NOT NULL DEFAULT (datetime('now')))"
     )
     applied = {row["version"] for row in conn.execute("SELECT version FROM schema_migration")}
-    vantande = [
-        (int(path.name.split("_", 1)[0]), path)
-        for path in sorted(config.MIGRATIONS_DIR.glob("[0-9]*.sql"))
-        if int(path.name.split("_", 1)[0]) not in applied
-    ]
+    vantande = [(version, path) for version, path in migrationsfiler() if version not in applied]
     if not vantande:
         return
     # A failed snapshot aborts the whole startup: better to refuse migrating
