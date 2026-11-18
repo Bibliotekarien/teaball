@@ -14,7 +14,7 @@ import sqlite3
 from contextvars import ContextVar
 from dataclasses import dataclass, fields
 
-from app import config
+from app import config, organisationer
 
 logger = logging.getLogger("teaball")
 
@@ -80,9 +80,9 @@ def spara(conn: sqlite3.Connection, **varden: str) -> Instans:
 def fyll_fran_miljon(conn: sqlite3.Connection) -> None:
     """Uppgraderingsväg från .env: en databas som redan var i bruk när
     migration 0010 kom får ORGANISATION m.fl. kopierade från miljön, en gång,
-    så att instansen behåller sina texter. En ny, tom databas fylls inte: med
-    en databasfil per organisation skulle den annars ärva serverns texter,
-    t.ex. en annan organisations personuppgiftsansvarig. Därefter gäller
+    så att instansen behåller sina texter. En ny, tom databas fylls inte, och
+    med flera organisationer fylls ingen: den skulle annars ärva serverns
+    texter, t.ex. en annan organisations personuppgiftsansvarig. Därefter gäller
     databasen; satta variabler som inte används loggas som varning."""
     rad = conn.execute("SELECT fran_miljon FROM instans WHERE id = 1").fetchone()
     if rad is None:
@@ -98,6 +98,15 @@ def fyll_fran_miljon(conn: sqlite3.Connection) -> None:
         if satta:
             logger.warning("Ignoreras, instansens texter ändras under Inställningar: %s",
                            ", ".join(satta))
+        return
+    if organisationer.flera():
+        # Miljön är serverns, inte en viss organisations: en gammal databas som
+        # flyttas in i katalogen ska inte få en annan organisations texter.
+        if satta:
+            logger.warning("Fylls inte från miljön med flera organisationer, ange "
+                           "texterna under Inställningar: %s", ", ".join(satta))
+        conn.execute("UPDATE instans SET fran_miljon = 1 WHERE id = 1")
+        conn.commit()
         return
     i_bruk = conn.execute(
         "SELECT EXISTS (SELECT 1 FROM forvaltare) OR EXISTS (SELECT 1 FROM funktion)"

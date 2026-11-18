@@ -14,6 +14,7 @@ from typing import Literal
 
 from fastapi import Depends, HTTPException, Request
 
+from app import organisationer
 from app.db import get_conn
 
 SESSION_FORVALTARE = "forvaltare_id"
@@ -25,6 +26,19 @@ SESSION_MEDLEM = "medlem_id"
 # The member session stores the token *hash* so revoking/regenerating the token
 # (which replaces the stored hash) immediately invalidates existing sessions.
 SESSION_MEDLEM_HASH = "medlem_token_hash"
+# The organisation the session was established in (app/organisationer.py).
+# Cookies are host-only, but every organisation shares SECRET_KEY, so a
+# cookie copied to another organisation's host would still verify. The ids
+# and digests above would not match there either; this makes the boundary
+# explicit instead of relying on that.
+SESSION_ORGANISATION = "organisation"
+
+
+def starta_session(request: Request, **varden) -> None:
+    """A fresh session (no fixation) bound to the request's organisation."""
+    request.session.clear()
+    request.session[SESSION_ORGANISATION] = organisationer.aktuell().nyckel
+    request.session.update(varden)
 
 
 def losen_digest(losen_hash: str) -> str:
@@ -46,6 +60,10 @@ class Principal:
 
 
 def aktuell_principal(request: Request, conn: sqlite3.Connection) -> Principal | None:
+    # Sessions from before organisations existed carry no key; on a
+    # single-organisation installation they stay valid (nyckel is "").
+    if request.session.get(SESSION_ORGANISATION, "") != organisationer.aktuell().nyckel:
+        return None
     forvaltare_id = request.session.get(SESSION_FORVALTARE)
     sessionsdigest = request.session.get(SESSION_FORVALTARE_HASH)
     if forvaltare_id is not None and sessionsdigest:

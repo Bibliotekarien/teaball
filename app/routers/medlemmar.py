@@ -14,7 +14,7 @@ from fastapi.responses import RedirectResponse
 from app.auth import token as token_backend
 from app.auth.core import Principal, krav_admin, krav_intern
 from app.auth.csrf import krav_csrf
-from app import config
+from app import config, organisationer
 from app.db import get_conn
 from app.web import templates
 
@@ -23,7 +23,16 @@ audit = logging.getLogger("teaball.audit")
 
 
 def _svarslank(request: Request, token: str) -> str:
-    bas = config.PUBLIC_BASE_URL.rstrip("/") or str(request.base_url).rstrip("/")
+    # With several organisations each has its own hostname; PUBLIC_BASE_URL
+    # would send members to another organisation's address. The host is the
+    # organisation's key (the validated hostname that chose the database),
+    # not the raw Host header; scheme from --proxy-headers.
+    if organisationer.flera():
+        url = request.url
+        port = f":{url.port}" if url.port else ""
+        bas = f"{url.scheme}://{organisationer.aktuell().nyckel}{port}"
+    else:
+        bas = config.PUBLIC_BASE_URL.rstrip("/") or str(request.base_url).rstrip("/")
     return f"{bas}/svara/{token}"
 
 
