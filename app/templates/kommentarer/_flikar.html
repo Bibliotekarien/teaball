@@ -1,0 +1,9 @@
+{# Kommentarssidornas två delar: förvaltningens egna interna kommentarer och
+   medlemmarnas kommentarer på sina svar. #}
+<nav aria-label="Kommentarer" class="mb-3 flex gap-1 text-sm">
+  {% for adress, etikett in [("/kommentarer", "Interna kommentarer"),
+                             ("/kommentarer/medlemmar", "Från medlemmar")] %}
+  <a href="{{ adress }}" {% if request.url.path == adress %}aria-current="page"{% endif %}
+     class="rounded-md px-2.5 py-1 {% if request.url.path == adress %}bg-blue-900 text-white{% else %}text-stone-500 hover:bg-stone-100 hover:text-stone-800{% endif %}">{{ etikett }}</a>
+  {% endfor %}
+</nav>

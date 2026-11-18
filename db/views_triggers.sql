@@ -199,3 +199,47 @@ SELECT medlem_id, funktion_id, kalla_funktion_id, svar,
        CASE WHEN kalla_funktion_id = funktion_id THEN 0 ELSE 1 END AS arvd
 FROM eff
 WHERE svar IS NOT NULL;
+
+------------------------------------------------------------------------------
+-- Medlemmarnas kommentarer (migration 0013): en rad per icke-tom öppen eller
+-- intern kommentar på bedomning, med läskvittensen. falt = 'oppen' | 'intern'
+-- identifierar kommentaren tillsammans med (medlem_id, funktion_id). delning
+-- gäller bara den öppna — den interna är alltid privat för medlemmen och
+-- förvaltarna.
+------------------------------------------------------------------------------
+
+DROP VIEW IF EXISTS medlemskommentar;
+CREATE VIEW medlemskommentar AS
+SELECT b.medlem_id, b.funktion_id, 'oppen' AS falt, b.oppen_kommentar AS text,
+       b.oppen_delning AS delning, b.svar, b.besvarat, k.kvitterad
+FROM bedomning b
+LEFT JOIN medlemskommentar_kvittens k
+       ON k.medlem_id = b.medlem_id AND k.funktion_id = b.funktion_id AND k.falt = 'oppen'
+WHERE TRIM(COALESCE(b.oppen_kommentar, '')) != ''
+UNION ALL
+SELECT b.medlem_id, b.funktion_id, 'intern', b.intern_kommentar,
+       NULL, b.svar, b.besvarat, k.kvitterad
+FROM bedomning b
+LEFT JOIN medlemskommentar_kvittens k
+       ON k.medlem_id = b.medlem_id AND k.funktion_id = b.funktion_id AND k.falt = 'intern'
+WHERE TRIM(COALESCE(b.intern_kommentar, '')) != '';
+
+-- En ändrad kommentar är oläst igen: kvittensen gällde den gamla texten.
+-- IS NOT hanterar NULL, så både ny, ändrad och raderad text rensar.
+DROP TRIGGER IF EXISTS bedomning_kvittens_oppen;
+CREATE TRIGGER bedomning_kvittens_oppen
+AFTER UPDATE OF oppen_kommentar ON bedomning
+WHEN OLD.oppen_kommentar IS NOT NEW.oppen_kommentar
+BEGIN
+    DELETE FROM medlemskommentar_kvittens
+    WHERE medlem_id = NEW.medlem_id AND funktion_id = NEW.funktion_id AND falt = 'oppen';
+END;
+
+DROP TRIGGER IF EXISTS bedomning_kvittens_intern;
+CREATE TRIGGER bedomning_kvittens_intern
+AFTER UPDATE OF intern_kommentar ON bedomning
+WHEN OLD.intern_kommentar IS NOT NEW.intern_kommentar
+BEGIN
+    DELETE FROM medlemskommentar_kvittens
+    WHERE medlem_id = NEW.medlem_id AND funktion_id = NEW.funktion_id AND falt = 'intern';
+END;

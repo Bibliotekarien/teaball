@@ -5,6 +5,8 @@ from user input (S5)."""
 
 import sqlite3
 
+from app.services import bedomning, trad
+
 
 def _kalla(arvda: bool) -> str:
     return "bedomning_effektiv" if arvda else "bedomning_direkt"
@@ -78,6 +80,37 @@ def tackning(conn):
         " ORDER BY namn"
     ).fetchall()
     return {"svarande": svarande, "totalt": totalt, "utan_svar": [r["namn"] for r in utan_svar]}
+
+
+def svarsgrad(conn):
+    """Hur långt varje medlem kommit: andelen besvarade noder av dem som går
+    att besvara. Räknas exakt som räknaren i medlemmens egen svarsvy
+    (bedomning.rakna_bedomt över medlemsträdet), så 100 % här är samma sak
+    som att medlemmen ser noll kvar: bara synliga noder, inte driftsatta,
+    utgående eller låsta, och ett ärvt svar räknas som besvarat (A1/B6).
+
+    läge: "klar" (allt besvarat), "påbörjad" eller "ej påbörjad". Sorterat
+    på andel fallande, så stapeldiagrammet läses som en trappa."""
+    rotter = trad.hamta_trad(conn, endast_synliga=True)
+    besvarade: dict[int, set[int]] = {}
+    for r in conn.execute("SELECT medlem_id, funktion_id FROM bedomning_effektiv"):
+        besvarade.setdefault(r["medlem_id"], set()).add(r["funktion_id"])
+    rader = []
+    for m in conn.execute("SELECT id, namn, kategori FROM medlem"):
+        bedomda, kvar = bedomning.rakna_bedomt(rotter, besvarade.get(m["id"], set()))
+        totalt = bedomda + kvar
+        if totalt and not kvar:
+            lage = "klar"
+        elif bedomda:
+            lage = "påbörjad"
+        else:
+            lage = "ej påbörjad"
+        rader.append({
+            **dict(m), "bedomda": bedomda, "totalt": totalt, "lage": lage,
+            "andel": 100 * bedomda / totalt if totalt else 0,
+        })
+    rader.sort(key=lambda r: (-r["andel"], r["namn"]))
+    return rader
 
 
 def medlemsprofil(conn, medlem_id: int, arvda: bool = False):

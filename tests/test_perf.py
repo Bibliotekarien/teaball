@@ -38,6 +38,8 @@ def test_adminsidor_inom_budget(client, stor_databas):
         "/analys",
         "/analys?arvda=1",
         "/analys/medlemmar",
+        "/analys/svarslage",
+        "/kommentarer/medlemmar?visa=alla",
         "/roadmap?visa_krav=1",
     ):
         _tidta(client, adress)

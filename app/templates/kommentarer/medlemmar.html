@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block titel %}Kommentarer från medlemmar – Teaball{% endblock %}
+{% block innehall %}
+{% include "kommentarer/_flikar.html" %}
+<div class="mb-3">
+  <p class="text-sm text-stone-500">Medlemmarnas kommentarer på sina svar, grupperade
+    per nod i trädordning: både de öppna (som medlemmen kan dela med andra
+    medlemmar) och de interna (bara för förvaltarna).{% if skrivbar %} Markera en
+    kommentar som läst när den är genomgången. Radera den när formuleringen
+    justerats — då försvinner den också för medlemmen.{% endif %}
+    Att kvittera och radera är administratörens.</p>
+</div>
+{% include "kommentarer/_medlemmar_innehall.html" %}
+{% endblock %}

@@ -1,6 +1,7 @@
 {% from "_ankare.html" import ankare %}
 {% import "_heroicons.html" as hi %}
 {% import "kommentarer/_makro.html" as k %}
+{% import "kommentarer/_medlemmar_makro.html" as mk %}
 {# Recursive tree node. The row sits inside <summary> when the node has
    children, so expand/collapse is pure <details> — no JavaScript (T1/I2). #}
 {% macro rad(n, request, detaljerad=false, skrivbar=false) %}
@@ -55,6 +56,7 @@
 
   <span class="flex shrink-0 items-center gap-1.5">
     {% if n.kommentarer is defined %}{{ k.pill(n.id, n.kommentarer) }}{% endif %}
+    {% if n.medlemskommentarer is defined %}{{ mk.pill(n.id, n.medlemskommentarer) }}{% endif %}
     {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">{{ hi.ikon("eye-slash") }} dold</span>{% endif %}
     {% if n.rankning_last %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Låst från rankning{% if n.rankning_last_kommentar %}: {{ n.rankning_last_kommentar }}{% endif %}">{{ hi.ikon("lock-closed") }} låst</span>{% endif %}
     <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ TYP_LABEL[n.typ] }}</span>
@@ -110,9 +112,11 @@
 {# Kommentarsblocket (tomt tills räknaren på raden fäller ut det) ligger
    UTANFÖR <summary>: skrivfältet får inte sitta i summary, där mellanslag och
    klick växlar grenen. För en gren hamnar det därför först inne i <details>
-   — trad.js öppnar grenen när blocket fälls ut. Indraget är detaljblockets. #}
+   — trad.js öppnar grenen när blocket fälls ut. Indraget är detaljblockets.
+   Medlemmarnas kommentarer får ett eget block bredvid, med samma regler. #}
 {% macro kommentarsplats(n, request) %}
 {% if n.kommentarer is defined %}<div class="pl-[46px] pr-2">{{ k.block(n.id, request) }}</div>{% endif %}
+{% if n.medlemskommentarer is defined %}<div class="pl-[46px] pr-2">{{ mk.block(n.id, request) }}</div>{% endif %}
 {% endmacro %}
 
 {% macro nod(n, request, detaljerad=false, skrivbar=false) %}

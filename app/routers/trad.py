@@ -13,7 +13,7 @@ from fastapi.responses import RedirectResponse
 from app.auth.core import Principal, krav_admin, krav_forvaltare
 from app.auth.csrf import krav_csrf
 from app.db import get_conn
-from app.services import kommentarer
+from app.services import kommentarer, medlemskommentarer
 from app.services import trad as tjanst
 from app.web import is_htmx, templates
 
@@ -48,11 +48,12 @@ def _tradsvar(request, conn, principal, fel: str | None = None, filter: dict | N
         endast_synliga=principal.roll == "extern" or filter.get("dolj_dolda", False),
         dolj_lasta=filter.get("dolj_lasta", False),
     )
-    # Internal comments and links never reach the extern role: unmarked rows
-    # render without the comment counter and block, and the requirement
-    # document and Jira links are dropped (members see neither).
+    # Internal comments, member comments and links never reach the extern
+    # role: unmarked rows render without the comment pills and blocks, and
+    # the requirement document and Jira links are dropped (members see neither).
     if principal.roll != "extern":
         kommentarer.markera_antal(conn, rotter)
+        medlemskommentarer.markera_antal(conn, rotter)
     else:
         tjanst.utan_interna_lankar(rotter)
     ctx = {
