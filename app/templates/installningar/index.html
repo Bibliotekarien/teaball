@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block titel %}Inställningar – Teaball{% endblock %}
+{% block innehall %}
+{% if sparat %}
+<div class="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">Sparat.</div>
+{% endif %}
+{% if saknas %}
+<div class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+  Saknas: {{ saknas | join(" och ") }}. Integritetssidan visar en markering om att
+  det ska fyllas i före skarp drift.
+</div>
+{% endif %}
+
+<p class="mb-4 max-w-2xl text-sm text-stone-600">
+  Texterna visas på den publika integritetssidan och i statusförklaringarna, även
+  för medlemmarna. Ändringar gäller direkt. Har databasen tagits över från en
+  annan organisation: kontrollera alla fält.
+</p>
+
+<form method="post" action="/installningar" class="grid max-w-2xl gap-4 rounded-lg border border-stone-200 bg-white p-4 text-sm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+
+  <label class="grid gap-0.5 text-xs text-stone-500">Organisation
+    <input name="organisation" value="{{ instans.organisation }}" maxlength="{{ maxlangd.organisation }}"
+           class="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm text-stone-800">
+    <span class="text-stone-400">Organisationen eller samarbetet som driver bytet, t.ex. ett konsortium.
+      Visas på integritetssidan.</span>
+  </label>
+
+  <label class="grid gap-0.5 text-xs text-stone-500">Nuvarande system
+    <input name="nuvarande_system" value="{{ instans.nuvarande_system }}" maxlength="{{ maxlangd.nuvarande_system }}"
+           placeholder="{{ neutralt_system }}"
+           class="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm text-stone-800">
+    <span class="text-stone-400">Systemet som ersätts. Används i förklaringen av statusen
+      ”Utreds”: ”Finns i {{ instans.systemnamn }}; …”.</span>
+  </label>
+
+  <label class="grid gap-0.5 text-xs text-stone-500">Personuppgiftsansvarig
+    <input name="personuppgiftsansvarig" value="{{ instans.personuppgiftsansvarig }}"
+           maxlength="{{ maxlangd.personuppgiftsansvarig }}"
+           class="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm text-stone-800">
+    <span class="text-stone-400">Den juridiska person som ansvarar för personuppgifterna i tjänsten.</span>
+  </label>
+
+  <label class="grid gap-0.5 text-xs text-stone-500">Kontakt för dataskydd
+    <input name="dataskydd_kontakt" value="{{ instans.dataskydd_kontakt }}"
+           maxlength="{{ maxlangd.dataskydd_kontakt }}"
+           class="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm text-stone-800">
+    <span class="text-stone-400">T.ex. en funktionsadress till dataskyddsombudet.</span>
+  </label>
+
+  <div>
+    <button class="rounded-md bg-blue-900 px-3 py-1.5 text-sm text-white hover:bg-blue-800">Spara</button>
+    <a href="/integritet" class="ml-2 text-xs text-stone-500 underline">Visa integritetssidan</a>
+  </div>
+</form>
+
+<p class="mt-4 max-w-2xl text-sm text-stone-600">
+  <strong>Besöksstatistik:</strong>
+  {% if matomo_site_id %}
+  på (sajt {{ matomo_site_id }} i {% if matomo_hos_operatoren %}driftarens{% else %}instansens{% endif %}
+  Matomo). Integritetssidan beskriver den.
+  {% else %}
+  av. Ingen statistik samlas in om besökarna.
+  {% endif %}
+  {% if matomo_hos_operatoren %}Ändras av den som driftar tjänsten.{% else %}Ändras i serverns
+  konfiguration.{% endif %}
+</p>
+{% endblock %}

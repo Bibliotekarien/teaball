@@ -36,7 +36,8 @@ class FakeReq:
 def test_track_request_haller_task_referens(monkeypatch):
     """The regression: a bare create_task() result is only weakly held, so the
     hit could be GC'd before it ran. track_request must retain it until done."""
-    monkeypatch.setattr(config, "MATOMO_ENABLED", True)
+    monkeypatch.setattr(config, "MATOMO_URL", "https://matomo.example.org")
+    monkeypatch.setattr(config, "MATOMO_SITE_ID", "7")
     skickat = []
 
     class FakeClient:

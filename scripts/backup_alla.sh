@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Backup av alla organisationer på en installation med flera organisationer
+# (INSTALL.md avsnitt 10). Kör backup.sh för varje <hostnamn>.db i
+# organisationskatalogen, med en egen målkatalog per organisation: backup.sh
+# döper alltid kopian till teaball-<datum>.db, så en gemensam målkatalog hade
+# fått organisationerna att skriva över varandra.
+#
+# Användning:
+#   scripts/backup_alla.sh <organisationskatalog> <målkatalog>
+#
+# Kör som uid 1505, som backup.sh. Målkatalogen ska ägas av 1505; underkatalogerna
+# skapas av skriptet. Cron-exempel (dagligen 03:10, i roots crontab):
+#   10 3 * * * setpriv --reuid=1505 --regid=1505 --clear-groups /srv/teaball/scripts/backup_alla.sh /srv/teaball/teaball-data/organisationer /mnt/backup/teaball
+#
+# En organisation som misslyckas stoppar inte de andra; skriptet avslutas
+# ändå med fel så att cron/övervakningen märker det.
+set -uo pipefail
+# Underkatalogerna per organisation skapas av backup.sh; bara ägaren ska läsa dem.
+umask 077
+
+KATALOG="${1:?Användning: backup_alla.sh <organisationskatalog> <målkatalog>}"
+MAL="${2:?Användning: backup_alla.sh <organisationskatalog> <målkatalog>}"
+BACKUP="$(dirname "$0")/backup.sh"
+
+[ -d "$KATALOG" ] || { echo "Katalogen $KATALOG finns inte." >&2; exit 1; }
+KATALOG="$(realpath -e "$KATALOG")"
+shopt -s nullglob
+
+antal=0
+misslyckade=()
+for fil in "$KATALOG"/*.db; do
+  namn="$(basename "$fil" .db)"
+  # Kopiorna före migration är inga organisationer. Medveten kopia av _KOPIA i
+  # app/organisationer.py: skriptet körs på värden, utan appens Python-miljö.
+  # Andra filer som appen inte räknar som organisationer (t.ex. med versaler)
+  # backas också upp; det är hellre för mycket än för lite.
+  case "$namn" in
+    *.fore-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z) continue ;;
+  esac
+  # Katalogen är skrivbar för containern, och jobbet kan läsa allt
+  # (CAP_DAC_READ_SEARCH), så filnamnen är inte betrodda. Bara tecken som kan
+  # stå i ett hostnamn: ett ' eller / skulle annars kunna bryta sqlite3:s
+  # .backup-kommando i backup.sh eller målsökvägen.
+  case "$namn" in
+    "" | .* | *[!A-Za-z0-9._-]*)
+      echo "Hoppar över ${fil@Q}: namnet är inget hostnamn." >&2
+      misslyckade+=("${namn@Q}")
+      continue ;;
+  esac
+  # Direkt före kopieringen: en vanlig fil i katalogen, inte en symlänk. En
+  # symlänk x.db hade annars fått en annan apps databas eller värdens filer
+  # kopierade till backupmålet. Jobbet avslutas med fel, eftersom en symlänk
+  # där inte hör hemma.
+  if [ -L "$fil" ] || [ ! -f "$fil" ] || [ "$(realpath -e "$fil")" != "$KATALOG/$namn.db" ]; then
+    echo "Hoppar över $fil: inte en vanlig fil i $KATALOG." >&2
+    misslyckade+=("$namn")
+    continue
+  fi
+  # SQLite öppnar -shm för skrivning även vid läsning, och läser -wal. En
+  # symlänk där hade kunnat få jobbet att skriva i backupmålet eller läsa
+  # värdens filer. Kontrollen minskar glappet mot backup.sh men stänger det
+  # inte; se docs/drift-bibliotekarien-vps.md, Backup.
+  for sido in "$fil-wal" "$fil-shm"; do
+    if [ -L "$sido" ] || { [ -e "$sido" ] && [ ! -f "$sido" ]; }; then
+      echo "Hoppar över $fil: $sido är inte en vanlig fil." >&2
+      misslyckade+=("$namn")
+      continue 2
+    fi
+  done
+  antal=$((antal + 1))
+  "$BACKUP" "$fil" "$MAL/$namn" || misslyckade+=("$namn")
+done
+
+if [ "$antal" -eq 0 ]; then
+  echo "Inga organisationer i $KATALOG — ingen backup tagen." >&2
+  exit 1
+fi
+if [ "${#misslyckade[@]}" -gt 0 ]; then
+  echo "Backup misslyckades för: ${misslyckade[*]}" >&2
+  exit 1
+fi
+echo "Backup klar för $antal organisationer."

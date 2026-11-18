@@ -2,9 +2,10 @@
 # Installera: sudo cp deploy/teaball-backup.{service,timer} /etc/systemd/system/
 #             sudo systemctl daemon-reload && sudo systemctl enable --now teaball-backup.timer
 #
-# Tar en konsistent kopia av SQLite-filen i named-volymen (spec I4:
-# .backup-API, integritetskontroll, utrymmeskoll, rotation 30 dagliga +
-# 12 månatliga).
+# Tar en konsistent kopia av varje organisations SQLite-fil i named-volymen
+# (spec I4: .backup-API, integritetskontroll, utrymmeskoll, rotation 30
+# dagliga + 12 månatliga), i /opt/teaball/backups/<hostnamn>/. Misslyckas en
+# organisation misslyckas jobbet, och då avbryts också deploy.sh.
 #
 # Körs som teaball (uid 1505), samma användare som containern, inte som root.
 # Datakatalogen är skrivbar för containern; root ska inte öppna en databas
@@ -34,6 +35,6 @@ ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
 ReadWritePaths=/opt/teaball/backups /var/lib/docker/volumes/teaball_teaball-data/_data
-ExecStart=/opt/teaball/app/scripts/backup.sh \
-    /var/lib/docker/volumes/teaball_teaball-data/_data/teaball.db \
+ExecStart=/opt/teaball/app/scripts/backup_alla.sh \
+    /var/lib/docker/volumes/teaball_teaball-data/_data/organisationer \
     /opt/teaball/backups

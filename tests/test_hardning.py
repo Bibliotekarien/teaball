@@ -47,8 +47,8 @@ def test_sparren_kortar_langa_anvandarnamn(client, app_db):
     for _ in range(inloggning.MAX_FORSOK):
         client.post("/login", data={"anvandarnamn": langt, "losenord": "fel",
                                     "csrf_token": token})
-    ((_, namn),) = inloggning._misslyckanden
-    assert len(namn) == inloggning.MAX_NAMNLANGD
+    (nyckel,) = inloggning._misslyckanden
+    assert len(nyckel[-1]) == inloggning.MAX_NAMNLANGD
     svar = client.post("/login", data={"anvandarnamn": langt + "b", "losenord": "fel",
                                        "csrf_token": token})
     assert svar.status_code == 429
@@ -74,7 +74,7 @@ def test_sparren_vaxer_inte_utan_grans(monkeypatch):
         inloggning._registrera_misslyckande(("5.6.7.8", f"ny{i}"))
 
     assert len(inloggning._misslyckanden) <= 50
-    assert not any(n.startswith("gammal") for _, n in inloggning._misslyckanden)
+    assert not any(k[-1].startswith("gammal") for k in inloggning._misslyckanden)
     assert inloggning._sparrad(("1.2.3.4", "anna"))
 
     for i in range(200):  # sustained flood: the oldest go, the size holds

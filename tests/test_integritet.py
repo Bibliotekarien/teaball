@@ -1,6 +1,6 @@
 """The public privacy notice and its footer link."""
 
-from app import config
+from app import config, instans
 from tests.conftest import ge_token, logga_in, seed_trad, skapa_medlem
 
 
@@ -18,9 +18,7 @@ def test_integritetssidan_ar_publik_och_kakfri(client):
 def test_integritetssidan_utan_instanstexter(client, monkeypatch):
     """Unconfigured: neutral wording, the fill-in marker, and no claims about
     statistics or a bot-gate cookie the instance may not have."""
-    for namn in ("ORGANISATION", "PERSONUPPGIFTSANSVARIG", "DATASKYDD_KONTAKT"):
-        monkeypatch.setattr(config, namn, "")
-    monkeypatch.setattr(config, "MATOMO_ENABLED", False)
+    monkeypatch.setattr(config, "MATOMO_URL", "")
     monkeypatch.setattr(config, "ROBOTSKYDD", False)
     sida = client.get("/integritet").text
     assert "DiVA" not in sida and "konsorti" not in sida
@@ -31,11 +29,12 @@ def test_integritetssidan_utan_instanstexter(client, monkeypatch):
     assert "robotskyddet" not in sida
 
 
-def test_integritetssidan_med_instanstexter(client, monkeypatch):
-    monkeypatch.setattr(config, "ORGANISATION", "Exempelkonsortiet")
-    monkeypatch.setattr(config, "PERSONUPPGIFTSANSVARIG", "Exempeluniversitetet")
-    monkeypatch.setattr(config, "DATASKYDD_KONTAKT", "dataskydd@example.org")
-    monkeypatch.setattr(config, "MATOMO_ENABLED", True)
+def test_integritetssidan_med_instanstexter(client, app_db, monkeypatch):
+    instans.spara(app_db, organisation="Exempelkonsortiet",
+                  personuppgiftsansvarig="Exempeluniversitetet",
+                  dataskydd_kontakt="dataskydd@example.org")
+    monkeypatch.setattr(config, "MATOMO_URL", "https://matomo.example.org")
+    monkeypatch.setattr(config, "MATOMO_SITE_ID", "7")
     monkeypatch.setattr(config, "ROBOTSKYDD", True)
     sida = client.get("/integritet").text
     assert "behovsarbetet inom Exempelkonsortiet inför" in sida
@@ -46,17 +45,16 @@ def test_integritetssidan_med_instanstexter(client, monkeypatch):
     assert "robotskyddet" in sida
 
 
-def test_integritetssidan_saknad_kontaktvag_markeras(client, monkeypatch):
-    monkeypatch.setattr(config, "PERSONUPPGIFTSANSVARIG", "Exempeluniversitetet")
-    monkeypatch.setattr(config, "DATASKYDD_KONTAKT", "")
+def test_integritetssidan_saknad_kontaktvag_markeras(client, app_db):
+    instans.spara(app_db, personuppgiftsansvarig="Exempeluniversitetet")
     sida = client.get("/integritet").text
     assert "Personuppgiftsansvarig är Exempeluniversitetet." in sida
     assert "dataskyddsfrågor fylls i här innan" in sida
     assert "Formell" not in sida          # only the contact is missing
 
 
-def test_instanstexter_escapas(client, monkeypatch):
-    monkeypatch.setattr(config, "ORGANISATION", "<b>x</b>")
+def test_instanstexter_escapas(client, app_db):
+    instans.spara(app_db, organisation="<b>x</b>")
     sida = client.get("/integritet").text
     assert "<b>x</b>" not in sida and "&lt;b&gt;x&lt;/b&gt;" in sida
 

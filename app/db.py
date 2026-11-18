@@ -11,7 +11,7 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
-from app import config
+from app import config, instans, organisationer
 
 logger = logging.getLogger("teaball.db")
 
@@ -20,11 +20,22 @@ MIN_SQLITE_VERSION = (3, 34, 0)
 
 
 def connect(db_path: str | Path | None = None) -> sqlite3.Connection:
-    path = Path(db_path) if db_path is not None else config.DB_PATH
-    path.parent.mkdir(parents=True, exist_ok=True)
+    """Without a path: the database of the request's organisation
+    (app/organisationer.py), which is DB_PATH on a single-organisation
+    installation."""
     # check_same_thread=False: each request gets its own connection, but FastAPI
     # may run dependency and endpoint on different threadpool threads.
-    conn = sqlite3.connect(path, check_same_thread=False)
+    if db_path is None and organisationer.flera():
+        # A request never creates an organisation's database (they are made on
+        # the server): mode=rw fails on a missing file instead of creating an
+        # empty one, e.g. when scripts/organisationer.py ta-bort removes it
+        # while a request that already chose it is in flight.
+        uri = organisationer.aktuell().databas.resolve().as_uri() + "?mode=rw"
+        conn = sqlite3.connect(uri, uri=True, check_same_thread=False)
+    else:
+        path = Path(db_path) if db_path is not None else organisationer.aktuell().databas
+        path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA journal_mode=WAL")
@@ -70,6 +81,18 @@ def _kopia_fore_migration(conn: sqlite3.Connection, sista_version: int) -> Path 
     return mal
 
 
+def migrationsfiler() -> list[tuple[int, Path]]:
+    """(version, path) for every migration file, in order."""
+    return [
+        (int(path.name.split("_", 1)[0]), path)
+        for path in sorted(config.MIGRATIONS_DIR.glob("[0-9]*.sql"))
+    ]
+
+
+def senaste_migration() -> int:
+    return migrationsfiler()[-1][0]
+
+
 def migrate(conn: sqlite3.Connection) -> None:
     conn.execute(
         "CREATE TABLE IF NOT EXISTS schema_migration ("
@@ -77,11 +100,7 @@ def migrate(conn: sqlite3.Connection) -> None:
         " applied TEXT NOT NULL DEFAULT (datetime('now')))"
     )
     applied = {row["version"] for row in conn.execute("SELECT version FROM schema_migration")}
-    vantande = [
-        (int(path.name.split("_", 1)[0]), path)
-        for path in sorted(config.MIGRATIONS_DIR.glob("[0-9]*.sql"))
-        if int(path.name.split("_", 1)[0]) not in applied
-    ]
+    vantande = [(version, path) for version, path in migrationsfiler() if version not in applied]
     if not vantande:
         return
     # A failed snapshot aborts the whole startup: better to refuse migrating
@@ -109,6 +128,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     assert_sqlite_version()
     migrate(conn)
     create_views_and_triggers(conn)
+    instans.fyll_fran_miljon(conn)
 
 
 def get_conn():
