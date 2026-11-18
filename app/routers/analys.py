@@ -35,6 +35,36 @@ def rankning(
     )
 
 
+@router.get("/svarslage")
+def svarslage(
+    request: Request,
+    arvda: str = "",
+    principal: Principal = Depends(krav_intern),
+    conn: sqlite3.Connection = Depends(get_conn),
+):
+    """Stapel per medlem: hur stor del av det som går att besvara som är
+    besvarat. Ärvda svar räknas alltid (som i medlemmens egen räknare), så
+    sidan har ingen arvsväxel — arvda tas emot bara för att subnav-länkarna
+    ska behålla läget till de andra flikarna."""
+    rader = tjanst.svarsgrad(conn)
+    return templates.TemplateResponse(
+        request,
+        "analys/svarslage.html",
+        {
+            "principal": principal,
+            "arvda": arvda == "1",
+            "utan_arvsvaxel": True,
+            "rader": rader,
+            "antal": {lage: sum(r["lage"] == lage for r in rader)
+                      for lage in ("klar", "påbörjad", "ej påbörjad")},
+            # Alla medlemmar ser samma träd, så totalen är densamma för alla.
+            # Får medlemmar olika urval (flera organisationer) måste texten
+            # på sidan räkna per medlem i stället.
+            "att_besvara": rader[0]["totalt"] if rader else 0,
+        },
+    )
+
+
 @router.get("/medlemmar")
 def medlemmar(
     request: Request,

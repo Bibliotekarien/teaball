@@ -1,9 +1,13 @@
-"""Analysis queries (spec 5.3). Every function takes `arvda` — the A3 toggle —
-and switches between the two column-compatible views bedomning_direkt (default)
-and bedomning_effektiv. The view name is chosen from a hardcoded pair, never
-from user input (S5)."""
+"""Analysis queries (spec 5.3). The answer-based functions take `arvda` — the
+A3 toggle — and switch between the two column-compatible views
+bedomning_direkt (default) and bedomning_effektiv. The view name is chosen
+from a hardcoded pair, never from user input (S5). tackning and svarsgrad
+are fixed by definition: coverage always counts direct answers, progress
+always counts inherited ones (as the member's own counter does)."""
 
 import sqlite3
+
+from app.services import bedomning, trad
 
 
 def _kalla(arvda: bool) -> str:
@@ -78,6 +82,37 @@ def tackning(conn):
         " ORDER BY namn"
     ).fetchall()
     return {"svarande": svarande, "totalt": totalt, "utan_svar": [r["namn"] for r in utan_svar]}
+
+
+def svarsgrad(conn):
+    """Progress per member: the share of answerable nodes that is answered.
+    Counted exactly like the counter in the member's own view
+    (bedomning.rakna_bedomt over the member tree), so 100 % here means the
+    member sees nothing left: visible nodes only, not driftsatt, utgår or
+    locked, and an inherited answer counts as answered (A1/B6).
+
+    lage: "klar" (all answered), "påbörjad" or "ej påbörjad". Sorted by
+    share descending, so the bar chart reads as a staircase."""
+    rotter = trad.hamta_trad(conn, endast_synliga=True)
+    besvarade: dict[int, set[int]] = {}
+    for r in conn.execute("SELECT medlem_id, funktion_id FROM bedomning_effektiv"):
+        besvarade.setdefault(r["medlem_id"], set()).add(r["funktion_id"])
+    rader = []
+    for m in conn.execute("SELECT id, namn, kategori FROM medlem"):
+        bedomda, kvar = bedomning.rakna_bedomt(rotter, besvarade.get(m["id"], set()))
+        totalt = bedomda + kvar
+        if totalt and not kvar:
+            lage = "klar"
+        elif bedomda:
+            lage = "påbörjad"
+        else:
+            lage = "ej påbörjad"
+        rader.append({
+            **dict(m), "bedomda": bedomda, "totalt": totalt, "lage": lage,
+            "andel": 100 * bedomda / totalt if totalt else 0,
+        })
+    rader.sort(key=lambda r: (-r["andel"], r["namn"]))
+    return rader
 
 
 def medlemsprofil(conn, medlem_id: int, arvda: bool = False):

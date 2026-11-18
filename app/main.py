@@ -14,7 +14,7 @@ from app import accesslog, config, db, instans, matomo, organisationer
 from app.web import templates
 from app.routers import (
     analys, bedomning, exportera, inloggning, installningar, kommentarer, konton, lista,
-    medlemmar, roadmap, svara, trad,
+    medlemmar, medlemskommentarer, roadmap, svara, trad,
 )
 
 logger = logging.getLogger("teaball")
@@ -86,6 +86,7 @@ def create_app() -> FastAPI:
     app.include_router(inloggning.router)
     app.include_router(trad.router)
     app.include_router(lista.router)
+    app.include_router(medlemskommentarer.router)
     app.include_router(kommentarer.router)
     app.include_router(bedomning.router)
     app.include_router(analys.router)

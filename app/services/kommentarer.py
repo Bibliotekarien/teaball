@@ -102,16 +102,4 @@ def grupperat(conn: sqlite3.Connection, visa: str) -> list[dict]:
     per_nod: dict[int, list[dict]] = {}
     for k in kommentarer:
         per_nod.setdefault(k["funktion_id"], []).append(dict(k))
-    if not per_nod:
-        return []
-    karta = trad._foralderkarta(conn)
-    grupper = []
-    for nod in conn.execute(
-        f"SELECT * FROM funktion_trad WHERE id IN ({','.join('?' * len(per_nod))})"
-        " ORDER BY vag",
-        tuple(per_nod),
-    ):
-        nod = dict(nod)
-        nod["stig"] = trad._stig(karta, nod["foralder_id"])
-        grupper.append({"nod": nod, "kommentarer": per_nod[nod["id"]]})
-    return grupper
+    return trad.grupperat_per_nod(conn, per_nod)

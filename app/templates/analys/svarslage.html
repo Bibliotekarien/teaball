@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block titel %}Analys: svarsläge – Teaball{% endblock %}
+{# Bredare än standard: med ~50 medlemmar behöver staplarna och de stående
+   namnen plats, och klickytan per stapel blir större. #}
+{% block huvudbredd %}max-w-6xl{% endblock %}
+{% block innehall %}
+{% include "analys/_subnav.html" %}
+{# Färg efter läge, samma som i staplarna och tabellen. Läget står alltid
+   också i text (förklaring, verktygstips, tabell) — aldrig bara färgen. #}
+{% set LAGE = {
+  "klar": {"etikett": "Har svarat på allt", "stapel": "bg-emerald-600"},
+  "påbörjad": {"etikett": "Har börjat svara", "stapel": "bg-amber-400"},
+  "ej påbörjad": {"etikett": "Har inte börjat", "stapel": "bg-stone-300"},
+} %}
+
+<p class="mb-3 text-sm text-stone-500">
+  En stapel per medlem: hur stor andel av de {{ att_besvara }} noder som går att
+  besvara som medlemmen har besvarat. Det är samma räkning som medlemmen själv
+  ser i sin svarsvy: bara noder som visas för medlemmar, inte driftsatta,
+  utgående eller låsta, och ett svar på en överordnad nod gäller också
+  noderna under den.</p>
+
+{% if not rader %}
+<p class="rounded-md border border-stone-200 bg-white p-4 text-sm text-stone-400">Inga medlemmar ännu.</p>
+{% elif not att_besvara %}
+<p class="rounded-md border border-stone-200 bg-white p-4 text-sm text-stone-400">Det finns inga noder att besvara ännu.</p>
+{% else %}
+<figure class="mb-4 rounded-lg border border-stone-200 bg-white p-3">
+  <figcaption class="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-600">
+    {% for lage, meta in LAGE.items() %}
+    <span class="flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-sm {{ meta.stapel }}"></span>{{ meta.etikett }}: <strong class="tabular-nums">{{ antal[lage] }}</strong></span>
+    {% endfor %}
+    <span class="text-stone-400">av {{ rader | length }} medlemmar</span>
+  </figcaption>
+
+  {# Staplarna: varje medlem är en kolumn med stapelytan (h-56) överst och
+     namnet stående under, så stapel och namn alltid linjerar. Stödlinjerna
+     ligger bakom staplarna i samma yta; skalan är alltid 0–100 %. Klick på
+     en stapel öppnar medlemmens profil. Ej påbörjade får en tunn stump vid
+     baslinjen, så de syns som medlemmar och inte som en lucka. #}
+  <div class="relative pl-9">
+    <div class="pointer-events-none absolute inset-x-0 top-0 ml-9 h-56" aria-hidden="true">
+      {% for steg in [0, 25, 50, 75, 100] %}
+      <div class="absolute inset-x-0 border-t {{ 'border-stone-300' if steg == 0 else 'border-stone-100' }}" style="bottom: {{ steg }}%">
+        <span class="absolute -left-9 w-7 -translate-y-1/2 text-right text-[10px] tabular-nums text-stone-400">{{ steg }}&nbsp;%</span>
+      </div>
+      {% endfor %}
+    </div>
+    <ol class="relative flex gap-0.5" aria-label="Andel besvarade noder per medlem">
+      {% for r in rader %}
+      {% set procent = r.andel | int %}
+      <li class="min-w-0 flex-1">
+        <a href="/analys/medlemmar?medlem_id={{ r.id }}"
+           title="{{ r.namn }}: {{ r.bedomda }} av {{ r.totalt }} noder besvarade ({{ procent }} %) — {{ LAGE[r.lage].etikett | lower }}"
+           aria-label="{{ r.namn }}: {{ procent }} procent, {{ LAGE[r.lage].etikett | lower }}"
+           class="group flex flex-col items-center focus:outline-none">
+          <span class="flex h-56 w-full items-end justify-center group-hover:bg-stone-50 group-focus-visible:ring-2 group-focus-visible:ring-blue-700">
+            {% if r.bedomda %}
+            {# ✓ i toppen av en klar stapel: 98 % och 100 % ser lika höga
+               ut, så färgen får inte ensam skilja dem åt. #}
+            <span class="flex w-full max-w-8 justify-center rounded-t {{ LAGE[r.lage].stapel }}" style="height: {{ r.andel }}%">{% if r.lage == "klar" %}<span class="text-[10px] font-bold leading-4 text-white" aria-hidden="true">✓</span>{% endif %}</span>
+            {% else %}
+            <span class="h-0.5 w-full max-w-8 {{ LAGE[r.lage].stapel }}"></span>
+            {% endif %}
+          </span>
+          <span class="mt-1 h-36 max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-[11px] leading-tight text-stone-500 [writing-mode:vertical-rl] group-hover:text-stone-800">{{ r.namn }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+</figure>
+
+<details class="rounded-lg border border-stone-200 bg-white">
+  <summary class="cursor-pointer px-3 py-2 text-sm text-stone-600 hover:text-stone-800">Visa som tabell</summary>
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="border-y border-stone-200 text-left text-xs text-stone-400">
+        <th class="px-3 py-2 font-normal">Medlem</th>
+        <th class="px-3 py-2 font-normal">Läge</th>
+        <th class="px-3 py-2 text-right font-normal">Besvarade</th>
+        <th class="px-3 py-2 text-right font-normal">Andel</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rader %}
+      <tr class="border-b border-stone-100 last:border-b-0">
+        <td class="px-3 py-1.5"><a href="/analys/medlemmar?medlem_id={{ r.id }}" class="text-blue-800 hover:underline">{{ r.namn }}</a></td>
+        <td class="px-3 py-1.5 text-stone-500"><span class="mr-1.5 inline-block h-2 w-2 rounded-sm {{ LAGE[r.lage].stapel }}"></span>{{ LAGE[r.lage].etikett }}</td>
+        <td class="px-3 py-1.5 text-right tabular-nums">{{ r.bedomda }} av {{ r.totalt }}</td>
+        <td class="px-3 py-1.5 text-right tabular-nums">{{ r.andel | int }}&nbsp;%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</details>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,5 @@
+{% import "kommentarer/_medlemmar_makro.html" as mk %}
+{# htmx-svaret för nodblocket: blocket på sin plats + radens pill OOB, så
+   den följer läge och antal. #}
+{{ mk.block(nod.id, request, oppen, kommentarer, skrivbar) }}
+{{ mk.pill(nod.id, antal, oob=true, oppen=oppen) }}
