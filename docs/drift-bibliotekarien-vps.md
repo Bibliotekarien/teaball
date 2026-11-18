@@ -3,7 +3,8 @@
 Så drivs instansen på `teaball.bibliotekarien.se`. Den bygger på den delade
 plattformen i `bibliotekarien-platform` (edge-Caddy, Matomo,
 övervakning) och är **inte** en installationsmall — för egen server, se
-[INSTALL.md](../INSTALL.md).
+[INSTALL.md](../INSTALL.md). När driften lämnas över till en annan
+organisation: [overlamning.md](overlamning.md).
 
 Produktion körs med **`docker-compose.prod.yml`** enligt plattformens mönster
 (se `bibliotekarien-platform/SERVER_LAYOUT.md`, som är källa-av-sanning):
