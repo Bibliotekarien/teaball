@@ -23,6 +23,7 @@ MAL="${2:?Användning: backup_alla.sh <organisationskatalog> <målkatalog>}"
 BACKUP="$(dirname "$0")/backup.sh"
 
 [ -d "$KATALOG" ] || { echo "Katalogen $KATALOG finns inte." >&2; exit 1; }
+KATALOG="$(realpath -e "$KATALOG")"
 shopt -s nullglob
 
 antal=0
@@ -36,6 +37,22 @@ for fil in "$KATALOG"/*.db; do
   case "$namn" in
     *.fore-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z) continue ;;
   esac
+  # Containern kan skriva i katalogen, så filnamnen är inte betrodda. Bara
+  # tecken som kan stå i ett hostnamn: ett ' eller / skulle annars kunna
+  # bryta sqlite3:s .backup-kommando i backup.sh eller målsökvägen.
+  case "$namn" in
+    "" | .* | *[!A-Za-z0-9._-]*)
+      echo "Hoppar över ${fil@Q}: namnet är inget hostnamn." >&2
+      misslyckade+=("${namn@Q}")
+      continue ;;
+  esac
+  # Direkt före kopieringen: en vanlig fil i katalogen, inte en symlänk. Annars
+  # kan en komprometterad container få backupjobbet att läsa värdens filer.
+  if [ -L "$fil" ] || [ ! -f "$fil" ] || [ "$(realpath -e "$fil")" != "$KATALOG/$namn.db" ]; then
+    echo "Hoppar över $fil: inte en vanlig fil i $KATALOG." >&2
+    misslyckade+=("$namn")
+    continue
+  fi
   antal=$((antal + 1))
   "$BACKUP" "$fil" "$MAL/$namn" || misslyckade+=("$namn")
 done

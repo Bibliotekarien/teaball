@@ -279,20 +279,26 @@ på första raden. Kopiorna före migration hamnar då i
   CSP:n tillåta dess PoW-worker (`'wasm-unsafe-eval'`, `worker-src blob:`),
   och proxyn då sätta CSP:n i stället för appen. Sätt också `ROBOTSKYDD=1`
   i `.env` och för in den i compose-filens `environment`, så att
-  integritetssidan nämner Anubis kaka.
+  integritetssidan nämner Anubis kaka. Med flera organisationer (avsnitt 10)
+  tar Anubis `COOKIE_DOMAIN` bara ett hostnamn; använd
+  `COOKIE_DYNAMIC_DOMAIN=true` i stället, så sätts kakan efter det hostnamn
+  besökaren använde. Det är inte provat.
 
-## 10. Flera organisationer (förhandsversion)
+## 10. Flera organisationer
 
 En installation kan rymma flera organisationer med varsin databasfil. De
 delar inga konton, medlemmar eller data, och var och en har sin egen admin
 och sina egna texter under **Inställningar**.
 
-Förhandsversion betyder: **ännu inte för skarp drift med flera
-organisationer.** Se *Inte klart än* nedan.
+Kör inte flera organisationer skarpt förrän punkterna under *Inte klart än*
+nedan är lösta. Det som återstår är ett biträdesavtal med varje
+organisation, och det ansvarar den som driftar installationen för.
 
 **Uppsättning**
 
-- Sätt `ORGANISATIONER_DIR=/data/organisationer` i `.env` och starta om. Då
+- Sätt `ORGANISATIONER_DIR=/data/organisationer` i `.env` och kör
+  `sudo docker compose -f docker-compose.standalone.yml up -d` (`restart`
+  läser inte om `.env`). Då
   används inte `DB_PATH`, och `PUBLIC_BASE_URL` behövs inte: svarslänkarna
   byggs på varje organisations egen adress. Kontrollera att en ny svarslänk
   börjar med `https://` (schemat kommer från proxyns `X-Forwarded-Proto`).
@@ -328,8 +334,10 @@ organisationer.** Se *Inte klart än* nedan.
    och proxy fungerar.)
 5. **Statistik, om ni kommit överens om det:** se *Besöksstatistik* nedan.
 6. **Överlämning:** skicka checklistan som `skapa` skrev ut till
-   organisationens admin (byt lösenord, fyll i Inställningar, läs
-   `/integritet`).
+   organisationens admin (byt lösenord, fyll i Inställningar inklusive
+   nuvarande system, läs `/integritet`). Träd och medlemmar går inte att
+   ladda upp i appen; organisationen skickar filerna till er, och ni läser
+   in dem med `--db` som ovan.
 
 **Proxy.** Caddy skickar vidare det ursprungliga hostnamnet och hämtar
 certifikat själv. Ett block med alla organisationers namn räcker:
@@ -432,10 +440,6 @@ Starten migrerar filen om backupen har ett äldre schema.
   deras personuppgiftsbiträde och behöver ett biträdesavtal med var och en.
   Integritetssidan nämner er bara som den som samlar statistiken, inte vid
   namn och inte som personuppgiftsbiträde.
-- **Anubis:** behövs inte (se "Botskydd" ovan). Lägger ni ändå Anubis
-  framför appen tar `COOKIE_DOMAIN` bara ett hostnamn. Använd
-  `COOKIE_DYNAMIC_DOMAIN=true` i stället, så sätts kakan efter det hostnamn
-  besökaren använde. Det är inte provat.
 - En databasfil som kopieras in för hand (t.ex. en återställd backup med
   äldre schema) migreras först vid nästa omstart, så starta om efter en
   sådan. `lista` visar om någon väntar på migrering.

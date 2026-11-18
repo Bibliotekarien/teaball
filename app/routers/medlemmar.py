@@ -23,11 +23,14 @@ audit = logging.getLogger("teaball.audit")
 
 
 def _svarslank(request: Request, token: str) -> str:
-    # With several organisations each has its own hostname, so the link must
-    # use the request's (scheme from --proxy-headers); PUBLIC_BASE_URL would
-    # send members to another organisation's address.
+    # With several organisations each has its own hostname; PUBLIC_BASE_URL
+    # would send members to another organisation's address. The host is the
+    # organisation's key (the validated hostname that chose the database),
+    # not the raw Host header; scheme from --proxy-headers.
     if organisationer.flera():
-        bas = str(request.base_url).rstrip("/")
+        url = request.url
+        port = f":{url.port}" if url.port else ""
+        bas = f"{url.scheme}://{organisationer.aktuell().nyckel}{port}"
     else:
         bas = config.PUBLIC_BASE_URL.rstrip("/") or str(request.base_url).rstrip("/")
     return f"{bas}/svara/{token}"
