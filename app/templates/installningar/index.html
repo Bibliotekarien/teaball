@@ -6,7 +6,7 @@
 {% endif %}
 {% if saknas %}
 <div class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-  Saknas: {{ saknas | join(" och ") }}. Integritetssidan visar en markering om att
+  Saknas: {% if saknas | length > 1 %}{{ saknas[:-1] | join(", ") }} och {% endif %}{{ saknas[-1] }}. Integritetssidan visar en markering om att
   det ska fyllas i före skarp drift.
 </div>
 {% endif %}
@@ -49,6 +49,20 @@
     <span class="text-stone-400">T.ex. en funktionsadress till dataskyddsombudet.</span>
   </label>
 
+  {# Förslagen är texten som stod fast på integritetssidan före #105. De
+     fylls inte i av sig själva: ett tomt fält ger den gula markeringen. #}
+  {% for falt, rubrik, hjalp in [
+       ("rattslig_grund", "Rättslig grund", "Artikeln i dataskyddsförordningen som behandlingen vilar på, i en mening."),
+       ("lagringsplats", "Var uppgifterna lagras", "Var tjänsten och säkerhetskopiorna driftas, och om något överförs utanför EU/EES."),
+       ("gallring", "Gallring", "Hur länge historiken över ändrade och borttagna svar sparas."),
+     ] %}
+  <label class="grid gap-0.5 text-xs text-stone-500">{{ rubrik }}
+    <textarea name="{{ falt }}" rows="3" maxlength="{{ maxlangd[falt] }}"
+              class="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm text-stone-800">{{ instans[falt] }}</textarea>
+    <span class="text-stone-400">{{ hjalp }} Förslag: ”{{ forslag[falt] }}”</span>
+  </label>
+  {% endfor %}
+
   <div>
     <button class="rounded-md bg-blue-900 px-3 py-1.5 text-sm text-white hover:bg-blue-800">Spara</button>
     <a href="/integritet" class="ml-2 text-xs text-stone-500 underline">Visa integritetssidan</a>
@@ -66,4 +80,18 @@
   {% if matomo_hos_operatoren %}Ändras av den som driftar tjänsten.{% else %}Ändras i serverns
   konfiguration.{% endif %}
 </p>
+
+{% if driftare or flera_organisationer %}
+<p class="mt-2 max-w-2xl text-sm text-stone-600">
+  <strong>Driftare:</strong>
+  {% if driftare %}
+  {{ driftare }}{% if driftare_kontakt %} ({{ driftare_kontakt }}){% endif %}, nämns som
+  personuppgiftsbiträde på integritetssidan.
+  {% else %}
+  <span class="rounded bg-amber-50 px-1 text-amber-800">inte angiven.</span> Integritetssidan
+  visar en markering tills den som driftar tjänsten har fyllt i sitt namn.
+  {% endif %}
+  Ändras av den som driftar tjänsten.
+</p>
+{% endif %}
 {% endblock %}

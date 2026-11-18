@@ -69,7 +69,8 @@ def test_installningar_sparas_och_syns_direkt(client, app_db):
     seed_trad(app_db)
     logga_in(client, app_db)
     sida = client.get("/installningar").text
-    assert "Saknas: personuppgiftsansvarig och kontakt för dataskydd." in sida
+    assert ("Saknas: personuppgiftsansvarig, kontakt för dataskydd, rättslig grund, "
+            "lagringsplats och gallring.") in sida
     assert "Ändringar gäller direkt." in sida
 
     svar = client.post("/installningar", data={
@@ -77,6 +78,9 @@ def test_installningar_sparas_och_syns_direkt(client, app_db):
         "nuvarande_system": "Gamla systemet",
         "personuppgiftsansvarig": "Exempeluniversitetet",
         "dataskydd_kontakt": "dpo@example.org",
+        "rattslig_grund": "Grunden är allmänt intresse.",
+        "lagringsplats": "Lagras i Sverige.",
+        "gallring": "Gallras efter två år.",
         "csrf_token": csrf_fran(sida),
     }, follow_redirects=False)
 
@@ -87,13 +91,17 @@ def test_installningar_sparas_och_syns_direkt(client, app_db):
     assert "Saknas:" not in sida
     # Statusförklaringen och integritetssidan läser det nya utan omstart.
     assert "Finns i Gamla systemet; identifierad" in client.get("/trad").text
-    assert "Personuppgiftsansvarig är Exempeluniversitetet." in client.get("/integritet").text
+    integritet = client.get("/integritet").text
+    assert "Personuppgiftsansvarig är Exempeluniversitetet." in integritet
+    assert "Grunden är allmänt intresse." in integritet
+    assert "Lagras i Sverige." in integritet and "Gallras efter två år." in integritet
 
 
 def test_varningen_foljer_integritetssidan(client, app_db):
     """Bara kontaktvägen saknas: integritetssidan markerar den, så ska
     Inställningar också göra."""
-    instans.spara(app_db, personuppgiftsansvarig="Exempeluniversitetet")
+    instans.spara(app_db, personuppgiftsansvarig="Exempeluniversitetet",
+                  rattslig_grund="r", lagringsplats="l", gallring="g")
     logga_in(client, app_db)
     assert "Saknas: kontakt för dataskydd." in client.get("/installningar").text
     assert "dataskyddsfrågor fylls i här" in client.get("/integritet").text
@@ -154,3 +162,43 @@ def test_texterna_escapas_i_tooltip(client, app_db):
     sida = client.get("/trad").text
     assert "<script>x</script>" not in sida
     assert "Finns i &#34;&gt;&lt;script&gt;" in sida
+
+
+def test_forslagen_visas_men_fylls_inte_i(client, app_db):
+    """#105: förslaget är dagens text, men ett tomt fält förblir tomt och
+    räknas som saknat."""
+    logga_in(client, app_db)
+    sida = client.get("/installningar").text
+    assert "Förslag: ”Den rättsliga grunden är uppgift av allmänt intresse" in sida
+    assert '<textarea name="rattslig_grund" rows="3" maxlength="600"' in sida
+    assert "dataskyddsförordningen).</textarea>" not in sida
+
+
+def test_0014_ger_databas_i_bruk_dagens_text(tmp_path, monkeypatch):
+    """En databas i bruk före 0014 behåller den integritetssida den hade; en
+    tom får inget."""
+    tidigare = [m for m in appdb.migrationsfiler() if m[0] < 14]
+    monkeypatch.setattr(appdb, "migrationsfiler", lambda: tidigare)
+    i_bruk = appdb.connect(tmp_path / "i_bruk.db")
+    appdb.migrate(i_bruk)
+    skapa_forvaltare(i_bruk)
+    tom = appdb.connect(tmp_path / "tom.db")
+    appdb.migrate(tom)
+    monkeypatch.undo()
+
+    for conn in (i_bruk, tom):
+        appdb.init_db(conn)
+    texter = instans.las(i_bruk)
+    assert texter.rattslig_grund == instans.FORSLAG["rattslig_grund"]
+    assert texter.lagringsplats == instans.FORSLAG["lagringsplats"]
+    assert texter.gallring == instans.FORSLAG["gallring"]
+    assert instans.las(tom) == instans.Instans()
+    i_bruk.close()
+    tom.close()
+
+
+def test_driftaren_visas_skrivskyddad(client, app_db, monkeypatch):
+    monkeypatch.setattr(config, "DRIFTARE", "Exempeldrift AB")
+    logga_in(client, app_db)
+    sida = client.get("/installningar").text
+    assert "Exempeldrift AB" in sida and 'name="driftare"' not in sida

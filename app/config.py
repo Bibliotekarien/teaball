@@ -49,6 +49,15 @@ NUVARANDE_SYSTEM = os.environ.get("NUVARANDE_SYSTEM", "").strip()
 PERSONUPPGIFTSANSVARIG = os.environ.get("PERSONUPPGIFTSANSVARIG", "").strip()
 DATASKYDD_KONTAKT = os.environ.get("DATASKYDD_KONTAKT", "").strip()
 
+# Who operates the installation, and how to reach them. The operator's, not an
+# organisation's, so it lives in the environment and not on /installningar.
+# With several organisations the operator processes their personal data on
+# their behalf, and the privacy page names it as data processor
+# (personuppgiftsbiträde); until it is set the page carries the amber
+# fill-in marker. Set it once the processing agreements are signed.
+DRIFTARE = os.environ.get("DRIFTARE", "").strip()
+DRIFTARE_KONTAKT = os.environ.get("DRIFTARE_KONTAKT", "").strip()
+
 # Set to 1 when a bot gate that sets its own cookie (Anubis) sits in front of
 # the app — the privacy page must then mention that cookie. The app cannot
 # see the gate itself.

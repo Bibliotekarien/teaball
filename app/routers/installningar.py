@@ -1,5 +1,6 @@
 """Admin-only: instansens texter — organisationen, systemet som ersätts och
-integritetssidans personuppgiftsansvarig och kontaktväg (app/instans.py)."""
+integritetssidans personuppgiftsansvarig, kontaktväg, rättsliga grund,
+lagringsplats och gallring (app/instans.py)."""
 
 import logging
 import sqlite3
@@ -7,7 +8,7 @@ import sqlite3
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 
-from app import instans, matomo, organisationer
+from app import config, instans, matomo, organisationer
 from app.auth.core import Principal, krav_admin
 from app.auth.csrf import krav_csrf
 from app.db import get_conn
@@ -30,18 +31,27 @@ def visa(
     saknas = [namn for namn, varde in (
         ("personuppgiftsansvarig", aktuell.personuppgiftsansvarig),
         ("kontakt för dataskydd", aktuell.dataskydd_kontakt),
+        ("rättslig grund", aktuell.rattslig_grund),
+        ("lagringsplats", aktuell.lagringsplats),
+        ("gallring", aktuell.gallring),
     ) if not varde]
     return templates.TemplateResponse(request, "installningar/index.html", {
         "principal": principal,
         "instans": aktuell,
         "saknas": saknas,
         "maxlangd": instans.MAXLANGD,
+        "forslag": instans.FORSLAG,
         "neutralt_system": instans.NEUTRALT_SYSTEM,
         "sparat": request.session.pop(FLASH_SPARAT, False),
         # Skrivskyddat här: organisationen ska se om statistik samlas in om
         # dess besökare, men sajten är operatörens (matomo.site_id).
         "matomo_site_id": matomo.site_id(),
         "matomo_hos_operatoren": organisationer.flera(),
+        # Likaså driftaren: operatörens, men organisationen ska se vem som
+        # nämns som personuppgiftsbiträde på dess integritetssida.
+        "flera_organisationer": organisationer.flera(),
+        "driftare": config.DRIFTARE,
+        "driftare_kontakt": config.DRIFTARE_KONTAKT,
     })
 
 
@@ -52,6 +62,9 @@ def spara(
     nuvarande_system: str = Form(""),
     personuppgiftsansvarig: str = Form(""),
     dataskydd_kontakt: str = Form(""),
+    rattslig_grund: str = Form(""),
+    lagringsplats: str = Form(""),
+    gallring: str = Form(""),
     principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
@@ -61,6 +74,9 @@ def spara(
         nuvarande_system=nuvarande_system,
         personuppgiftsansvarig=personuppgiftsansvarig,
         dataskydd_kontakt=dataskydd_kontakt,
+        rattslig_grund=rattslig_grund,
+        lagringsplats=lagringsplats,
+        gallring=gallring,
     )
     audit.info("forvaltare=%s op=installningar_spara", principal.namn)
     request.session[FLASH_SPARAT] = True
