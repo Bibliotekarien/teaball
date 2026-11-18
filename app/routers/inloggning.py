@@ -25,9 +25,9 @@ from app.web import templates
 router = APIRouter(dependencies=[Depends(krav_csrf)])
 audit = logging.getLogger("teaball.audit")
 
-# Simple in-memory login throttle: after MAX_FORSOK failures for an
-# (ip, organisation, username) key, further attempts are rejected until the window passes.
-# Single-process app, so a dict suffices; a restart resetting it is acceptable.
+# Simple in-memory login throttle: after MAX_FORSOK failures for a key,
+# further attempts are rejected until the window passes. Single-process app,
+# so a dict suffices; a restart resetting it is acceptable.
 MAX_FORSOK = 5
 SPARR_SEKUNDER = 300
 # (ip, organisation, username): the same username in another organisation is

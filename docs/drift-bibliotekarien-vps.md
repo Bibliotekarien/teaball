@@ -56,6 +56,36 @@ Driftsättningschecklista (första gången):
    `observability-platform/stack/prometheus/prometheus.yml` (avsiktligt
    utkommenterad tills sajten är live — inga röda prober i förväg).
 
+## Byte till drift utan Anubis (en gång, 2026-11)
+
+Edge måste sluta peka på `teaball-anubis` **innan** containern försvinner,
+annars svarar sajten 502 tills edge laddats om. Ordning:
+
+1. Merga Bibliotekarien/bibliotekarien-platform#95 (edge pekar på
+   `teaball-web:8000`), dra hem den i `/opt/bibliotekarien-platform`, kopiera
+   `SERVER_LAYOUT.md` till `/opt` enligt filens huvud och kör
+   `make -C /opt/bibliotekarien-platform edge-validate`, sedan `edge-reload`.
+   Nu går trafiken förbi Anubis fast containern kör kvar.
+2. Kontrollera i en webbläsare att sajten svarar utan utmaningssida och att
+   inloggning och en svarslänk fungerar.
+3. Merga teaball#100 och kör `sudo /opt/teaball/app/scripts/deploy.sh`.
+4. Kontrollera att `teaball-anubis` är borta: `sudo docker ps -a --filter
+   name=teaball-anubis`. Den här första gången finns den troligen kvar.
+   Skriptet uppdaterar sig självt med `git merge` medan det kör, och bash
+   läser vidare i den gamla versionen, som saknar `--remove-orphans`. Kör då
+   `sudo docker rm -f teaball-anubis`, eller deploya en gång till.
+5. Ta bort `ANUBIS_COOKIE_DOMAIN` ur `/opt/teaball/app/.env`. Den läses inte
+   längre, så det brådskar inte.
+
+Backa i omvänd ordning, annars pekar edge på en container som inte finns
+och sajten svarar 502:
+
+1. Revertera teaball#100 och lägg tillbaka `ANUBIS_COOKIE_DOMAIN` i `.env`
+   om steg 5 är gjort. Den gamla compose-filen vägrar starta utan den.
+2. Deploya. Anubis-imagen hämtas igen.
+3. Revertera Bibliotekarien/bibliotekarien-platform#95, `edge-validate`,
+   `edge-reload`.
+
 ## Flytt till en databas per organisation (en gång)
 
 Fram till den deploy som för in `ORGANISATIONER_DIR` i
@@ -67,15 +97,21 @@ backup (02:50 UTC) misslyckas om den hamnar mitt i.
 
 **Före**
 
+0. **Bytet till drift utan Anubis är genomfört** (avsnittet ovan): edge
+   pekar på `teaball-web:8000` och `teaball-anubis` är borta. teaball#100
+   ligger redan på main, så den första deployen i steg 1 tar bort Anubis
+   oavsett. Är edge inte omladdad då svarar sajten 502.
 1. **#90–#93 är deployade och kontrollerade.** Merga och deploya dem som
-   vanligt, i det gamla läget. Kontrollera sedan Inställningar: där ska
-   organisation (DiVA-konsortiet), nuvarande system, personuppgiftsansvarig
-   och dataskyddskontakt stå. Kontrollera också att `/integritet` visar dem.
-   Med flera organisationer fylls texterna aldrig från miljön. Saknas något:
-   fyll i Inställningar för hand efter flytten, med värdena som `grep`
-   nedan skriver ut.
+   vanligt, i det gamla läget. Öppna sedan Inställningar och **fyll i det
+   som saknas nu, före flytten**. Organisation (DiVA-konsortiet) och
+   nuvarande system (DiVA Classic) har fyllts från compose-filen vid första
+   starten. Personuppgiftsansvarig och dataskyddskontakt är tomma i
+   produktion och ska fyllas i för hand. Kontrollera att `/integritet` visar
+   dem utan gul markering. Efter flytten fylls texterna aldrig från miljön,
+   så det som står i Inställningar då är det som gäller.
 2. **Merga #94 först när körplanen ska köras direkt efteråt.** Kör inte
-   `deploy.sh` eller plattformens `deploy-all` däremellan. Den nya koden
+   `deploy.sh` eller plattformens `deploy-all` däremellan, och säg till dem
+   som kan köra `deploy-all` att låta bli under flytten. Den nya koden
    hittar ingen fil, och alla sidor svarar 404 (”Okänd adress”). `/health`
    och Prometheus-proben förblir ändå gröna, så inget larmar.
 3. **Säg till i förväg.** Välj en tid utan pågående svarsomgång. Tjänsten
@@ -97,7 +133,7 @@ eftersom nästa backup samma dag skriver över dagens fil:
 cd /opt/teaball/app
 D=/var/lib/docker/volumes/teaball_teaball-data/_data
 sudo git rev-parse HEAD                          # anteckna: commiten att backa till
-sudo grep -E '^(MATOMO_SITE_ID|ORGANISATION|NUVARANDE_SYSTEM|PERSONUPPGIFTSANSVARIG|DATASKYDD_KONTAKT)=' .env
+sudo grep '^MATOMO_SITE_ID=' .env                # anteckna: kopplas till organisationen nedan
 sudo docker compose -f docker-compose.prod.yml stop web
 sudo systemctl start teaball-backup.service
 sudo cp -p /opt/teaball/backups/dagliga/teaball-$(date +%F).db /opt/teaball/backups/fore-flytt.db
@@ -114,6 +150,10 @@ sudo test ! -e $D/teaball.db-wal || sudo mv $D/teaball.db-wal $D/organisationer/
 sudo rm -f $D/teaball.db-shm
 sudo ls -lZ $D $D/organisationer                 # samma ägare och SELinux-etikett som förut
 ```
+
+Har `organisationer/` en annan SELinux-etikett än `$D`, ge den samma:
+`sudo chcon -R --reference=$D $D/organisationer`. Annars kan containern
+inte läsa filen och alla sidor ger fel.
 
 Deploya. `SKIP_BACKUP=1` behövs eftersom den gamla uniten pekar på den
 flyttade filen; kopian togs nyss:
@@ -154,7 +194,10 @@ sudo docker compose -f docker-compose.prod.yml exec web python scripts/organisat
   besöksstatistiken.
 - `/integritet` beskriver statistiken som insamlad hos den som driftar
   tjänsten.
-- En ny svarslänk börjar med `https://teaball.bibliotekarien.se/`.
+- En ny svarslänk börjar med `https://teaball.bibliotekarien.se/`. Att
+  skapa en ny länk gör medlemmens gamla länk ogiltig, så prova med en
+  tillfällig testmedlem (lägg till under Medlemmar, skapa länken, öppna den,
+  ta bort medlemmen), aldrig med en riktig medlem.
 - Nästa sidvisning syns i Matomo.
 
 **Efteråt**, när ni har bestämt att inte backa (senast efter 30 dagar,
@@ -164,7 +207,12 @@ samma tid som de dagliga kopiorna sparas):
   ur `.env`. De läses inte längre, men den gamla compose-filen kräver
   `PUBLIC_BASE_URL`, så de ska stå kvar så länge man kan behöva backa.
 - Radera kopiorna med personuppgifter som appen och backupen inte längre
-  ser: `sudo rm $D/teaball.fore-*.db /opt/teaball/backups/fore-flytt.db`.
+  ser (i ett nytt skal finns inte `D` kvar):
+
+  ```bash
+  D=/var/lib/docker/volumes/teaball_teaball-data/_data
+  sudo rm $D/teaball.fore-*.db /opt/teaball/backups/fore-flytt.db
+  ```
 
 **Backa.** Ersätt `<commit>` med den som antecknades:
 
@@ -190,43 +238,23 @@ sudo mv /opt/teaball/backups/teaball.bibliotekarien.se/dagliga /opt/teaball/back
 
 Kör sedan inte `deploy.sh` eller `deploy-all` förrän #94 är revertad på
 main eller felet är rättat. Annars drar nästa deploy in den nya
-compose-filen igen, utan att filen flyttats.
+compose-filen igen, utan att filen flyttats. Revertera också
+Bibliotekarien/bibliotekarien-platform#92 (`SERVER_LAYOUT.md`) och kopiera
+filen till `/opt` igen, så att den beskriver det gamla läget.
 
-**Fler organisationer på den här servern:** DNS för hostnamnet, hostnamnet
-på teaball-blockets site-rad i plattformens `edge/caddy/Caddyfile`
-(`edge-validate`, `edge-reload`), `organisationer.py skapa` och vid behov
-`matomo`, en rad i `CHATBOT_SITES` i plattformens `matomo/.env` och en
-blackbox-prob i observability-platform. Ingen Anubis att ordna (se ovan).
+## Fler organisationer på den här servern
 
-## Byte till drift utan Anubis (en gång, 2026-11)
+1. DNS för hostnamnet till serverns IP.
+2. Hostnamnet på teaball-blockets site-rad i plattformens
+   `edge/caddy/Caddyfile`, sedan `edge-validate` och `edge-reload`.
+3. `organisationer.py skapa <hostnamn> <användarnamn>` och vid behov
+   `organisationer.py matomo <hostnamn> <site-id>` (INSTALL.md avsnitt 10).
+4. En rad i `CHATBOT_SITES` i plattformens `matomo/.env`.
+5. En blackbox-prob i observability-platform mot `https://<hostnamn>/login`,
+   inte `/health`: `/health` svarar för alla hostnamn och är grön även när
+   organisationens databas saknas.
 
-Edge måste sluta peka på `teaball-anubis` **innan** containern försvinner,
-annars svarar sajten 502 tills edge laddats om. Ordning:
-
-1. Merga Bibliotekarien/bibliotekarien-platform#95 (edge pekar på
-   `teaball-web:8000`), dra hem den i `/opt/bibliotekarien-platform`, kopiera
-   `SERVER_LAYOUT.md` till `/opt` enligt filens huvud och kör
-   `make -C /opt/bibliotekarien-platform edge-validate`, sedan `edge-reload`.
-   Nu går trafiken förbi Anubis fast containern kör kvar.
-2. Kontrollera i en webbläsare att sajten svarar utan utmaningssida och att
-   inloggning och en svarslänk fungerar.
-3. Merga teaball#100 och kör `sudo /opt/teaball/app/scripts/deploy.sh`.
-4. Kontrollera att `teaball-anubis` är borta: `sudo docker ps -a --filter
-   name=teaball-anubis`. Den här första gången finns den troligen kvar.
-   Skriptet uppdaterar sig självt med `git merge` medan det kör, och bash
-   läser vidare i den gamla versionen, som saknar `--remove-orphans`. Kör då
-   `sudo docker rm -f teaball-anubis`, eller deploya en gång till.
-5. Ta bort `ANUBIS_COOKIE_DOMAIN` ur `/opt/teaball/app/.env`. Den läses inte
-   längre, så det brådskar inte.
-
-Backa i omvänd ordning, annars pekar edge på en container som inte finns
-och sajten svarar 502:
-
-1. Revertera teaball#100 och lägg tillbaka `ANUBIS_COOKIE_DOMAIN` i `.env`
-   om steg 5 är gjort. Den gamla compose-filen vägrar starta utan den.
-2. Deploya. Anubis-imagen hämtas igen.
-3. Revertera Bibliotekarien/bibliotekarien-platform#95, `edge-validate`,
-   `edge-reload`.
+Ingen Anubis att ordna (se ovan).
 
 ## Backup
 

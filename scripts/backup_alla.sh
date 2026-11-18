@@ -23,6 +23,7 @@ MAL="${2:?Användning: backup_alla.sh <organisationskatalog> <målkatalog>}"
 BACKUP="$(dirname "$0")/backup.sh"
 
 [ -d "$KATALOG" ] || { echo "Katalogen $KATALOG finns inte." >&2; exit 1; }
+KATALOG="$(realpath -e "$KATALOG")"
 shopt -s nullglob
 
 antal=0
@@ -37,11 +38,21 @@ for fil in "$KATALOG"/*.db; do
     *.fore-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z) continue ;;
   esac
   # Katalogen är skrivbar för containern, och jobbet kan läsa allt
-  # (CAP_DAC_READ_SEARCH). En symlänk x.db hade annars fått en annan apps
-  # databas kopierad till backupmålet. Jobbet avslutas med fel, eftersom en
-  # symlänk där inte hör hemma.
-  if [ -L "$fil" ] || [ ! -f "$fil" ]; then
-    echo "Hoppar över $fil: inte en vanlig fil." >&2
+  # (CAP_DAC_READ_SEARCH), så filnamnen är inte betrodda. Bara tecken som kan
+  # stå i ett hostnamn: ett ' eller / skulle annars kunna bryta sqlite3:s
+  # .backup-kommando i backup.sh eller målsökvägen.
+  case "$namn" in
+    "" | .* | *[!A-Za-z0-9._-]*)
+      echo "Hoppar över ${fil@Q}: namnet är inget hostnamn." >&2
+      misslyckade+=("${namn@Q}")
+      continue ;;
+  esac
+  # Direkt före kopieringen: en vanlig fil i katalogen, inte en symlänk. En
+  # symlänk x.db hade annars fått en annan apps databas eller värdens filer
+  # kopierade till backupmålet. Jobbet avslutas med fel, eftersom en symlänk
+  # där inte hör hemma.
+  if [ -L "$fil" ] || [ ! -f "$fil" ] || [ "$(realpath -e "$fil")" != "$KATALOG/$namn.db" ]; then
+    echo "Hoppar över $fil: inte en vanlig fil i $KATALOG." >&2
     misslyckade+=("$namn")
     continue
   fi
