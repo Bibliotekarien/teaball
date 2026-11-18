@@ -270,18 +270,25 @@ verifierad.
   CSP:n tillåta dess PoW-worker (`'wasm-unsafe-eval'`, `worker-src blob:`),
   och proxyn då sätta CSP:n i stället för appen. Sätt också `ROBOTSKYDD=1`
   i `.env` och för in den i compose-filens `environment`, så att
-  integritetssidan nämner Anubis kaka.
+  integritetssidan nämner Anubis kaka. Med flera organisationer (avsnitt 10)
+  tar Anubis `COOKIE_DOMAIN` bara ett hostnamn; använd
+  `COOKIE_DYNAMIC_DOMAIN=true` i stället, så sätts kakan efter det hostnamn
+  besökaren använde. Det är inte provat.
 
-## 10. Flera organisationer (förhandsversion)
+## 10. Flera organisationer
 
 En installation kan rymma flera organisationer med varsin databasfil. De
 delar inga konton, medlemmar eller data, och var och en har sin egen admin
 och sina egna texter under **Inställningar**.
 
-Förhandsversion betyder: **ännu inte för skarp drift med flera
-organisationer.** Se *Inte klart än* nedan.
+Kör inte flera organisationer skarpt förrän punkterna under *Inte klart än*
+nedan är lösta. Det som återstår är statistiken per organisation, ett
+biträdesavtal med varje organisation och ett skript för att hantera
+organisationerna. Den som driftar installationen äger alla tre.
 
-- Sätt `ORGANISATIONER_DIR=/data/organisationer` i `.env` och starta om. Då
+- Sätt `ORGANISATIONER_DIR=/data/organisationer` i `.env` och kör
+  `sudo docker compose -f docker-compose.standalone.yml up -d` (`restart`
+  läser inte om `.env`). Då
   används inte `DB_PATH`, och `PUBLIC_BASE_URL` behövs inte: svarslänkarna
   byggs på varje organisations egen adress. Kontrollera att en ny svarslänk
   börjar med `https://` (schemat kommer från proxyns `X-Forwarded-Proto`).
@@ -338,10 +345,6 @@ målkatalog**, annars skriver de över varandra. Till exempel:
 - **Personuppgiftsbiträde:** driver ni Teaball åt andra organisationer är ni
   deras personuppgiftsbiträde och behöver ett biträdesavtal med var och en.
   Integritetssidan nämner ännu inte operatören.
-- **Anubis:** behövs inte (se "Botskydd" ovan). Lägger ni ändå Anubis
-  framför appen tar `COOKIE_DOMAIN` bara ett hostnamn. Använd
-  `COOKIE_DYNAMIC_DOMAIN=true` i stället, så sätts kakan efter det hostnamn
-  besökaren använde. Det är inte provat.
 - Ett skript för att skapa, lista och ta bort organisationer, och backup av
   alla i ett svep, kommer senare. En databasfil som kopieras in för hand
   (t.ex. en återställd backup med äldre schema) migreras först vid nästa

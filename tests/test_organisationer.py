@@ -178,6 +178,17 @@ def test_alla_hoppar_over_kopior(tva):
     assert [o.nyckel for o in organisationer.alla()] == [A, B]
 
 
+@pytest.mark.parametrize("host", [f"{A}:443", f"{A.upper()}", f"{A}.", f"{A}.:8000"])
+def test_host_med_port_och_punkt_hittar_organisationen(tva, host):
+    assert organisationer.for_vard(host).nyckel == A
+
+
+@pytest.mark.parametrize("host", [f"{A}:x", f"{A}:443:1", f"{A}:", f"{A}\n:443",
+                                  f"{A}..", f"{A}:123456", f"{A}:٤٤٣"])
+def test_host_med_skrap_far_ingen_organisation(tva, host):
+    assert organisationer.for_vard(host) is None
+
+
 def test_fore_i_hostnamnet_ar_en_vanlig_organisation(tva):
     """Bara kopiornas exakta namnmönster utesluts, inte varje namn med fore-."""
     fil = config.ORGANISATIONER_DIR / "x.fore-ningen.se.db"
