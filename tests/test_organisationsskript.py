@@ -217,27 +217,27 @@ def test_backup_alla_fortsatter_efter_ett_fel(katalog, tmp_path):
 
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="bash saknas")
-def test_backup_alla_utan_organisationer_ar_ett_fel(katalog, tmp_path):
-    svar = _backup_alla(katalog, tmp_path)
-    assert svar.returncode == 1
-    assert "Inga organisationer" in svar.stderr
-
-
-@pytest.mark.skipif(shutil.which("bash") is None, reason="bash saknas")
 def test_backup_alla_foljer_inte_symlankar(katalog, tmp_path):
-    """Containern kan skriva i katalogen. En symlänk dit utanför får inte göra
-    backupjobbet till ett sätt att läsa värdens filer."""
+    """Katalogen är skrivbar för containern; en symlänk får inte leda backupen
+    (som kan läsa allt) till en annan apps databas."""
     _skapa("a.example.org")
-    hemlig = tmp_path / "hemlig.db"
-    shutil.copy(katalog / "a.example.org.db", hemlig)
-    (katalog / "b.example.org.db").symlink_to(hemlig)
+    annan = tmp_path / "annan-app.db"
+    sqlite3.connect(annan).close()
+    (katalog / "b.example.org.db").symlink_to(annan)
     mal = tmp_path / "backup"
     mal.mkdir()
     svar = _backup_alla(katalog, mal)
     assert svar.returncode == 1
-    assert "inte en vanlig fil" in svar.stderr
+    assert "misslyckades för: b.example.org" in svar.stderr
     assert not (mal / "b.example.org").exists()
     assert list((mal / "a.example.org" / "dagliga").glob("teaball-*.db"))
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash saknas")
+def test_backup_alla_utan_organisationer_ar_ett_fel(katalog, tmp_path):
+    svar = _backup_alla(katalog, tmp_path)
+    assert svar.returncode == 1
+    assert "Inga organisationer" in svar.stderr
 
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="bash saknas")
@@ -251,3 +251,23 @@ def test_backup_alla_hoppar_over_konstiga_namn(katalog, tmp_path):
     assert svar.returncode == 1
     assert "namnet är inget hostnamn" in svar.stderr
     assert sorted(p.name for p in mal.iterdir()) == ["a.example.org"]
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash saknas")
+@pytest.mark.parametrize("sido", ["-wal", "-shm"])
+def test_backup_alla_foljer_inte_symlankade_sidofiler(katalog, tmp_path, sido):
+    """SQLite skriver i -shm även vid läsning; en symlänk där får inte leda
+    backupjobbet till filer utanför katalogen."""
+    _skapa("a.example.org")
+    _skapa("b.example.org")
+    mal = tmp_path / "backup"
+    mal.mkdir()
+    offer = mal / "offer"
+    offer.write_bytes(b"orord")
+    (katalog / f"b.example.org.db{sido}").symlink_to(offer)
+    svar = _backup_alla(katalog, mal)
+    assert svar.returncode == 1
+    assert f"b.example.org.db{sido} är inte en vanlig fil" in svar.stderr
+    assert offer.read_bytes() == b"orord"
+    assert not (mal / "b.example.org").exists()
+    assert list((mal / "a.example.org" / "dagliga").glob("teaball-*.db"))
