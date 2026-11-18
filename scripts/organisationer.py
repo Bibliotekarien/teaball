@@ -4,6 +4,7 @@ organisationer (INSTALL.md avsnitt 10). Kräver ORGANISATIONER_DIR.
     python scripts/organisationer.py skapa teaball.exempel.se stilla-lax
     python scripts/organisationer.py lista
     python scripts/organisationer.py ta-bort teaball.exempel.se --bekrafta teaball.exempel.se
+    python scripts/organisationer.py matomo teaball.exempel.se 12
 
 I containern:
     docker compose exec web python scripts/organisationer.py lista
@@ -29,7 +30,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app import config, db, organisationer  # noqa: E402
+from app import config, db, instans, organisationer  # noqa: E402
 from app.auth.password import hash_losen  # noqa: E402
 from app.services.konton import giltigt_anvandarnamn  # noqa: E402
 from scripts.skapa_forvaltare import las_losenord  # noqa: E402
@@ -88,13 +89,15 @@ def skapa(hostnamn: str, anvandarnamn: str, losenord: str | None) -> int:
 
     print(f"Organisationen {hostnamn} är skapad med admin '{anvandarnamn}'.")
     print(f"""
-Ge hostnamnet DNS och TLS i proxyn. Skicka sedan till organisationens admin:
+Lägg till hostnamnet i proxyn (DNS ska redan peka hit; INSTALL.md avsnitt 10) och
+kontrollera att /login svarar. Skicka sedan till organisationens admin:
   1. Logga in på https://{hostnamn}/login som '{anvandarnamn}'.
   2. Byt lösenord (https://{hostnamn}/losenord); det här känner operatören till.
   3. Fyll i organisationen, nuvarande system, personuppgiftsansvarig och
      kontakt under Inställningar.
   4. Läs https://{hostnamn}/integritet före skarp drift.
-  5. Skicka behovsträdet och medlemslistan till operatören, som läser in dem
+  5. Besöksstatistik: ingen, tills vi kommit överens om en sajt (se Inställningar).
+  6. Skicka behovsträdet och medlemslistan till operatören, som läser in dem
      (det finns ingen uppladdning i appen).""")
     return 0
 
@@ -117,11 +120,13 @@ def _rad(organisation: organisationer.Organisation, senaste: int) -> str:
                 "SELECT count(*), max(senast_inloggad) FROM forvaltare").fetchone()
             medlemmar = conn.execute("SELECT count(*) FROM medlem").fetchone()[0]
             noder = conn.execute("SELECT count(*) FROM funktion").fetchone()[0]
+            site_id = conn.execute("SELECT matomo_site_id FROM instans").fetchone()[0]
         finally:
             conn.close()
     except sqlite3.DatabaseError as fel:
         return f"{namn}  (kan inte läsas: {fel})"
-    return f"{namn} {konton:>6} {medlemmar:>9} {noder:>6}  {inloggad or 'aldrig'}"
+    return (f"{namn} {konton:>6} {medlemmar:>9} {noder:>6}  {inloggad or 'aldrig':<19}"
+            f"  {site_id or '-'}")
 
 
 def lista() -> int:
@@ -130,7 +135,8 @@ def lista() -> int:
         print(f"Inga organisationer i {config.ORGANISATIONER_DIR}.")
     else:
         senaste = db.senaste_migration()
-        print(f"{'hostnamn':<40} {'konton':>6} {'medlemmar':>9} {'noder':>6}  senast inloggad")
+        print(f"{'hostnamn':<40} {'konton':>6} {'medlemmar':>9} {'noder':>6}"
+              f"  {'senast inloggad':<19}  matomo")
         for organisation in alla:
             print(_rad(organisation, senaste))
     borttagna = sorted((config.ORGANISATIONER_DIR / BORTTAGNA).glob("*.db"))
@@ -181,6 +187,40 @@ def ta_bort(hostnamn: str, bekraftelse: str | None) -> int:
     return 0
 
 
+def satt_matomo(hostnamn: str, site_id: str | None) -> int:
+    """Organisationens sajt i operatörens Matomo; utan site-id stängs
+    statistiken av för organisationen."""
+    fil = _fil(hostnamn)
+    if not organisationer.giltigt_hostnamn(hostnamn) or not fil.is_file():
+        print(f"Organisationen {hostnamn} finns inte (se lista).", file=sys.stderr)
+        return 1
+    conn = db.connect(fil)
+    try:
+        instans.spara_matomo(conn, site_id or "")
+    except ValueError as fel:
+        print(str(fel), file=sys.stderr)
+        return 1
+    except sqlite3.OperationalError as fel:
+        # T.ex. en handkopierad fil som inte migrerats än (ingen kolumn).
+        print(f"Kunde inte spara ({fel}). Starta om appen så att databasen "
+              "migreras, och kör kommandot igen.", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+    if not site_id:
+        print(f"Ingen besöksstatistik för {hostnamn}.")
+    elif not config.MATOMO_URL:
+        print(f"{hostnamn} har site-id {site_id}, men MATOMO_URL är inte satt, så "
+              "ingen statistik skickas.")
+    else:
+        print(f"{hostnamn} rapporterar till site-id {site_id} i {config.MATOMO_URL}. "
+              "Integritetssidan nämner nu besöksstatistiken.")
+        print("Kontrollera i Matomo att MATOMO_TOKEN:s användare har skrivrätt till "
+              f"sajt {site_id} (annars avvisas träffarna) och att IP-anonymisering är "
+              "påslagen (Administration → Privacy → Anonymize data).")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Hantera organisationerna i ORGANISATIONER_DIR.")
     under = parser.add_subparsers(dest="kommando", required=True)
@@ -192,6 +232,10 @@ def main(argv: list[str] | None = None) -> int:
     p_bort = under.add_parser("ta-bort", help="Ta bort en organisation (kopia sparas).")
     p_bort.add_argument("hostnamn")
     p_bort.add_argument("--bekrafta", metavar="HOSTNAMN", help="Samma hostnamn igen.")
+    p_matomo = under.add_parser("matomo", help="Sätt organisationens Matomo-sajt.")
+    p_matomo.add_argument("hostnamn")
+    p_matomo.add_argument("site_id", nargs="?",
+                          help="Sajtens id i MATOMO_URL. Utelämnat: ingen statistik.")
     args = parser.parse_args(argv)
 
     if not organisationer.flera():
@@ -202,6 +246,8 @@ def main(argv: list[str] | None = None) -> int:
         return skapa(args.hostnamn, args.anvandarnamn, args.losenord)
     if args.kommando == "lista":
         return lista()
+    if args.kommando == "matomo":
+        return satt_matomo(args.hostnamn, args.site_id)
     return ta_bort(args.hostnamn, args.bekrafta)
 
 

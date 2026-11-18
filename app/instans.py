@@ -1,6 +1,7 @@
 """Instansens texter: organisationen, systemet som ersätts och integritetssidans
 personuppgiftsansvarig och kontaktväg. De bor i tabellen instans (en rad) och
-redigeras av admin på /installningar.
+redigeras av admin på /installningar. Samma rad bär organisationens
+Matomo-sajt, som bara operatören sätter (spara_matomo, migration 0011).
 
 Texterna läses en gång per anrop av en middleware i main.py och läggs i en
 ContextVar. Därifrån når även makron dem som importeras utan kontext (STATUS i
@@ -21,6 +22,9 @@ logger = logging.getLogger("teaball")
 NEUTRALT_SYSTEM = "det nuvarande systemet"
 
 # Övre gränser för formuläret; texterna visas i löptext och tooltips.
+# Nycklarna är också de fält admin får spara (spara). Övriga fält i Instans
+# är operatörens och skrivs bara av egna funktioner; ett nytt adminfält ska
+# alltså in här, ett nytt operatörsfält inte.
 MAXLANGD = {
     "organisation": 200,
     "nuvarande_system": 200,
@@ -35,6 +39,9 @@ class Instans:
     nuvarande_system: str = ""
     personuppgiftsansvarig: str = ""
     dataskydd_kontakt: str = ""
+    # Sätts av operatören (scripts/organisationer.py matomo), inte på
+    # /installningar; se migration 0011.
+    matomo_site_id: str = ""
 
     @property
     def systemnamn(self) -> str:
@@ -65,16 +72,27 @@ def las(conn: sqlite3.Connection) -> Instans:
 
 
 def spara(conn: sqlite3.Connection, **varden: str) -> Instans:
-    okanda = set(varden) - set(_FALT)
+    """Sparar texterna som admin redigerar (MAXLANGD); fält som saknas blir
+    tomma. Matomo-sajten rörs inte, den är operatörens (spara_matomo)."""
+    okanda = set(varden) - set(MAXLANGD)
     if okanda:
         raise ValueError(f"Okända fält: {sorted(okanda)}")
-    rensade = {f: (varden.get(f) or "").strip()[: MAXLANGD[f]] for f in _FALT}
+    rensade = {f: (varden.get(f) or "").strip()[: MAXLANGD[f]] for f in MAXLANGD}
     conn.execute(
-        f"UPDATE instans SET {', '.join(f'{f} = ?' for f in _FALT)} WHERE id = 1",
-        [rensade[f] for f in _FALT],
+        f"UPDATE instans SET {', '.join(f'{f} = ?' for f in rensade)} WHERE id = 1",
+        list(rensade.values()),
     )
     conn.commit()
-    return Instans(**rensade)
+    return las(conn)
+
+
+def spara_matomo(conn: sqlite3.Connection, site_id: str) -> None:
+    """Organisationens Matomo-sajt; tom sträng stänger av statistiken."""
+    if site_id and not (site_id.isascii() and site_id.isdigit()
+                        and len(site_id) <= 10 and int(site_id) >= 1):
+        raise ValueError("Matomos site-id är ett positivt heltal.")
+    conn.execute("UPDATE instans SET matomo_site_id = ? WHERE id = 1", (site_id,))
+    conn.commit()
 
 
 def fyll_fran_miljon(conn: sqlite3.Connection) -> None:

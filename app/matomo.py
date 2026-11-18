@@ -18,7 +18,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
-from app import config
+from app import config, instans, organisationer
 
 _log = logging.getLogger("teaball.matomo")
 
@@ -70,9 +70,27 @@ def opted_out(headers) -> bool:
     return headers.get("dnt") == "1" or headers.get("sec-gpc") == "1"
 
 
-def build_params(url: str, user_agent: str, lang: str, referrer: str, client_ip: str) -> dict:
+def site_id() -> str:
+    """The Matomo site to report to, or "" for none. With several
+    organisations each has its own site in the operator's Matomo (instans,
+    migration 0011) — MATOMO_SITE_ID would mix every organisation's
+    statistics into one site and is not used. With one organisation it is
+    MATOMO_SITE_ID as before."""
+    if not config.MATOMO_URL:
+        return ""
+    if organisationer.flera():
+        return instans.aktuell().matomo_site_id
+    return config.MATOMO_SITE_ID
+
+
+def aktiv() -> bool:
+    return bool(site_id())
+
+
+def build_params(url: str, user_agent: str, lang: str, referrer: str, client_ip: str,
+                 idsite: str) -> dict:
     params = {
-        "idsite": config.MATOMO_SITE_ID,
+        "idsite": idsite,
         "rec": "1",
         "apiv": "1",
         "url": url,
@@ -107,8 +125,10 @@ async def _send(params: dict) -> None:
 
 
 def track_request(request, status_code: int) -> None:
-    """Called from the middleware; schedules a fire-and-forget hit."""
-    if not config.MATOMO_ENABLED:
+    """Called from the organisation middleware, inside the request's
+    organisation (site_id depends on it); schedules a fire-and-forget hit."""
+    idsite = site_id()
+    if not idsite:
         return
     if not should_track(
         request.method,
@@ -128,6 +148,7 @@ def track_request(request, status_code: int) -> None:
         lang=request.headers.get("accept-language", ""),
         referrer=sanitize_referrer(request.headers.get("referer", "")),
         client_ip=request.client.host if request.client else "",
+        idsite=idsite,
     )
     # Keep a strong reference until the task finishes; otherwise the event loop
     # may garbage-collect the fire-and-forget hit before it is sent.

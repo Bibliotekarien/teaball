@@ -265,7 +265,8 @@ på första raden. Kopiorna före migration hamnar då i
 - **Statistik:** Teaball kan rapportera sidvisningar server-side till en
   Matomo-instans (Tracking HTTP API — inget skript i webbläsaren, DNT/GPC
   respekteras, svarslänkarnas token maskas). Sätt `MATOMO_URL`,
-  `MATOMO_SITE_ID` och `MATOMO_TOKEN`.
+  `MATOMO_SITE_ID` och `MATOMO_TOKEN`. Med flera organisationer får var
+  och en sin egen sajt, se avsnitt 10.
 - **Botskydd:** behövs inte. Tjänsten är stängd för sökmotorer
   (`/robots.txt` säger `Disallow: /`), allt utom inloggningen och de hemliga
   svarslänkarna kräver konto, och inloggningen spärras i fem minuter efter
@@ -290,9 +291,10 @@ delar inga konton, medlemmar eller data, och var och en har sin egen admin
 och sina egna texter under **Inställningar**.
 
 Kör inte flera organisationer skarpt förrän punkterna under *Inte klart än*
-nedan är lösta. Det som återstår är statistiken per organisation och ett
-biträdesavtal med varje organisation. Den som driftar installationen äger
-båda.
+nedan är lösta. Det som återstår är ett biträdesavtal med varje
+organisation, och det ansvarar den som driftar installationen för.
+
+**Uppsättning**
 
 - Sätt `ORGANISATIONER_DIR=/data/organisationer` i `.env` och kör
   `sudo docker compose -f docker-compose.standalone.yml up -d` (`restart`
@@ -302,49 +304,91 @@ båda.
   börjar med `https://` (schemat kommer från proxyns `X-Forwarded-Proto`).
 - Varje organisation är en fil `<hostnamn>.db` i katalogen, t.ex.
   `teaball.exempel.se.db`, med hostnamnet i gemener. Anropets `Host`-header
-  avgör vilken som används, så proxyn måste skicka vidare det ursprungliga
-  hostnamnet. Caddy gör det utan inställning; nginx behöver
-  `proxy_set_header Host $host`. Ett okänt hostnamn får 404 och loggas som
+  avgör vilken som används. Ett okänt hostnamn får 404 och loggas som
   varning (`Okänt hostnamn`), så ett felstavat filnamn syns i loggen.
 - En organisation har exakt ett hostnamn. Ska `www.`-varianten också
   fungera, låt proxyn omdirigera den. Byter en organisation hostnamn:
   byt namn på filen och skicka nya svarslänkar (som i avsnitt 6).
-- Organisationerna hanteras med `scripts/organisationer.py` (lösenordet
-  frågas efter interaktivt):
-
-  ```bash
-  sudo docker compose -f docker-compose.standalone.yml exec web \
-      python scripts/organisationer.py skapa teaball.exempel.se stilla-lax
-  sudo docker compose -f docker-compose.standalone.yml exec web \
-      python scripts/organisationer.py lista
-  sudo docker compose -f docker-compose.standalone.yml exec web \
-      python scripts/organisationer.py ta-bort teaball.exempel.se --bekrafta teaball.exempel.se
-  ```
-
-  `skapa` gör databasen med organisationens första admin, och appen hittar
-  den direkt utan omstart. Ge sedan hostnamnet DNS och TLS i proxyn. `lista`
-  visar konton, medlemmar, noder och senaste inloggning per organisation.
-  `skapa` skriver också ut en checklista att skicka till organisationens
-  admin (byt lösenord, fyll i Inställningar inklusive nuvarande system, läs
-  `/integritet`). Träd och medlemmar går inte att ladda upp i appen; skicka
-  filerna till den som driftar, som läser in dem med skripten nedan.
-
-  **Ta bort en organisation:** ta först bort hostnamnet ur proxyn, så att
-  inget anrop hinner skriva under tiden, och kör sedan `ta-bort`. Databasen
-  och dess kopior före migration flyttas till `organisationer/borttagna/`,
-  och adressen ger 404. Kvar finns då organisationens data på två ställen,
-  som ska raderas när de inte längre behövs (t.ex. när data har lämnats
-  tillbaka enligt biträdesavtalet): kopiorna i `borttagna/`, och
-  organisationens katalog i backupmålet (`/mnt/backup/teaball/<hostnamn>/`),
-  som inte längre roteras. `lista` påminner om kopiorna i `borttagna/`.
-  Ångra en borttagning: kopiera tillbaka kopian som
-  `organisationer/<hostnamn>.db` (ägare 1505, läge 600) och lägg tillbaka
-  hostnamnet i proxyn.
-
-  Övriga skript behöver `--db` med flera organisationer, även importen:
+- Organisationerna hanteras med `scripts/organisationer.py`; `lista` visar
+  konton, medlemmar, noder, senaste inloggning och Matomo-sajt per
+  organisation. Övriga skript behöver `--db`, även importen:
   `python scripts/importera_medlemmar.py medlemmar.csv --db /data/organisationer/teaball.exempel.se.db`.
 - Instansens texter fylls aldrig från `.env` med flera organisationer; varje
   organisations admin anger dem under **Inställningar**.
+
+(Kommandona nedan körs i containern:
+`sudo docker compose -f docker-compose.standalone.yml exec web python scripts/organisationer.py …`.)
+
+**Ta in en ny organisation**
+
+1. **DNS:** peka hostnamnet på servern och vänta tills `dig +short
+   teaball.exempel.se` svarar med serverns adress. Caddy hämtar certifikatet
+   när den laddas om, och misslyckas om DNS inte pekar rätt än.
+2. **Databas och första admin:** `organisationer.py skapa teaball.exempel.se
+   stilla-lax` (lösenordet frågas efter). Appen hittar den direkt utan
+   omstart.
+3. **Proxy:** lägg till hostnamnet i proxyn och ladda om den (se *Proxy*
+   nedan).
+4. **Kontroll:** `https://teaball.exempel.se/login` ska visa inloggningen,
+   inte 404. (`/health` svarar för alla hostnamn och visar bara att DNS, TLS
+   och proxy fungerar.)
+5. **Statistik, om ni kommit överens om det:** se *Besöksstatistik* nedan.
+6. **Överlämning:** skicka checklistan som `skapa` skrev ut till
+   organisationens admin (byt lösenord, fyll i Inställningar inklusive
+   nuvarande system, läs `/integritet`). Träd och medlemmar går inte att
+   ladda upp i appen; organisationen skickar filerna till er, och ni läser
+   in dem med `--db` som ovan.
+
+**Proxy.** Caddy skickar vidare det ursprungliga hostnamnet och hämtar
+certifikat själv. Ett block med alla organisationers namn räcker:
+
+```caddy
+teaball.exempel.se, teaball.annan.se {
+    reverse_proxy 127.0.0.1:8000
+    header Strict-Transport-Security "max-age=63072000; includeSubDomains"
+}
+```
+
+Ladda om med `sudo systemctl reload caddy` (eller `caddy reload` med er
+Caddyfile). Det är samma block som i avsnitt 3, med flera namn; tänk på
+loggarna, se *Proxyloggarna innehåller hemliga länkar*. Med nginx: lägg
+till namnet i `server_name` (eller ett block per organisation), behåll
+`proxy_set_header Host $host` som i avsnitt 3, och skaffa certifikatet.
+
+**Besöksstatistik.** Organisationerna delar er Matomo (`MATOMO_URL` och
+`MATOMO_TOKEN` i `.env`), men var och en rapporterar till sin egen sajt, så
+statistiken blandas inte. `MATOMO_SITE_ID` används inte med flera
+organisationer. Besökarnas IP-adresser skickas till er Matomo, och
+integritetssidan kallar statistiken anonym, så **IP-anonymisering måste
+vara påslagen** (Administration → Privacy → Anonymize data) innan någon
+sajt kopplas. För varje organisation:
+
+1. Lägg upp en sajt i Matomo (Administration → Websites → Manage → Add a
+   new website).
+2. Ge `MATOMO_TOKEN`:s användare **skrivrätt** (write) till sajten.
+   Annars avvisar Matomo träffarna (`Matomo avvisade träffen` i loggen) och
+   sajten förblir tom.
+3. Koppla den: `organisationer.py matomo teaball.exempel.se 12`.
+
+Utan site-id samlas ingen statistik för organisationen, och dess
+integritetssida säger det. Med site-id säger integritetssidan att
+statistiken samlas hos den som driftar tjänsten. Organisationens admin ser
+läget under **Inställningar** men kan inte ändra det. Utan site-id
+(`organisationer.py matomo teaball.exempel.se`) stängs statistiken av.
+
+**Ta bort en organisation:** ta först bort hostnamnet ur proxyn, så att
+inget anrop hinner skriva under tiden, och kör sedan
+`organisationer.py ta-bort teaball.exempel.se --bekrafta teaball.exempel.se`.
+Databasen och dess kopior före migration flyttas till
+`organisationer/borttagna/`, och adressen ger 404. Kvar finns då
+organisationens data på två ställen, som ska raderas när de inte längre
+behövs (t.ex. när data har lämnats tillbaka enligt biträdesavtalet):
+kopiorna i `borttagna/`, och organisationens katalog i backupmålet
+(`/mnt/backup/teaball/<hostnamn>/`), som inte längre roteras. `lista`
+påminner om kopiorna i `borttagna/`. Ta också bort sajten i Matomo och
+DNS-namnet. Ångra en borttagning: kopiera tillbaka kopian som
+`organisationer/<hostnamn>.db` (ägare 1505, läge 600) och lägg tillbaka
+hostnamnet i proxyn.
 
 **Flytta in en befintlig instans.** Slår du på `ORGANISATIONER_DIR` utan att
 flytta databasen får den egna adressen 404. Stoppa appen, flytta filen och
@@ -360,6 +404,10 @@ sudo docker compose -f docker-compose.standalone.yml up -d
 
 Ta en backup först (avsnitt 7). Medlemmarnas länkar fungerar som förut om
 hostnamnet är detsamma, men alla som är inloggade får logga in igen.
+Statistiken stannar tills sajten kopplas per organisation (appen varnar vid
+start så länge `MATOMO_SITE_ID` är satt): kör
+`organisationer.py matomo teaball.exempel.se <samma site-id som förut>` och
+ta sedan bort `MATOMO_SITE_ID` ur `.env`.
 
 **Backup:** `scripts/backup_alla.sh` kör `backup.sh` (avsnitt 7) för varje
 organisation, med en egen underkatalog per organisation i målet. (Kör inte
@@ -388,12 +436,10 @@ sudo docker compose -f docker-compose.standalone.yml start web
 Starten migrerar filen om backupen har ett äldre schema.
 
 **Inte klart än:**
-- **Matomo:** statistiken är gemensam för alla organisationer, och
-  integritetssidan beskriver den som organisationens egen. Lämna Matomo
-  avstängt med flera organisationer.
 - **Personuppgiftsbiträde:** driver ni Teaball åt andra organisationer är ni
   deras personuppgiftsbiträde och behöver ett biträdesavtal med var och en.
-  Integritetssidan nämner ännu inte operatören.
+  Integritetssidan nämner er bara som den som samlar statistiken, inte vid
+  namn och inte som personuppgiftsbiträde.
 - En databasfil som kopieras in för hand (t.ex. en återställd backup med
   äldre schema) migreras först vid nästa omstart, så starta om efter en
   sådan. `lista` visar om någon väntar på migrering.
