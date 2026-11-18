@@ -92,8 +92,15 @@ Fram till den deploy som för in `ORGANISATIONER_DIR` i
 `docker-compose.prod.yml` låg databasen i `/data/teaball.db`. Den nya
 compose-filen letar i `/data/organisationer/`, så filen ska flyttas dit
 **innan** den nya koden startar. Den nya backup-uniten kräver också att
-filen redan ligger där. Gör hela körplanen i ett pass, dagtid: nattens
-backup (02:50 UTC) misslyckas om den hamnar mitt i.
+filen redan ligger där. Imagen byggs medan den gamla appen kör, så
+tjänsten är bara nere medan filen flyttas: 1–2 minuter. Gör hela
+körplanen i ett pass, dagtid: nattens backup (02:50 UTC) misslyckas om den
+hamnar mitt i.
+
+Adressen, datan, svarslänkarna och Inställningar är desamma efteråt. Det
+enda användarna märker är att inloggade förvaltare får logga in en gång
+till, och att medlemmar som har sidan öppen öppnar sin länk igen. Sessionen
+binds nu till organisationen, och gamla sessioner saknar den bindningen.
 
 **Före**
 
@@ -115,8 +122,7 @@ backup (02:50 UTC) misslyckas om den hamnar mitt i.
    hittar ingen fil, och alla sidor svarar 404 (”Okänd adress”). `/health`
    och Prometheus-proben förblir ändå gröna, så inget larmar.
 3. **Säg till i förväg.** Välj en tid utan pågående svarsomgång. Tjänsten
-   är nere medan imagen byggs; räkna med 5–10 minuter. Förslag till
-   förvaltare och medlemmar:
+   är nere 1–2 minuter. Förslag till förvaltare och medlemmar:
 
    > Teaball är nere en kort stund [datum, tid]. Efteråt behöver förvaltare
    > logga in igen, och medlemmar öppnar sin personliga länk igen. Länken är
@@ -125,15 +131,34 @@ backup (02:50 UTC) misslyckas om den hamnar mitt i.
    Integritetssidans text om besöksstatistik ändras till ”hos den som
    driftar tjänsten, i en egen sajt”. Meddela den personuppgiftsansvarige.
 
-**Flytten.** Först stoppas appen och en kopia tas av exakt den fil som ska
-flyttas, med den gamla uniten. Kopian sparas också under ett eget namn,
-eftersom nästa backup samma dag skriver över dagens fil:
+**Förbered, medan den gamla appen kör.** Hämta den nya koden och bygg
+imagen. Den körande containern påverkas inte: den har sin konfiguration
+och sin image sedan den startades. Den gamla backup-uniten i
+`/etc/systemd/system` fungerar också, eftersom `backup.sh` är oförändrad.
+Den gamla imagen sparas under ett eget namn, så att det går fort att backa:
 
 ```bash
 cd /opt/teaball/app
 D=/var/lib/docker/volumes/teaball_teaball-data/_data
 sudo git rev-parse HEAD                          # anteckna: commiten att backa till
 sudo grep '^MATOMO_SITE_ID=' .env                # anteckna: kopplas till organisationen nedan
+sudo docker tag teaball:latest teaball:fore-flytt
+sudo git fetch origin
+sudo git log -1 --format='%h %s' origin/main     # ska vara mergen av #94
+sudo git merge --ff-only origin/main
+sudo docker compose -f docker-compose.prod.yml build --pull
+```
+
+Från och med `git merge` ligger den nya compose-filen i arbetskopian. Kör
+inget `compose up`, `deploy.sh` eller `systemctl restart teaball` förrän
+filen är flyttad, och starta inte om servern: då startar den nya koden utan
+fil, och alla sidor svarar 404.
+
+**Flytten (nedtid, 1–2 minuter).** Stoppa appen och ta en kopia av exakt
+den fil som ska flyttas, med den gamla uniten. Kopian sparas också under
+ett eget namn, eftersom nästa backup samma dag skriver över dagens fil:
+
+```bash
 sudo docker compose -f docker-compose.prod.yml stop web
 sudo systemctl start teaball-backup.service
 sudo cp -p /opt/teaball/backups/dagliga/teaball-$(date +%F).db /opt/teaball/backups/fore-flytt.db
@@ -155,18 +180,22 @@ Har `organisationer/` en annan SELinux-etikett än `$D`, ge den samma:
 `sudo chcon -R --reference=$D $D/organisationer`. Annars kan containern
 inte läsa filen och alla sidor ger fel.
 
-Deploya. `SKIP_BACKUP=1` behövs eftersom den gamla uniten pekar på den
-flyttade filen; kopian togs nyss:
+Koppla Matomo-sajten med site-id:t som `grep` skrev ut, innan appen
+startar. Compose skickar inte längre `MATOMO_SITE_ID`, så annars går
+sidvisningarna förlorade tills det är gjort. Starta sedan appen, utan att
+bygga:
 
 ```bash
-sudo SKIP_BACKUP=1 /opt/teaball/app/scripts/deploy.sh
+sudo docker compose -f docker-compose.prod.yml run --rm --no-deps web python scripts/organisationer.py matomo teaball.bibliotekarien.se <site-id>
+sudo docker compose -f docker-compose.prod.yml up -d --remove-orphans
+sudo docker compose -f docker-compose.prod.yml ps   # web ska bli healthy
 ```
 
-Avbryts deploy.sh innan ”Startar stacken” står appen stoppad. Följ *Backa*
+Nu är tjänsten uppe igen. Går något fel i det här steget: följ *Backa*
 nedan.
 
-Byt backup-uniten. De gamla kopiorna flyttas in under organisationen, så
-att de fortsätter att roteras:
+**Byt backup-uniten**, medan appen kör. De gamla kopiorna flyttas in under
+organisationen, så att de fortsätter att roteras:
 
 ```bash
 sudo install -d -o teaball -g teaball -m 700 /opt/teaball/backups/teaball.bibliotekarien.se
@@ -175,14 +204,6 @@ sudo cp /opt/teaball/app/deploy/teaball-backup.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl start teaball-backup.service
 journalctl -u teaball-backup.service -n 20       # "Backup klar för 1 organisationer."
-```
-
-Koppla Matomo-sajten med site-id:t som `grep` skrev ut. Compose skickar
-inte längre `MATOMO_SITE_ID`, så statistiken står still tills detta är
-gjort:
-
-```bash
-sudo docker compose -f docker-compose.prod.yml exec web python scripts/organisationer.py matomo teaball.bibliotekarien.se <site-id>
 sudo docker compose -f docker-compose.prod.yml exec web python scripts/organisationer.py lista
 ```
 
@@ -207,25 +228,32 @@ samma tid som de dagliga kopiorna sparas):
   ur `.env`. De läses inte längre, men den gamla compose-filen kräver
   `PUBLIC_BASE_URL`, så de ska stå kvar så länge man kan behöva backa.
 - Radera kopiorna med personuppgifter som appen och backupen inte längre
-  ser (i ett nytt skal finns inte `D` kvar):
+  ser, och den gamla imagen (i ett nytt skal finns inte `D` kvar):
 
   ```bash
   D=/var/lib/docker/volumes/teaball_teaball-data/_data
   sudo rm $D/teaball.fore-*.db /opt/teaball/backups/fore-flytt.db
+  sudo docker image rm teaball:fore-flytt
   ```
 
-**Backa.** Ersätt `<commit>` med den som antecknades:
+**Backa.** Ersätt `<commit>` med den som antecknades. Den gamla imagen
+läggs tillbaka under sitt vanliga namn, så inget behöver byggas:
 
 ```bash
 cd /opt/teaball/app
 D=/var/lib/docker/volumes/teaball_teaball-data/_data
 sudo docker compose -f docker-compose.prod.yml stop web
-sudo mv $D/organisationer/teaball.bibliotekarien.se.db $D/teaball.db
+sudo test ! -e $D/organisationer/teaball.bibliotekarien.se.db || sudo mv $D/organisationer/teaball.bibliotekarien.se.db $D/teaball.db
 sudo test ! -e $D/organisationer/teaball.bibliotekarien.se.db-wal || sudo mv $D/organisationer/teaball.bibliotekarien.se.db-wal $D/teaball.db-wal
 sudo rm -f $D/organisationer/teaball.bibliotekarien.se.db-shm
 sudo git reset --hard <commit>
-sudo docker compose -f docker-compose.prod.yml up -d --build
+sudo docker tag teaball:fore-flytt teaball:latest
+sudo docker compose -f docker-compose.prod.yml up -d
 ```
+
+Backar man efter att appen har kört i det nya läget går inget förlorat:
+filen flyttas tillbaka med det som skrivits sedan dess. Förvaltarna får
+logga in en gång till.
 
 Har backup-uniten redan bytts, lägg tillbaka den gamla (arbetskopian har
 den efter `reset`) och backupkatalogerna:
