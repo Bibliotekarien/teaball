@@ -2,21 +2,31 @@
 # Installera: sudo cp deploy/teaball-backup.{service,timer} /etc/systemd/system/
 #             sudo systemctl daemon-reload && sudo systemctl enable --now teaball-backup.timer
 #
-# Tar en konsistent kopia av varje organisations SQLite-fil i named-volymen
-# (spec I4: .backup-API, integritetskontroll, utrymmeskoll, rotation 30
-# dagliga + 12 månatliga), i /opt/teaball/backups/<hostnamn>/. Misslyckas en
+# Tar en konsistent kopia av varje organisations SQLite-fil (spec I4:
+# backup-API, integritetskontroll, utrymmeskoll, rotation 30 dagliga + 12
+# månatliga), i /opt/teaball/backups/<hostnamn>/. Misslyckas en
 # organisation misslyckas jobbet, och då avbryts också deploy.sh.
 #
-# Körs som teaball (uid 1505), samma användare som containern, inte som root.
-# Datakatalogen är skrivbar för containern; root ska inte öppna en databas
-# som en komprometterad container har kunnat preparera. Den enda förmåga
-# jobbet behöver utöver det är att ta sig igenom /var/lib/docker (root-only):
-# CAP_DAC_READ_SEARCH, som bara ger läsning. Skrivbart är enbart målet och
-# datakatalogen (SQLite kan behöva röra -shm-filen när WAL används).
+# Två steg, eftersom datakatalogen är skrivbar för containern (#108):
+#
+# 1. ExecStartPre (root, "+"): scripts/ogonblick.py i en engångscontainer
+#    av appens image tar ögonblickskopiorna med backup-API:t, inne i
+#    containerns namnrymd och som dess användare. Där vinner en
+#    komprometterad container inget på en symlänk. Root öppnar alltså inga
+#    filer i volymen, utan startar bara en container. compose run fungerar
+#    även när web är stoppad.
+# 2. ExecStart (teaball, uid 1505): scripts/backup_kopiera.py kopierar
+#    kopiorna som vanliga filer, med O_NOFOLLOW och fstat på den öppna
+#    filen, och integritetskontrollerar dem i målet. Det öppnar ingen
+#    SQLite-fil som containern kan skriva i.
+#
+# Steg 2 kör som teaball, inte root, och utan docker-gruppen. Den enda
+# förmåga det behöver är att ta sig igenom /var/lib/docker (root-only):
+# CAP_DAC_READ_SEARCH, som bara ger läsning. Skrivbart är enbart målet;
+# datakatalogen är skrivskyddad för jobbet.
 #
 # Backupkatalogen måste ägas av teaball:
 #   sudo install -d -o teaball -g teaball -m 700 /opt/teaball/backups
-#   sudo chown -R teaball:teaball /opt/teaball/backups   # befintliga kopior
 
 [Unit]
 Description=teaball SQLite backup
@@ -34,7 +44,9 @@ NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
-ReadWritePaths=/opt/teaball/backups /var/lib/docker/volumes/teaball_teaball-data/_data
-ExecStart=/opt/teaball/app/scripts/backup_alla.sh \
-    /var/lib/docker/volumes/teaball_teaball-data/_data/organisationer \
+ReadWritePaths=/opt/teaball/backups
+ExecStartPre=+/usr/bin/docker compose -f /opt/teaball/app/docker-compose.prod.yml \
+    run --rm --no-deps -T web python scripts/ogonblick.py
+ExecStart=/usr/bin/python3 -I /opt/teaball/app/scripts/backup_kopiera.py \
+    /var/lib/docker/volumes/teaball_teaball-data/_data/ogonblick \
     /opt/teaball/backups

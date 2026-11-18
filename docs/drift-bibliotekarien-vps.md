@@ -342,22 +342,31 @@ ovan).
 
 `teaball-backup.timer` kör `scripts/backup_alla.sh` varje natt (unit + timer i
 `deploy/`) mot organisationskatalogen i volymen under
-`/var/lib/docker/volumes/`, till `/opt/teaball/backups/<hostnamn>/`. Jobbet kör som `teaball` (uid 1505), inte root,
-med `CAP_DAC_READ_SEARCH` för att nå in i `/var/lib/docker` och skrivrätt
-bara till målet och datakatalogen (se kommentaren i uniten).
-`/opt/teaball/backups` måste därför ägas av `teaball`.
+`/var/lib/docker/volumes/`, till `/opt/teaball/backups/<hostnamn>/`. Det sker
+i två steg, eftersom datakatalogen är skrivbar för containern (#108):
 
-Misslyckas backupen avbryts `deploy.sh`. Är orsaken något i
-organisationskatalogen som inte hör hemma där (backupjobbet hoppar över och
-klagar på symlänkar och filnamn som inte är hostnamn), ta bort det och
-undersök hur det kom dit: containern kan skriva i katalogen. Behövs en
-deploy innan dess finns `SKIP_BACKUP=1`, men då utan färsk kopia.
+1. **I containern:** uniten startar som root en engångscontainer av appens
+   image (`docker compose run --rm --no-deps -T web python
+   scripts/ogonblick.py`). Den tar ögonblickskopior med backup-API:t till
+   `/data/ogonblick/<hostnamn>.db`, som containerns användare. Root öppnar
+   inga filer i volymen.
+2. **På värden:** `scripts/backup_kopiera.py` kör som `teaball` (uid 1505)
+   med `CAP_DAC_READ_SEARCH` för att nå in i `/var/lib/docker`, och med
+   skrivrätt bara till målet. Det kopierar ögonblickskopiorna som vanliga
+   filer: katalog och filer öppnas med `O_NOFOLLOW`, och `fstat` på den
+   öppna filen kräver en vanlig fil som uid 1505 äger och som har en enda
+   länk. Kopian integritetskontrolleras i målet, där containern inte når.
+   Jobbet öppnar ingen SQLite-fil som containern kan skriva i, så det finns
+   inget glapp mellan kontroll och öppning.
 
-Kontrollerna av symlänkar (även `-wal` och `-shm`) görs strax innan
-`backup.sh` öppnar filen, inte i samma ögonblick. En komprometterad
-container kan i teorin byta ut en fil däremellan. Att stänga glappet helt
-kräver att ögonblickskopian tas inne i containern; se
-Bibliotekarien/teaball#108.
+`/opt/teaball/backups` måste ägas av `teaball`.
+
+Misslyckas backupen avbryts `deploy.sh`. Är orsaken något i `ogonblick/` som
+inte hör hemma där (värdjobbet klagar på symlänkar, filer som inte är
+vanliga och namn som inte är hostnamn), undersök hur det kom dit: bara
+containern skriver där, och `ogonblick.py` tömmer katalogen på allt annat
+vid varje körning. Behövs en deploy innan dess finns `SKIP_BACKUP=1`, men då
+utan färsk kopia.
 
 `scripts/deploy.sh` startar samma unit innan den rör arbetskopian — ingen
 kodändring driftsätts utan en färsk, verifierad kopia. Misslyckas kopian
@@ -365,8 +374,19 @@ avbryts deployen. Kontrollera läget med
 `systemctl list-timers teaball-backup.timer` och
 `journalctl -u teaball-backup.service -n 20`.
 
-Bytet av uniten från root till `teaball` (2026-11) görs i flyttplanen
-ovan, under *Byt backup-uniten*, om det inte redan är gjort.
+**Byte till backup i två steg (en gång, efter mergen av #108).** Deploya
+först som vanligt. deploy.sh kör då den gamla uniten, och den nya imagen
+får `scripts/ogonblick.py`. Byt sedan uniten och prova den:
+
+```bash
+sudo cp /opt/teaball/app/deploy/teaball-backup.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl start teaball-backup.service
+journalctl -u teaball-backup.service -n 20 -o cat   # "Backup klar för 1 organisationer."
+```
+
+Backning: lägg tillbaka uniten från commiten före #108 och kör
+`daemon-reload`. Katalogen `ogonblick/` i volymen kan ligga kvar.
 
 ## Root-ägd arbetskopia
 
