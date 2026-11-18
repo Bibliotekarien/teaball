@@ -93,8 +93,9 @@ Lägg till hostnamnet i proxyn (DNS ska redan peka hit; INSTALL.md avsnitt 10) o
 kontrollera att /login svarar. Skicka sedan till organisationens admin:
   1. Logga in på https://{hostnamn}/login som '{anvandarnamn}'.
   2. Byt lösenord (https://{hostnamn}/losenord); det här känner operatören till.
-  3. Fyll i organisationen, nuvarande system, personuppgiftsansvarig och
-     kontakt under Inställningar.
+  3. Fyll i organisationen, nuvarande system, personuppgiftsansvarig,
+     kontakt, rättslig grund, var uppgifterna lagras och gallring under
+     Inställningar.
   4. Läs https://{hostnamn}/integritet före skarp drift.
   5. Besöksstatistik: ingen, tills vi kommit överens om en sajt (se Inställningar).
   6. Skicka behovsträdet och medlemslistan till operatören, som läser in dem

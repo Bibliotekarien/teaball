@@ -109,8 +109,8 @@ def test_driftaren_namns_med_en_organisation_om_satt(client, monkeypatch):
 
 
 @pytest.fixture()
-def flera(tmp_path, monkeypatch):
-    """En organisation i en organisationskatalog: flera organisationer-läget."""
+def katalog(tmp_path, monkeypatch):
+    """Katalogläge med en organisation, som teaball.bibliotekarien.se."""
     katalog = tmp_path / "organisationer"
     katalog.mkdir()
     monkeypatch.setattr(config, "ORGANISATIONER_DIR", katalog)
@@ -121,9 +121,27 @@ def flera(tmp_path, monkeypatch):
     conn.close()
 
 
+@pytest.fixture()
+def flera(katalog):
+    """Två organisationer i katalogen: driftaren behandlar data åt andra."""
+    annan = appdb.connect(config.ORGANISATIONER_DIR / "annan.exempel.se.db")
+    appdb.init_db(annan)
+    annan.close()
+    return katalog
+
+
 def _klient():
     from app.main import create_app
     return TestClient(create_app(), base_url=f"http://{VARD}")
+
+
+def test_kataloglage_med_en_organisation_utan_markering(katalog):
+    """Katalogläget ensamt betyder inte att någon annans data behandlas:
+    teaball.bibliotekarien.se ska inte få en gul markering för driftaren."""
+    with _klient() as k:
+        sida = _platt(k.get("/integritet"))
+    assert "personuppgiftsbiträde" not in sida
+    assert "Driftaren och dess" not in sida
 
 
 def test_flera_organisationer_utan_driftare_markeras(flera):

@@ -28,13 +28,15 @@ def visa(
 ):
     aktuell = instans.las(conn)
     # Samma villkor som de gula markeringarna på /integritet.
-    saknas = [namn for namn, varde in (
+    saknade = [namn for namn, varde in (
         ("personuppgiftsansvarig", aktuell.personuppgiftsansvarig),
         ("kontakt för dataskydd", aktuell.dataskydd_kontakt),
         ("rättslig grund", aktuell.rattslig_grund),
         ("lagringsplats", aktuell.lagringsplats),
         ("gallring", aktuell.gallring),
     ) if not varde]
+    # "a, b och c"
+    saknas = " och ".join(filter(None, [", ".join(saknade[:-1]), *saknade[-1:]]))
     return templates.TemplateResponse(request, "installningar/index.html", {
         "principal": principal,
         "instans": aktuell,
@@ -48,8 +50,9 @@ def visa(
         "matomo_site_id": matomo.site_id(),
         "matomo_hos_operatoren": organisationer.flera(),
         # Likaså driftaren: operatörens, men organisationen ska se vem som
-        # nämns som personuppgiftsbiträde på dess integritetssida.
-        "flera_organisationer": organisationer.flera(),
+        # nämns som personuppgiftsbiträde på dess integritetssida. Samma
+        # villkor som där: fler än en organisation, inte bara katalogläge.
+        "flera_organisationer": organisationer.fler_an_en(),
         "driftare": config.DRIFTARE,
         "driftare_kontakt": config.DRIFTARE_KONTAKT,
     })

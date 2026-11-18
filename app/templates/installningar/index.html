@@ -6,7 +6,7 @@
 {% endif %}
 {% if saknas %}
 <div class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-  Saknas: {% if saknas | length > 1 %}{{ saknas[:-1] | join(", ") }} och {% endif %}{{ saknas[-1] }}. Integritetssidan visar en markering om att
+  Saknas: {{ saknas }}. Integritetssidan visar en markering om att
   det ska fyllas i före skarp drift.
 </div>
 {% endif %}
@@ -49,11 +49,13 @@
     <span class="text-stone-400">T.ex. en funktionsadress till dataskyddsombudet.</span>
   </label>
 
-  {# Förslagen är texten som stod fast på integritetssidan före #105. De
-     fylls inte i av sig själva: ett tomt fält ger den gula markeringen. #}
+  {# Förslagen (instans.FORSLAG) fylls inte i av sig själva: ett tomt fält
+     ger den gula markeringen. #}
+  {% set fran_driftaren = "Uppgiften kommer från den som driftar tjänsten"
+       ~ (" (" ~ driftare_kontakt ~ ")" if driftare_kontakt else "") ~ "." %}
   {% for falt, rubrik, hjalp in [
-       ("rattslig_grund", "Rättslig grund", "Artikeln i dataskyddsförordningen som behandlingen vilar på, i en mening."),
-       ("lagringsplats", "Var uppgifterna lagras", "Var tjänsten och säkerhetskopiorna driftas, och om något överförs utanför EU/EES."),
+       ("rattslig_grund", "Rättslig grund", "Artikeln i dataskyddsförordningen som behandlingen vilar på, som en hel mening. Är organisationen inte en myndighet är det oftast berättigat intresse (artikel 6.1 f)."),
+       ("lagringsplats", "Var uppgifterna lagras", "Var tjänsten och säkerhetskopiorna driftas, och om något överförs utanför EU/EES. " ~ fran_driftaren),
        ("gallring", "Gallring", "Hur länge historiken över ändrade och borttagna svar sparas."),
      ] %}
   <label class="grid gap-0.5 text-xs text-stone-500">{{ rubrik }}

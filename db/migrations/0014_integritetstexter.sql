@@ -7,18 +7,13 @@
 --
 -- Tomt = inte angivet; integritetssidan visar då den gula markeringen i
 -- stället för ett påstående som kanske inte stämmer.
+--
+-- integritetstexter_fyllda = 0 betyder att det ännu inte avgjorts om
+-- databasen ska få den tidigare fasta texten. app/instans.py gör det en gång
+-- vid start (fyll_integritetstexter): en databas i bruk får texten, utom när
+-- installationen har flera organisationer. Det avgörs i Python och inte här,
+-- eftersom migrationen inte vet hur många organisationer som finns.
 ALTER TABLE instans ADD COLUMN rattslig_grund TEXT NOT NULL DEFAULT '';
 ALTER TABLE instans ADD COLUMN lagringsplats TEXT NOT NULL DEFAULT '';
 ALTER TABLE instans ADD COLUMN gallring TEXT NOT NULL DEFAULT '';
-
--- En databas som redan är i bruk har visat den fasta texten för sina
--- användare. Den får texten som värde, så att dess integritetssida ser
--- likadan ut efter uppgraderingen. Samma villkor för "i bruk" som
--- instans.fyll_fran_miljon. En ny, tom databas får inget: dess admin anger
--- vad som gäller för just den organisationen.
-UPDATE instans SET
-    rattslig_grund = 'Den rättsliga grunden är uppgift av allmänt intresse respektive berättigat intresse (artikel 6.1 e och f i dataskyddsförordningen).',
-    lagringsplats = 'Tjänsten och dess säkerhetskopior driftas på servrar inom EU. Ingen överföring av personuppgifter sker till land utanför EU/EES.',
-    gallring = 'Rutiner för hur länge historiken sparas är under utformning.'
-WHERE id = 1
-  AND (EXISTS (SELECT 1 FROM forvaltare) OR EXISTS (SELECT 1 FROM funktion));
+ALTER TABLE instans ADD COLUMN integritetstexter_fyllda INTEGER NOT NULL DEFAULT 0;

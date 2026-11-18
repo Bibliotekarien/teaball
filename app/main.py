@@ -137,10 +137,12 @@ def create_app() -> FastAPI:
             # With several organisations the Matomo is the operator's, not the
             # organisation's own; the notice must say so.
             "matomo_hos_operatoren": organisationer.flera(),
-            # With several organisations the operator is their data processor
-            # and must be named; until DRIFTARE is set the notice says so in
-            # amber. With one organisation it is named only if set.
-            "flera_organisationer": organisationer.flera(),
+            # With more than one organisation the operator processes data on
+            # others' behalf and must be named; until DRIFTARE is set the
+            # notice says so in amber. Directory mode alone does not count:
+            # teaball.bibliotekarien.se runs it with a single organisation.
+            # Otherwise the operator is named only if set.
+            "flera_organisationer": organisationer.fler_an_en(),
             "driftare": config.DRIFTARE,
             "driftare_kontakt": config.DRIFTARE_KONTAKT,
             "robotskydd": config.ROBOTSKYDD,

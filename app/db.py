@@ -129,6 +129,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     migrate(conn)
     create_views_and_triggers(conn)
     instans.fyll_fran_miljon(conn)
+    instans.fyll_integritetstexter(conn)
 
 
 def get_conn():

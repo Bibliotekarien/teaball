@@ -51,7 +51,8 @@ DATASKYDD_KONTAKT = os.environ.get("DATASKYDD_KONTAKT", "").strip()
 
 # Who operates the installation, and how to reach them. The operator's, not an
 # organisation's, so it lives in the environment and not on /installningar.
-# With several organisations the operator processes their personal data on
+# With more than one organisation in ORGANISATIONER_DIR (not merely directory
+# mode, see organisationer.fler_an_en) the operator processes their data on
 # their behalf, and the privacy page names it as data processor
 # (personuppgiftsbiträde); until it is set the page carries the amber
 # fill-in marker. Set it once the processing agreements are signed.

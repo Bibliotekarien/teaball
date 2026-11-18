@@ -39,7 +39,7 @@ Fyll i `.env`:
 | `SECRET_KEY` | Slumpad nyckel som signerar sessionscookies. Generera med `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`. Appen vägrar starta utan. |
 | `PUBLIC_BASE_URL` | Den publika adressen, t.ex. `https://teaball.example.org`. Används i medlemmarnas svarslänkar. |
 | `MATOMO_*` | Lämna tomma om ni inte har en egen Matomo — då är statistiken avstängd, och integritetssidan säger det. |
-| `DRIFTARE`, `DRIFTARE_KONTAKT` | Den som driftar installationen och dess kontaktväg. Nämns som personuppgiftsbiträde på integritetssidan. Kan lämnas tomma med en organisation; med flera (avsnitt 10) visar sidan en gul markering tills de är satta. |
+| `DRIFTARE`, `DRIFTARE_KONTAKT` | Den som driftar installationen och dess kontaktväg. Nämns som personuppgiftsbiträde på integritetssidan. Kan lämnas tomma med en organisation. Finns mer än en organisation i katalogen (avsnitt 10) visar sidan en gul markering tills de är satta. |
 
 Skapa datakatalogen. Containern kör som uid/gid 1505, som måste äga den:
 

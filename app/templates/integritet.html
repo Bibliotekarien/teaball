@@ -58,9 +58,9 @@
           innan tjänsten tas i skarp drift.</span>
           {% endif %}
         </p>
-        {# The operator, from DRIFTARE in the environment. With several
-           organisations it processes their data on their behalf, so it must be
-           named; with one it is named only if set. #}
+        {# The operator, from DRIFTARE in the environment. With more than one
+           organisation (organisationer.fler_an_en) it processes their data on
+           their behalf, so it must be named; otherwise only if set. #}
         {% if driftare %}
         <p class="mt-2">
           Tjänsten driftas av {{ driftare }}, som är personuppgiftsbiträde och
@@ -142,6 +142,8 @@
           {% if gallring %}{{ gallring }}{% else %}<span
           class="rounded bg-amber-50 px-1 text-amber-800">Hur länge historiken
           sparas fylls i här innan tjänsten tas i skarp drift.</span>{% endif %}
+          {# Fixed, not part of the field: backups are the operator's, with the
+             same rotation for every organisation on the installation. #}
           Säkerhetskopior lagras med rullande gallring.
         </p>
       </section>

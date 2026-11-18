@@ -43,7 +43,16 @@ _aktuell: ContextVar[Organisation | None] = ContextVar("organisation", default=N
 
 
 def flera() -> bool:
+    """Katalogläge: en databas per hostnamn i ORGANISATIONER_DIR. Säger
+    inget om hur många organisationer som finns; se fler_an_en."""
     return config.ORGANISATIONER_DIR is not None
+
+
+def fler_an_en() -> bool:
+    """Fler än en organisation i katalogen, alltså data som driftaren
+    behandlar åt någon annan. teaball.bibliotekarien.se kör i katalogläge
+    med en organisation och ska inte räknas som det."""
+    return flera() and len(alla()) > 1
 
 
 def giltigt_hostnamn(namn: str) -> bool:
