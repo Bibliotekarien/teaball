@@ -221,3 +221,33 @@ def test_backup_alla_utan_organisationer_ar_ett_fel(katalog, tmp_path):
     svar = _backup_alla(katalog, tmp_path)
     assert svar.returncode == 1
     assert "Inga organisationer" in svar.stderr
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash saknas")
+def test_backup_alla_foljer_inte_symlankar(katalog, tmp_path):
+    """Containern kan skriva i katalogen. En symlänk dit utanför får inte göra
+    backupjobbet till ett sätt att läsa värdens filer."""
+    _skapa("a.example.org")
+    hemlig = tmp_path / "hemlig.db"
+    shutil.copy(katalog / "a.example.org.db", hemlig)
+    (katalog / "b.example.org.db").symlink_to(hemlig)
+    mal = tmp_path / "backup"
+    mal.mkdir()
+    svar = _backup_alla(katalog, mal)
+    assert svar.returncode == 1
+    assert "inte en vanlig fil" in svar.stderr
+    assert not (mal / "b.example.org").exists()
+    assert list((mal / "a.example.org" / "dagliga").glob("teaball-*.db"))
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash saknas")
+def test_backup_alla_hoppar_over_konstiga_namn(katalog, tmp_path):
+    """Ett ' i namnet hade annars hamnat i sqlite3:s .backup-kommando."""
+    _skapa("a.example.org")
+    shutil.copy(katalog / "a.example.org.db", katalog / "x';.shell date'.db")
+    mal = tmp_path / "backup"
+    mal.mkdir()
+    svar = _backup_alla(katalog, mal)
+    assert svar.returncode == 1
+    assert "namnet är inget hostnamn" in svar.stderr
+    assert sorted(p.name for p in mal.iterdir()) == ["a.example.org"]

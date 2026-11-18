@@ -91,8 +91,11 @@ def skapa(hostnamn: str, anvandarnamn: str, losenord: str | None) -> int:
 Ge hostnamnet DNS och TLS i proxyn. Skicka sedan till organisationens admin:
   1. Logga in på https://{hostnamn}/login som '{anvandarnamn}'.
   2. Byt lösenord (https://{hostnamn}/losenord); det här känner operatören till.
-  3. Fyll i organisationen, personuppgiftsansvarig och kontakt under Inställningar.
-  4. Läs https://{hostnamn}/integritet före skarp drift.""")
+  3. Fyll i organisationen, nuvarande system, personuppgiftsansvarig och
+     kontakt under Inställningar.
+  4. Läs https://{hostnamn}/integritet före skarp drift.
+  5. Skicka behovsträdet och medlemslistan till operatören, som läser in dem
+     (det finns ingen uppladdning i appen).""")
     return 0
 
 

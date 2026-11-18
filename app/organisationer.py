@@ -25,10 +25,12 @@ from app import config
 # kan bli en annan sökväg (/, .., \), och längdgränsen håller filnamnet inom
 # vad filsystemet tar emot (annars OSError och 500 i stället för 404).
 _ETIKETT = r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
-_HOSTNAMN = re.compile(rf"^{_ETIKETT}(?:\.{_ETIKETT})*$")
+_HOSTNAMN = re.compile(rf"{_ETIKETT}(?:\.{_ETIKETT})*")
 _MAX_HOSTNAMN = 253
+# Host-headerns valfria port: bara siffror. Allt annat efter kolon ger 404.
+_PORT = re.compile(r"[0-9]{1,5}")
 # Kopior före migration (db.py): <namn>.fore-NNNN-<UTC-tid>.db i samma katalog.
-_KOPIA = re.compile(r"\.fore-\d{4}-\d{8}T\d{6}Z\.db$")
+_KOPIA = re.compile(r"\.fore-\d{4}-\d{8}T\d{6}Z\.db$", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -45,7 +47,8 @@ def flera() -> bool:
 
 
 def giltigt_hostnamn(namn: str) -> bool:
-    return len(namn) <= _MAX_HOSTNAMN and bool(_HOSTNAMN.match(namn))
+    # fullmatch, inte $: $ godtar en avslutande radbrytning.
+    return len(namn) <= _MAX_HOSTNAMN and bool(_HOSTNAMN.fullmatch(namn))
 
 
 def kopior_fore_migration(hostnamn: str) -> list[Path]:
@@ -58,7 +61,8 @@ def kopior_fore_migration(hostnamn: str) -> list[Path]:
 
 def _ar_organisationsfil(fil: Path) -> bool:
     # Kopiorna före migration är aldrig en organisation. (Deras versaler T och Z
-    # stoppas redan av _HOSTNAMN; det explicita mönstret gör avsikten synlig.)
+    # stoppas redan av _HOSTNAMN; det explicita mönstret, oberoende av
+    # skiftläge, gör avsikten synlig och håller även om _HOSTNAMN ändras.)
     return fil.suffix == ".db" and not _KOPIA.search(fil.name) and giltigt_hostnamn(fil.stem)
 
 
@@ -66,7 +70,10 @@ def for_vard(host: str) -> Organisation | None:
     """Organisationen för en Host-header, eller None om den inte finns."""
     if not flera():
         return Organisation("", config.DB_PATH)
-    namn = host.strip().lower().rsplit(":", 1)[0].rstrip(".")
+    namn, kolon, port = host.strip().lower().partition(":")
+    if kolon and not _PORT.fullmatch(port):
+        return None
+    namn = namn.removesuffix(".")
     if not giltigt_hostnamn(namn):
         return None
     fil = config.ORGANISATIONER_DIR / f"{namn}.db"

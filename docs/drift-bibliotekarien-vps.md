@@ -18,9 +18,10 @@ kräver konto. uvicorns accesslogg är på, med medlemmarnas token maskade
 (`app/accesslog.py`). Instansens texter ligger i databasen och ändras under
 Inställningar i appen. `docker-compose.prod.yml` har `ORGANISATION=DiVA-konsortiet`
 och `NUVARANDE_SYSTEM=DiVA Classic` som standard; de fyller databasen en gång,
-vid första start efter migration 0010, och läses sedan inte. **Ta bort dem ur
-`docker-compose.prod.yml` efter den deployen** — tills dess loggar appen vid
-varje start att de ignoreras.
+vid första start efter migration 0010, och läses sedan inte. Appen loggar vid
+varje start att de ignoreras. Ta inte bort dem för hand: PR #94 (flytten till
+en databas per organisation) tar bort dem, och en egen ändring skulle krocka
+med den.
 
 Driftsättningschecklista (första gången):
 
