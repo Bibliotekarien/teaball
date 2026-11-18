@@ -340,53 +340,77 @@ ovan).
 
 ## Backup
 
-`teaball-backup.timer` kör `scripts/backup_alla.sh` varje natt (unit + timer i
-`deploy/`) mot organisationskatalogen i volymen under
-`/var/lib/docker/volumes/`, till `/opt/teaball/backups/<hostnamn>/`. Det sker
-i två steg, eftersom datakatalogen är skrivbar för containern (#108):
+`teaball-backup.timer` kör `teaball-backup.service` varje natt (unit + timer i
+`deploy/`). Den tar en kopia av varje organisation till
+`/opt/teaball/backups/<hostnamn>/`, i tre steg, eftersom datakatalogen är
+skrivbar för containern (#108):
 
 1. **I containern:** uniten startar som root en engångscontainer av appens
    image (`docker compose run --rm --no-deps -T web python
    scripts/ogonblick.py`). Den tar ögonblickskopior med backup-API:t till
    `/data/ogonblick/<hostnamn>.db`, som containerns användare. Root öppnar
-   inga filer i volymen.
+   inga filer i volymen. Steget fungerar även när `web` är stoppad. En
+   organisation som misslyckas får en `<hostnamn>.misslyckad` i stället, och
+   de övriga kopieras ändå.
 2. **På värden:** `scripts/backup_kopiera.py` kör som `teaball` (uid 1505)
    med `CAP_DAC_READ_SEARCH` för att nå in i `/var/lib/docker`, och med
    skrivrätt bara till målet. Det kopierar ögonblickskopiorna som vanliga
    filer: katalog och filer öppnas med `O_NOFOLLOW`, och `fstat` på den
-   öppna filen kräver en vanlig fil som uid 1505 äger och som har en enda
-   länk. Kopian integritetskontrolleras i målet, där containern inte når.
-   Jobbet öppnar ingen SQLite-fil som containern kan skriva i, så det finns
-   inget glapp mellan kontroll och öppning.
+   öppna filen kräver en vanlig fil som uid 1505 äger, med en enda länk,
+   högst 2 GB och högst sex timmar gammal. Kopian integritetskontrolleras i
+   målet, där containern inte når, av en underprocess utan förmågor. Jobbet
+   öppnar ingen SQLite-fil som containern kan skriva i, så det finns inget
+   glapp mellan kontroll och öppning.
+3. **Efteråt:** ögonblickskopiorna tas bort ur volymen (`ogonblick.py
+   --rensa`), så att den inte bär en extra kopia av varje databas mellan
+   körningarna.
 
-`/opt/teaball/backups` måste ägas av `teaball`.
-
-Misslyckas backupen avbryts `deploy.sh`. Är orsaken något i `ogonblick/` som
-inte hör hemma där (värdjobbet klagar på symlänkar, filer som inte är
-vanliga och namn som inte är hostnamn), undersök hur det kom dit: bara
-containern skriver där, och `ogonblick.py` tömmer katalogen på allt annat
-vid varje körning. Behövs en deploy innan dess finns `SKIP_BACKUP=1`, men då
-utan färsk kopia.
+`/opt/teaball/backups` måste ägas av `teaball`. Uniten har en timeout på 30
+minuter.
 
 `scripts/deploy.sh` startar samma unit innan den rör arbetskopian — ingen
 kodändring driftsätts utan en färsk, verifierad kopia. Misslyckas kopian
-avbryts deployen. Kontrollera läget med
+avbryts deployen, och deploy.sh skriver ut journalen. Kontrollera läget med
 `systemctl list-timers teaball-backup.timer` och
-`journalctl -u teaball-backup.service -n 20`.
+`journalctl -u teaball-backup.service -n 30 -o cat`.
 
-**Byte till backup i två steg (en gång, efter mergen av #108).** Deploya
-först som vanligt. deploy.sh kör då den gamla uniten, och den nya imagen
-får `scripts/ogonblick.py`. Byt sedan uniten och prova den:
+**När backupen stoppar en deploy**, efter meddelandet i journalen:
+
+| Meddelande | Vad du gör |
+|---|---|
+| Fel från `docker compose run` (ingen image, `.env` saknas, docker nere) och sedan `Inga ögonblickskopior` eller `Kan inte öppna …/ogonblick` | Steg 1 kunde inte starta. Rätta orsaken. Är appen trasig och det är den deployen som ska laga den: `SKIP_BACKUP=1`, men nattens kopia är då den senaste. |
+| `<hostnamn>: integritetskontrollen misslyckades …` från steg 1, eller `<hostnamn>: ögonblickskopian gick inte att ta` | Organisationens databas i drift är skadad eller går inte att läsa. Förbigå inte med `SKIP_BACKUP`. Undersök, och återställ vid behov från senaste kopian (INSTALL.md avsnitt 10, *Återställning av en organisation*, med volymens sökväg). |
+| `database or disk is full` från steg 1 | Volymens disk är full. Ögonblickskopian behöver lika mycket plats som databaserna. |
+| `För lite ledigt utrymme`, `får inte plats i målet` | Backupmålets disk är full. |
+| `inte en vanlig fil`, `ägs av uid …`, `hårda länkar`, `större än`, `äldre än sex timmar`, `namnet är inget hostnamn`, `fler än 200` | Något i `ogonblick/` som inte kommer från `ogonblick.py`, som tömmer katalogen vid varje körning. Bara containern skriver där: undersök hur det kom dit innan du gör något annat. |
+
+**Byte till backup i tre steg (en gång, efter mergen av #108).** Ordningen
+spelar roll. Byts uniten före deployen hittar `compose run` inte
+`scripts/ogonblick.py` i den gamla imagen, och nästa deploy stoppas. Deploya
+därför först som vanligt: deploy.sh kör den gamla uniten, och den nya
+imagen får skriptet. Byt sedan uniten och prova den direkt:
 
 ```bash
 sudo cp /opt/teaball/app/deploy/teaball-backup.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl start teaball-backup.service
-journalctl -u teaball-backup.service -n 20 -o cat   # "Backup klar för 1 organisationer."
+journalctl -u teaball-backup.service -n 30 -o cat    # "Backup klar för N organisationer."
+sudo ls -l /opt/teaball/backups/teaball.bibliotekarien.se/dagliga/   # dagens fil, teaball, läge 600
 ```
 
-Backning: lägg tillbaka uniten från commiten före #108 och kör
-`daemon-reload`. Katalogen `ogonblick/` i volymen kan ligga kvar.
+Två saker har inte provats på servern och visar sig här: att `compose run`
+fungerar som root under systemd, och att SELinux släpper igenom värdens
+`python3` mot volymen. Misslyckas `systemctl start`, backa direkt, innan
+nästa deploy. Ta fram `<sha>` med `git -C /opt/teaball/app log --oneline -3`
+(commiten före mergen av #108):
+
+```bash
+sudo git -C /opt/teaball/app show <sha>:deploy/teaball-backup.service | sudo tee /etc/systemd/system/teaball-backup.service >/dev/null
+sudo systemctl daemon-reload
+sudo systemctl start teaball-backup.service
+```
+
+Katalogen `ogonblick/` i volymen kan ligga kvar.
 
 ## Root-ägd arbetskopia
 

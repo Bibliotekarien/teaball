@@ -5,7 +5,8 @@
 # Tar en konsistent kopia av varje organisations SQLite-fil (spec I4:
 # backup-API, integritetskontroll, utrymmeskoll, rotation 30 dagliga + 12
 # månatliga), i /opt/teaball/backups/<hostnamn>/. Misslyckas en
-# organisation misslyckas jobbet, och då avbryts också deploy.sh.
+# organisation kopieras de övriga ändå, men jobbet misslyckas, och då
+# avbryts också deploy.sh.
 #
 # Två steg, eftersom datakatalogen är skrivbar för containern (#108):
 #
@@ -17,8 +18,9 @@
 #    även när web är stoppad.
 # 2. ExecStart (teaball, uid 1505): scripts/backup_kopiera.py kopierar
 #    kopiorna som vanliga filer, med O_NOFOLLOW och fstat på den öppna
-#    filen, och integritetskontrollerar dem i målet. Det öppnar ingen
-#    SQLite-fil som containern kan skriva i.
+#    filen, och integritetskontrollerar dem i målet i en underprocess utan
+#    förmågor. Det öppnar ingen SQLite-fil som containern kan skriva i.
+# 3. ExecStopPost (root, "+"): ögonblickskopiorna tas bort ur volymen.
 #
 # Steg 2 kör som teaball, inte root, och utan docker-gruppen. Den enda
 # förmåga det behöver är att ta sig igenom /var/lib/docker (root-only):
@@ -45,8 +47,23 @@ ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
 ReadWritePaths=/opt/teaball/backups
-ExecStartPre=+/usr/bin/docker compose -f /opt/teaball/app/docker-compose.prod.yml \
+# En stor fil eller en hängande docker ska inte låta deploy.sh vänta för evigt.
+TimeoutStartSec=30min
+# "-": också när ögonblickskopian misslyckas för en organisation ska de
+# övriga kopieras. Felet når ändå jobbet: ogonblick.py lämnar en
+# <namn>.misslyckad som backup_kopiera.py avslutas med fel på, och utan
+# några färska kopior alls misslyckas det också. "+": root, utan
+# sandlådan ovan. HOME och DOCKER_CONFIG pekar på roots egna, så att docker
+# inte läser klientkonfiguration eller plugins ur teaballs hemkatalog.
+ExecStartPre=-+/usr/bin/env HOME=/root DOCKER_CONFIG=/root/.docker \
+    /usr/bin/docker compose -f /opt/teaball/app/docker-compose.prod.yml \
     run --rm --no-deps -T web python scripts/ogonblick.py
 ExecStart=/usr/bin/python3 -I /opt/teaball/app/scripts/backup_kopiera.py \
     /var/lib/docker/volumes/teaball_teaball-data/_data/ogonblick \
     /opt/teaball/backups
+# Efteråt, även när kopieringen misslyckats: ögonblickskopiorna tas bort ur
+# volymen, så att den inte bär en extra kopia av varje databas mellan
+# körningarna.
+ExecStopPost=-+/usr/bin/env HOME=/root DOCKER_CONFIG=/root/.docker \
+    /usr/bin/docker compose -f /opt/teaball/app/docker-compose.prod.yml \
+    run --rm --no-deps -T web python scripts/ogonblick.py --rensa

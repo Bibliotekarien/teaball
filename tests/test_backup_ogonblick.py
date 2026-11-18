@@ -5,6 +5,8 @@ symlänkar eller öppna SQLite-filer som containern kan skriva i."""
 import datetime
 import os
 import sqlite3
+import subprocess
+import time
 
 import pytest
 
@@ -40,7 +42,7 @@ def _organisation(katalog, vard):
 def test_ogonblick_en_fil_per_organisation(katalog):
     a = _organisation(katalog, "a.example.org")    # öppen, i WAL-läge
     _organisation(katalog, "b.example.org").close()
-    assert ogonblick.main() == 0
+    assert ogonblick.main([]) == 0
     mal = katalog.parent / "ogonblick"
     assert sorted(p.name for p in mal.iterdir()) == ["a.example.org.db", "b.example.org.db"]
     kopia = sqlite3.connect(mal / "a.example.org.db")
@@ -59,7 +61,7 @@ def test_ogonblick_rensar_det_som_inte_hor_hemma(katalog):
     (mal / "borttagen.example.org.db").write_bytes(b"gammal")
     (mal / "lank.db").symlink_to(katalog / "a.example.org.db")
     (mal / "katalog").mkdir()
-    assert ogonblick.main() == 0
+    assert ogonblick.main([]) == 0
     assert sorted(p.name for p in mal.iterdir()) == ["a.example.org.db"]
     assert (katalog / "a.example.org.db").exists()   # länkens mål rörs inte
 
@@ -70,17 +72,39 @@ def test_ogonblick_misslyckad_organisation(katalog, capsys):
     mal = katalog.parent / "ogonblick"
     mal.mkdir()
     (mal / "b.example.org.db").write_bytes(b"gammal kopia")
-    assert ogonblick.main() == 1
+    assert ogonblick.main([]) == 1
     assert "misslyckades för: b.example.org" in capsys.readouterr().err
-    # Ingen inaktuell kopia blir kvar som om den vore dagens.
-    assert sorted(p.name for p in mal.iterdir()) == ["a.example.org.db"]
+    # De friska tas ändå, och den gamla kopian blir inte kvar som om den
+    # vore dagens: värdjobbet får en markering i stället.
+    assert sorted(p.name for p in mal.iterdir()) == ["a.example.org.db",
+                                                     "b.example.org.misslyckad"]
+
+
+def test_ogonblick_rensa(katalog):
+    _organisation(katalog, "a.example.org").close()
+    assert ogonblick.main([]) == 0
+    assert ogonblick.main(["--rensa"]) == 0
+    assert list((katalog.parent / "ogonblick").iterdir()) == []
+    assert (katalog / "a.example.org.db").exists()
+
+
+def test_ogonblick_vagrar_symlankad_katalog(katalog, capsys):
+    """En symlänk till organisationskatalogen hade fått rensningen att ta
+    bort databasernas -wal-filer."""
+    org = _organisation(katalog, "a.example.org")
+    (katalog.parent / "ogonblick").symlink_to(katalog)
+    assert ogonblick.main([]) == 1
+    assert ogonblick.main(["--rensa"]) == 1
+    assert "är en symlänk" in capsys.readouterr().err
+    assert (katalog / "a.example.org.db-wal").exists()
+    org.close()
 
 
 def test_ogonblick_med_en_organisation(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "ORGANISATIONER_DIR", None)
     monkeypatch.setattr(config, "DB_PATH", tmp_path / "teaball.db")
     appdb.init_db(appdb.connect(tmp_path / "teaball.db"))
-    assert ogonblick.main() == 0
+    assert ogonblick.main([]) == 0
     assert (tmp_path / "ogonblick" / "teaball.db").exists()
 
 
@@ -187,3 +211,58 @@ def test_kopiera_manatlig_och_rotation(tmp_path, agare):
     assert len(dagliga) == 30 and dagliga[-1] == "teaball-2026-11-04.db"
     manatliga = sorted(p.name for p in (mal / "a.example.org" / "manatliga").iterdir())
     assert manatliga == ["teaball-2026-10.db", "teaball-2026-11.db"]
+
+
+def test_kopiera_misslyckad_organisation_ar_ett_fel(tmp_path, agare, capsys):
+    """De övriga kopieras, men jobbet avslutas med fel så att deploy.sh
+    stoppas."""
+    kalla, mal = _ogonblick(tmp_path, "a.example.org")
+    (kalla / "b.example.org.misslyckad").write_text("x")
+    assert kopiera.main(["x", str(kalla), str(mal)]) == 1
+    assert "b.example.org: ögonblickskopian gick inte att ta" in capsys.readouterr().err
+    assert list((mal / "a.example.org" / "dagliga").glob("teaball-*.db"))
+
+
+def test_kopiera_vagrar_gammal_kopia(tmp_path, agare, capsys):
+    """En kvarlämnad kopia ska inte sparas som dagens."""
+    kalla, mal = _ogonblick(tmp_path, "a.example.org")
+    gammal = time.time() - 7 * 3600
+    os.utime(kalla / "a.example.org.db", (gammal, gammal))
+    assert kopiera.main(["x", str(kalla), str(mal)]) == 1
+    assert "äldre än sex timmar" in capsys.readouterr().err
+
+
+def test_kopiera_vagrar_for_stor_fil(tmp_path, agare, monkeypatch, capsys):
+    """En gles fil på hundratals GB kostar containern nästan inget men hade
+    fyllt backupmålet."""
+    monkeypatch.setattr(kopiera, "STORSTA_MB", 1)
+    kalla, mal = _ogonblick(tmp_path, "a.example.org")
+    with open(kalla / "b.example.org.db", "wb") as f:
+        f.truncate(5 * kopiera.BLOCK)
+    assert kopiera.main(["x", str(kalla), str(mal)]) == 1
+    assert "större än 1 MB" in capsys.readouterr().err
+    assert not (mal / "b.example.org").exists()
+
+
+def test_kopiera_vagrar_manga_filer(tmp_path, agare, monkeypatch, capsys):
+    monkeypatch.setattr(kopiera, "STORSTA_ANTAL", 2)
+    kalla, mal = _ogonblick(tmp_path, "a.example.org", "b.example.org", "c.example.org")
+    assert kopiera.main(["x", str(kalla), str(mal)]) == 1
+    assert "fler än 2" in capsys.readouterr().err
+    assert list(mal.iterdir()) == []
+
+
+def test_integritetskontrollen_kor_utan_formagor(tmp_path, monkeypatch):
+    """Kontrollen körs i en underprocess via setpriv, inte i processen som
+    har CAP_DAC_READ_SEARCH."""
+    anrop = []
+    riktig = subprocess.run
+
+    def spela_in(cmd, **kw):
+        anrop.append(cmd)
+        return riktig(cmd, **kw)
+
+    monkeypatch.setattr(kopiera.subprocess, "run", spela_in)
+    kalla, _ = _ogonblick(tmp_path, "a.example.org")
+    assert kopiera.integritet(str(kalla / "a.example.org.db")) == "ok"
+    assert anrop[0][1:3] == ["--inh-caps=-all", "--ambient-caps=-all"]
