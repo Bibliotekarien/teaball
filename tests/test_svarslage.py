@@ -59,9 +59,9 @@ def test_sidan_visar_staplar_och_tabell(client, app_db):
 
     sida = huvuddel(client.get("/analys/svarslage").text)
     assert "de 4 noder som går" in sida
-    assert 'aria-label="Klar: 100 procent, har svarat på allt"' in sida
-    assert 'aria-label="Halv: 25 procent, har börjat svara"' in sida
-    assert 'aria-label="Tyst: 0 procent, har inte börjat"' in sida
+    assert 'aria-label="Klar: 100 procent, varav 2 med direkt svar, har svarat på allt"' in sida
+    assert 'aria-label="Halv: 25 procent, varav 1 med direkt svar, har börjat svara"' in sida
+    assert 'aria-label="Tyst: 0 procent, varav 0 med direkt svar, har inte börjat"' in sida
     assert "bg-emerald-600" in sida and "bg-amber-400" in sida
     # Bara den klara stapeln bär ✓ — färgen skiljer inte ensam 98 från 100 %.
     assert sida.count(">✓</span>") == 1
@@ -74,3 +74,27 @@ def test_sidan_visar_staplar_och_tabell(client, app_db):
 def test_extern_nar_inte_sidan(client, app_db):
     logga_in(client, app_db, "erik", roll="extern")
     assert client.get("/analys/svarslage", follow_redirects=False).status_code in (303, 403)
+
+
+def test_direkta_svar_skiljs_fran_arvda(conn, trad):
+    """#110: ett svar på Import ärver ner till WoS och Dubblett. Andelen
+    räknar dem, men bara Import är besvarad direkt."""
+    m = skapa_medlem(conn, "Arvet")
+    satt_svar(conn, m, trad["registrera"], "behovs_ej")
+    satt_svar(conn, m, trad["import"], "golive_krav")
+    # Ett eget svar på en driftsatt nod räknas inte — den går inte att besvara.
+    satt_svar(conn, m, trad["publicering"], "kan_vanta")
+    conn.commit()
+    rad = _per_namn(conn)["Arvet"]
+    assert (rad["bedomda"], rad["direkta"], rad["totalt"]) == (4, 2, 4)
+
+
+def test_sidan_visar_direkta_svar(client, app_db):
+    ids = seed_trad(app_db)
+    m = skapa_medlem(app_db, "Arvet")
+    satt_svar(app_db, m, ids["import"], "golive_krav")
+    app_db.commit()
+    logga_in(client, app_db, "ivar", roll="intern")
+    sida = huvuddel(client.get("/analys/svarslage").text)
+    assert "Varav direkta svar" in sida
+    assert "3 av 4 noder besvarade (75 %), varav 1 med direkt svar" in sida

@@ -24,7 +24,7 @@ from app.db import get_conn
 from app.routers.trad import STATUSAR, TYPER
 from app.services import kommentarer as tjanst
 from app.services import trad
-from app.web import is_htmx, templates
+from app.web import htmx_fran, is_htmx, templates
 
 router = APIRouter(prefix="/kommentarer", dependencies=[Depends(krav_csrf)])
 audit = logging.getLogger("teaball.audit")
@@ -64,9 +64,17 @@ def _nod(conn, nod_id: int) -> dict:
 def _blocksvar(request, conn, principal, nod_id: int, oppen: bool, fel: str | None = None):
     """Nodblocket. htmx: bara blocket (utfällt eller hopfällt) plus nodradens
     räknare out-of-band, så siffran följer med nya kommentarer och statusbyten.
-    Utan JS: en egen sida för noden med samma block utfällt."""
+    Från trädet följer också förfädernas grensummor med (#111). De räknas
+    över hela trädet, även när ett filter döljer delar av det. Utan JS: en
+    egen sida för noden med samma block utfällt."""
     nod = _nod(conn, nod_id)
-    antal = tjanst.antal_per_nod(conn).get(nod_id, {})
+    per_nod = tjanst.antal_per_nod(conn)
+    antal = per_nod.get(nod_id, {})
+    grensummor = {}
+    if htmx_fran(request, "/trad"):
+        grensummor = trad.summa_under(
+            conn, [f["id"] for f in nod["stig"]],
+            {i: a.get("öppen", 0) for i, a in per_nod.items()})
     ctx = {
         "principal": principal,
         "nod": nod,
@@ -75,6 +83,7 @@ def _blocksvar(request, conn, principal, nod_id: int, oppen: bool, fel: str | No
         "oppen": oppen or not is_htmx(request),
         "fel": fel,
         "skrivbar": principal.roll == "admin",
+        "grensummor": grensummor,
     }
     mall = "kommentarer/_nod_svar.html" if is_htmx(request) else "kommentarer/nod_sida.html"
     status_code = 400 if fel and not is_htmx(request) else 200

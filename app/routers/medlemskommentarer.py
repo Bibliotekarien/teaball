@@ -4,7 +4,7 @@ från förvaltningen. Två ytor, som de interna kommentarerna:
 * /kommentarer/medlemmar — arbetslistan: kommentarerna grupperade per nod i
   trädordning, filtrerade på hantering (olästa som standard), där varje
   kommentar bockas av som läst eller arkiveras för sig.
-* nodblocket — under en rad i behovsträdet: nodens olästa och lästa
+* nodblocket — under en rad i listvyn och behovsträdet: nodens olästa och lästa
   kommentarer, utfällda på begäran (htmx) från pillret på raden.
 
 Hanteringen gäller bara förvaltningens vyer: medlemmens kommentar rörs
@@ -23,7 +23,7 @@ from app.auth.csrf import krav_csrf
 from app.db import get_conn
 from app.services import medlemskommentarer as tjanst
 from app.services import trad
-from app.web import is_htmx, templates
+from app.web import htmx_fran, is_htmx, templates
 
 router = APIRouter(prefix="/kommentarer/medlemmar", dependencies=[Depends(krav_csrf)])
 audit = logging.getLogger("teaball.audit")
@@ -54,19 +54,27 @@ def _vysvar(request, conn, principal, visa: str):
 
 def _blocksvar(request, conn, principal, nod_id: int, oppen: bool):
     """Nodblocket. htmx: blocket plus radens pill out-of-band, så antalet
-    följer med statusbytena. Utan JS: en egen sida för noden med blocket
-    utfällt."""
+    följer med statusbytena. Från trädet följer också förfädernas
+    grensummor med (#111), räknade över hela trädet. Utan JS: en egen sida
+    för noden med blocket utfällt."""
     nod = trad.nod_med_stig(conn, nod_id)
     if nod is None:
         raise HTTPException(status_code=404, detail="Noden finns inte.")
     oppen = oppen or not is_htmx(request)
+    per_nod = tjanst.antal_per_nod(conn)
+    grensummor = {}
+    if htmx_fran(request, "/trad"):
+        grensummor = trad.summa_under(
+            conn, [f["id"] for f in nod["stig"]],
+            {i: a["olasta"] for i, a in per_nod.items()})
     ctx = {
         "principal": principal,
         "nod": nod,
-        "antal": tjanst.antal_per_nod(conn).get(nod_id, {"totalt": 0, "olasta": 0}),
+        "antal": per_nod.get(nod_id, {"totalt": 0, "olasta": 0}),
         "kommentarer": tjanst.for_nod(conn, nod_id) if oppen else [],
         "oppen": oppen,
         "skrivbar": principal.roll == "admin",
+        "grensummor": grensummor,
     }
     mall = ("kommentarer/_medlemmar_nod_svar.html" if is_htmx(request)
             else "kommentarer/medlemmar_nod_sida.html")

@@ -16,7 +16,7 @@ from app.auth.core import Principal, krav_admin, krav_intern
 from app.auth.csrf import krav_csrf
 from app.db import get_conn
 from app.routers.trad import STATUSAR, TYPER
-from app.services import kommentarer
+from app.services import kommentarer, medlemskommentarer
 from app.services import trad as tjanst
 from app.services.trad import LISTSORTERING
 from app.web import is_htmx, templates
@@ -44,7 +44,7 @@ def _listsvar(request, conn, principal, fel: str | None = None,
         sortera=filter["sortera"], stigande=filter["riktning"] == "stigande",
         dolj_lasta=filter.get("dolj_lasta", False),
     )
-    kommentarer.markera_antal(conn, rader)
+    _markera_kommentarer(conn, principal, rader)
     ctx = {
         "principal": principal,
         "rader": rader,
@@ -127,8 +127,16 @@ def _hamta_rad(conn, nod_id: int) -> dict:
         raise HTTPException(status_code=404, detail="Noden finns inte.")
     rad = dict(rad)
     rad["stig"] = tjanst.foraldrastig(conn, rad["foralder_id"])
-    kommentarer.markera_antal(conn, [rad])
     return rad
+
+
+def _markera_kommentarer(conn, principal, rader: list[dict]) -> None:
+    """Kommentarsantalen på raderna. Listan kräver redan intern roll, men
+    kontrollen står här också, som i trädet: vyn ska inte bli det enda
+    skyddet för medlemmarnas kommentarer om listan en dag öppnas för fler."""
+    if principal.roll != "extern":
+        kommentarer.markera_antal(conn, rader)
+        medlemskommentarer.markera_antal(conn, rader)
 
 
 @router.get("/nod/{nod_id}/redigera")
@@ -211,9 +219,11 @@ def visa_rad(
     """Avbryt i inline-redigeringen: bara raden, på formulärets plats."""
     if not is_htmx(request):
         return RedirectResponse("/lista", status_code=303)
+    rad = _hamta_rad(conn, nod_id)
+    _markera_kommentarer(conn, principal, [rad])
     ctx = {
         "principal": principal,
-        "n": _hamta_rad(conn, nod_id),
+        "n": rad,
         "skrivbar": principal.roll == "admin",
         "detaljerad": request.session.get("lista_vy") == "detaljerad",
     }

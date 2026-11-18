@@ -57,6 +57,11 @@
   <span class="flex shrink-0 items-center gap-1.5">
     {% if n.kommentarer is defined %}{{ k.pill(n.id, n.kommentarer) }}{% endif %}
     {% if n.medlemskommentarer is defined %}{{ mk.pill(n.id, n.medlemskommentarer) }}{% endif %}
+    {# Grensummor (#111): det som väntar längre ner i grenen, synligt bara
+       när grenen är hopfälld. Statusbyten och nya kommentarer uppdaterar
+       dem out-of-band, se makrona. #}
+    {% if n.barn and n.oppna_under is defined %}{{ k.grensumma(n.id, n.oppna_under) }}{% endif %}
+    {% if n.barn and n.olasta_under is defined %}{{ mk.grensumma(n.id, n.olasta_under) }}{% endif %}
     {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">{{ hi.ikon("eye-slash") }} dold</span>{% endif %}
     {% if n.rankning_last %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Låst från rankning{% if n.rankning_last_kommentar %}: {{ n.rankning_last_kommentar }}{% endif %}">{{ hi.ikon("lock-closed") }} låst</span>{% endif %}
     <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ TYP_LABEL[n.typ] }}</span>

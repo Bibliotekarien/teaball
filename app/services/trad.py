@@ -260,6 +260,19 @@ def grupperat_per_nod(conn, per_nod: dict[int, list]) -> list[dict]:
     return grupper
 
 
+def summa_under(conn, nod_ids, antal: dict[int, int]) -> dict[int, int]:
+    """For each node in nod_ids: the sum of antal ({nod_id: n}) over its
+    descendants, via the vag prefix. The comment surfaces use it to refresh
+    the ancestors' branch sums (#111) after a status change, without
+    rebuilding the tree."""
+    vagar = dict(conn.execute("SELECT id, vag FROM funktion_trad").fetchall())
+    return {
+        nod_id: sum(n for under_id, n in antal.items()
+                    if vagar.get(under_id, "").startswith(vagar[nod_id] + "."))
+        for nod_id in nod_ids if nod_id in vagar
+    }
+
+
 def hitta_nod(rotter: list[dict], nod_id: int) -> dict | None:
     """Locate a node (with its nested barn) in a tree built by hamta_trad."""
     for nod in rotter:

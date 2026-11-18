@@ -1,11 +1,11 @@
 {# Medlemmarnas kommentarer — delat av kommentarsvyn för medlemskommentarer
-   och nodblocket i behovsträdet. Varje kommentar visar medlemmens namn,
-   svaret (färgen följer svaret, som i analysen), vilken av svarets två
+   och nodblocket i listvyn och behovsträdet. Varje kommentar visar
+   medlemmens namn, svaret (färgen följer svaret, som i analysen), vilken av svarets två
    kommentarer det är och för den öppna vem den delas med. Att hantera
    (läst, arkiverad) är admins: skrivbar styr bara knapparna. Hanteringen
    gäller bara förvaltningens vyer — medlemmens kommentar rörs aldrig. #}
 
-{# pill: det blå antalspillret bland radens brickor i trädet — renderas bara
+{# pill: det blå antalspillret bland radens brickor i listan och trädet — renderas bara
    när raden markerats (services/medlemskommentarer.markera_antal), dvs.
    aldrig för extern roll. Räknar olästa och lästa (arkiverade är
    undanlagda). Olästa ger en mörkare ton och en prick, så de syns utan att
@@ -97,3 +97,15 @@
   {% endif %}
 </div>
 {% endmacro %}
+
+{# grensumma: olästa kommentarer från medlemmar längre ner i grenen (#111).
+   Samma form och regler som de interna kommentarernas grensumma
+   (kommentarer/_makro.html). #}
+{% macro grensumma(nod_id, antal, oob=false) -%}
+<span id="grensumma-medlem-{{ nod_id }}"{% if oob %} hx-swap-oob="true"{% endif %} class="gren-summa hidden">
+{%- if antal -%}
+<span class="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs tabular-nums text-sky-900 ring-1 ring-sky-300"
+      title="{{ antal }} {{ 'oläst kommentar' if antal == 1 else 'olästa kommentarer' }} från medlemmar längre ner i grenen"><span aria-hidden="true">↳</span><svg class="h-3 w-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-5 6a5 5 0 0 1 10 0H3z"/></svg>{{ antal }}<span class="sr-only"> {{ 'oläst kommentar' if antal == 1 else 'olästa kommentarer' }} från medlemmar längre ner i grenen</span></span>
+{%- endif -%}
+</span>
+{%- endmacro %}
