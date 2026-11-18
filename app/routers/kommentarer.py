@@ -55,12 +55,10 @@ def _vysvar(request, conn, principal, visa: str, fel: str | None = None):
 
 
 def _nod(conn, nod_id: int) -> dict:
-    rad = conn.execute("SELECT * FROM funktion_trad WHERE id = ?", (nod_id,)).fetchone()
-    if rad is None:
+    nod = trad.nod_med_stig(conn, nod_id)
+    if nod is None:
         raise HTTPException(status_code=404, detail="Noden finns inte.")
-    rad = dict(rad)
-    rad["stig"] = trad.foraldrastig(conn, rad["foralder_id"])
-    return rad
+    return nod
 
 
 def _blocksvar(request, conn, principal, nod_id: int, oppen: bool, fel: str | None = None):

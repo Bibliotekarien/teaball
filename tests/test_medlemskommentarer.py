@@ -1,11 +1,12 @@
 """Medlemmarnas kommentarer sedda från förvaltningen (migration 0013):
-pillret och blocket i behovsträdet, kommentarsvyn med läskvittens och
-radering, och att extern roll aldrig ser dem."""
+pillret och blocket i behovsträdet, kommentarsvyn med hantering (läst,
+arkiverad) som aldrig rör medlemmens kommentar, och att extern roll aldrig
+ser dem."""
 
 from app.services import bedomning
 from app.services import medlemskommentarer as tjanst
 from tests.conftest import (
-    csrf_fran, huvuddel, logga_in, satt_svar, seed_trad, skapa_medlem,
+    csrf_fran, ge_token, huvuddel, logga_in, satt_svar, seed_trad, skapa_medlem,
 )
 
 HTMX = {"HX-Request": "true"}
@@ -24,14 +25,17 @@ def _seed(conn):
     return ids
 
 
-def _post(client, adress, data, token):
-    return client.post(adress, data=data | {"csrf_token": token},
-                       headers=HTMX | {"X-CSRF-Token": token})
+def _status(client, ids, medlem, falt, status, token, fran="vy"):
+    return client.post(
+        f"/kommentarer/medlemmar/{ids[medlem]}/{ids['wos']}/{falt}/status",
+        data={"status": status, "fran": fran, "csrf_token": token},
+        headers=HTMX | {"X-CSRF-Token": token})
 
 
 def test_vyn_listar_alla_kommentarer_per_nod(conn):
     ids = _seed(conn)
-    assert tjanst.antal_per_visning(conn) == {"olästa": 3, "lästa": 0, "alla": 3}
+    assert tjanst.antal_per_visning(conn) == {
+        "olästa": 3, "lästa": 0, "arkiverade": 0, "alla": 3}
     assert tjanst.antal_per_nod(conn) == {ids["wos"]: {"totalt": 3, "olasta": 3}}
     grupper = tjanst.grupperat(conn, "olästa")
     assert [g["nod"]["id"] for g in grupper] == [ids["wos"]]
@@ -42,43 +46,48 @@ def test_vyn_listar_alla_kommentarer_per_nod(conn):
     ]
 
 
-def test_kvittens_nollas_nar_medlemmen_andrar_texten(conn):
+def test_arkiverad_lamnar_noden_men_inte_medlemmen(conn):
     ids = _seed(conn)
-    tjanst.kvittera(conn, ids["uu"], ids["wos"], "oppen", True)
-    tjanst.kvittera(conn, ids["uu"], ids["wos"], "intern", True)
-    assert tjanst.antal_per_visning(conn)["lästa"] == 2
-
-    # Samma text (som vid ett byte av delning) behåller kvittensen ...
-    bedomning.satt_oppen_kommentar(conn, ids["uu"], ids["wos"],
-                                   "Formuleringen är otydlig", "namn")
-    assert tjanst.hamta(conn, ids["uu"], ids["wos"], "oppen")["kvitterad"]
-    # ... en ändrad text blir oläst igen, men bara den kommentaren.
-    bedomning.satt_oppen_kommentar(conn, ids["uu"], ids["wos"], "Ny text", "namn")
-    assert tjanst.hamta(conn, ids["uu"], ids["wos"], "oppen")["kvitterad"] is None
-    assert tjanst.hamta(conn, ids["uu"], ids["wos"], "intern")["kvitterad"]
-    # Ett byte av svar (UPDATE av svar) rör inte kvittensen.
-    bedomning.satt_svar(conn, ids["uu"], ids["wos"], "kan_vanta", "x")
-    assert tjanst.hamta(conn, ids["uu"], ids["wos"], "intern")["kvitterad"]
-    # Tar medlemmen bort svaret följer kvittenserna med (kaskad).
-    bedomning.satt_svar(conn, ids["uu"], ids["wos"], "kan_vanta", "x")
-    assert conn.execute("SELECT COUNT(*) FROM medlemskommentar_kvittens").fetchone()[0] == 0
-
-
-def test_radera_tommer_bara_kommentaren(conn):
-    ids = _seed(conn)
-    tjanst.kvittera(conn, ids["uu"], ids["wos"], "oppen", True)
-    tjanst.radera(conn, ids["uu"], ids["wos"], "oppen")
+    tjanst.satt_status(conn, ids["uu"], ids["wos"], "oppen", "läst")
+    tjanst.satt_status(conn, ids["uu"], ids["wos"], "intern", "arkiverad")
+    assert tjanst.antal_per_visning(conn) == {
+        "olästa": 1, "lästa": 1, "arkiverade": 1, "alla": 3}
+    # Under noden: olästa och lästa, inte arkiverade.
+    assert tjanst.antal_per_nod(conn) == {ids["wos"]: {"totalt": 2, "olasta": 1}}
+    assert [c["falt"] for c in tjanst.for_nod(conn, ids["wos"])
+            if c["medlem_id"] == ids["uu"]] == ["oppen"]
+    # Medlemmens kommentarer står orörda.
     rad = conn.execute("SELECT * FROM bedomning WHERE medlem_id = ? AND funktion_id = ?",
                        (ids["uu"], ids["wos"])).fetchone()
-    assert rad["svar"] == "golive_krav"
-    assert rad["oppen_kommentar"] is None
+    assert rad["oppen_kommentar"] == "Formuleringen är otydlig"
     assert rad["intern_kommentar"] == "Vi använder WoS dagligen"
-    assert conn.execute("SELECT COUNT(*) FROM medlemskommentar_kvittens").fetchone()[0] == 0
-    # Den gamla texten finns kvar i historiken.
+    # Hanteringen skriver ingen svarshistorik.
+    assert conn.execute("SELECT COUNT(*) FROM bedomning_historik").fetchone()[0] == 0
+
+    tjanst.satt_status(conn, ids["uu"], ids["wos"], "intern", "oläst")
+    assert tjanst.hamta(conn, ids["uu"], ids["wos"], "intern")["hantering"] is None
+
+
+def test_hanteringen_nollas_nar_medlemmen_andrar_texten(conn):
+    ids = _seed(conn)
+    tjanst.satt_status(conn, ids["uu"], ids["wos"], "oppen", "arkiverad")
+    tjanst.satt_status(conn, ids["uu"], ids["wos"], "intern", "läst")
+
+    # Samma text (som vid ett byte av delning) behåller hanteringen ...
+    bedomning.satt_oppen_kommentar(conn, ids["uu"], ids["wos"],
+                                   "Formuleringen är otydlig", "namn")
+    assert tjanst.hamta(conn, ids["uu"], ids["wos"], "oppen")["hantering"] == "arkiverad"
+    # ... en ändrad text blir oläst igen, även en arkiverad, men bara den.
+    bedomning.satt_oppen_kommentar(conn, ids["uu"], ids["wos"], "Ny text", "namn")
+    assert tjanst.hamta(conn, ids["uu"], ids["wos"], "oppen")["hantering"] is None
+    assert tjanst.hamta(conn, ids["uu"], ids["wos"], "intern")["hantering"] == "läst"
+    # Ett byte av svar rör inte hanteringen.
+    bedomning.satt_svar(conn, ids["uu"], ids["wos"], "kan_vanta", "x")
+    assert tjanst.hamta(conn, ids["uu"], ids["wos"], "intern")["hantering"] == "läst"
+    # Tar medlemmen bort svaret följer hanteringen med (kaskad).
+    bedomning.satt_svar(conn, ids["uu"], ids["wos"], "kan_vanta", "x")
     assert conn.execute(
-        "SELECT COUNT(*) FROM bedomning_historik WHERE oppen_kommentar = ?",
-        ("Formuleringen är otydlig",),
-    ).fetchone()[0] == 1
+        "SELECT COUNT(*) FROM medlemskommentar_hantering").fetchone()[0] == 0
 
 
 def test_tradet_visar_pill_och_block(client, app_db):
@@ -96,65 +105,81 @@ def test_tradet_visar_pill_och_block(client, app_db):
     assert "alla medlemmar, anonymt" in svar.text
     assert 'id="medlemskommentarpill-' + str(ids["wos"]) + '" hx-swap-oob="true"' in svar.text
     # Intern läser men hanterar inte.
-    assert "/kvittera" not in svar.text and "/radera" not in svar.text
+    assert "/status" not in svar.text
 
 
-def test_admin_kvitterar_och_raderar_i_vyn(client, app_db):
+def test_admin_hanterar_i_vyn_och_i_tradet(client, app_db):
     ids = _seed(app_db)
     logga_in(client, app_db)
     sida = client.get("/kommentarer/medlemmar")
     assert "Vi använder WoS dagligen" in huvuddel(sida.text)
     token = csrf_fran(sida.text)
-    bas = f"/kommentarer/medlemmar/{ids['uu']}/{ids['wos']}"
 
-    svar = _post(client, f"{bas}/intern/kvittera", {"last": "1"}, token)
+    svar = _status(client, ids, "uu", "intern", "läst", token)
     assert svar.status_code == 200
-    # Olästa-fliken (standard) visar inte längre den kvitterade.
+    # Olästa-fliken (standard) visar inte längre den avbockade.
     assert "Vi använder WoS dagligen" not in svar.text
-    assert tjanst.antal_per_visning(app_db) == {"olästa": 2, "lästa": 1, "alla": 3}
+    assert tjanst.antal_per_visning(app_db)["lästa"] == 1
 
-    svar = _post(client, f"{bas}/intern/kvittera", {"last": "0"}, token)
-    assert tjanst.antal_per_visning(app_db)["lästa"] == 0
-
-    svar = _post(client, f"{bas}/oppen/radera", {"fran": "nod"}, token)
+    svar = _status(client, ids, "uu", "oppen", "arkiverad", token, fran="nod")
     assert svar.status_code == 200
     assert 'id="medlemskommentarer-' + str(ids["wos"]) + '"' in svar.text
     assert "Formuleringen är otydlig" not in svar.text
-    assert tjanst.antal_per_visning(app_db)["alla"] == 2
+    assert 'aria-label="2 kommentarer från medlemmar, 1 oläst"' in svar.text
+
+    arkiv = client.get("/kommentarer/medlemmar?visa=arkiverade").text
+    assert "Formuleringen är otydlig" in arkiv and "Visa som läst" in arkiv
+
+
+def test_medlemmen_ser_arkiverad_kommentar_som_forut(client, app_db, klient_fabrik):
+    ids = _seed(app_db)
+    tjanst.satt_status(app_db, ids["uu"], ids["wos"], "oppen", "arkiverad")
+    tjanst.satt_status(app_db, ids["uu"], ids["wos"], "intern", "arkiverad")
+    app_db.commit()
+    medlem = klient_fabrik()
+    medlem.get(f"/svara/{ge_token(app_db, ids['uu'])}")
+    sida = medlem.get("/svara").text
+    assert "Formuleringen är otydlig" in sida and "Vi använder WoS dagligen" in sida
+    # Den delade öppna syns fortfarande för andra medlemmar.
+    annan = klient_fabrik()
+    annan.get(f"/svara/{ge_token(app_db, ids['lu'])}")
+    assert "Formuleringen är otydlig" in annan.get("/svara").text
 
 
 def test_utan_js_redirectar_formularen(client, app_db):
     ids = _seed(app_db)
     logga_in(client, app_db)
     token = csrf_fran(client.get("/kommentarer/medlemmar").text)
-    svar = client.post(f"/kommentarer/medlemmar/{ids['lu']}/{ids['wos']}/intern/kvittera",
-                       data={"last": "1", "fran": "nod", "csrf_token": token},
+    svar = client.post(f"/kommentarer/medlemmar/{ids['lu']}/{ids['wos']}/intern/status",
+                       data={"status": "läst", "fran": "nod", "csrf_token": token},
                        follow_redirects=False)
     assert svar.status_code == 303
     assert svar.headers["location"] == f"/kommentarer/medlemmar/nod/{ids['wos']}"
     sida = client.get(svar.headers["location"]).text
     assert "Oklart för oss" in sida and "Markera&nbsp;oläst" in sida
+    # Dölj-länken leder utan JS tillbaka till noden i trädet.
+    assert f'href="/trad#rad-{ids["wos"]}" hx-get=' in sida
 
 
-def test_okand_kommentar_ger_404(client, app_db):
+def test_okand_kommentar_eller_status_avvisas(client, app_db):
     ids = _seed(app_db)
     logga_in(client, app_db)
     token = csrf_fran(client.get("/kommentarer/medlemmar").text)
     # Lund har ingen öppen kommentar; ett påhittat fält finns inte alls.
-    for falt in ("oppen", "workaround"):
-        svar = _post(client, f"/kommentarer/medlemmar/{ids['lu']}/{ids['wos']}/{falt}/radera",
-                     {}, token)
-        assert svar.status_code == 404
+    assert _status(client, ids, "lu", "oppen", "läst", token).status_code == 404
+    svar = client.post(f"/kommentarer/medlemmar/{ids['lu']}/{ids['wos']}/workaround/status",
+                       data={"status": "läst", "csrf_token": token},
+                       headers=HTMX | {"X-CSRF-Token": token})
+    assert svar.status_code == 404
+    assert _status(client, ids, "lu", "intern", "raderad", token).status_code == 400
 
 
-def test_intern_far_inte_kvittera_eller_radera(client, app_db):
+def test_intern_far_inte_hantera(client, app_db):
     ids = _seed(app_db)
     logga_in(client, app_db, "ivar", roll="intern")
     token = csrf_fran(client.get("/kommentarer/medlemmar").text)
-    bas = f"/kommentarer/medlemmar/{ids['uu']}/{ids['wos']}/oppen"
-    assert _post(client, f"{bas}/kvittera", {"last": "1"}, token).status_code == 403
-    assert _post(client, f"{bas}/radera", {}, token).status_code == 403
-    assert tjanst.hamta(app_db, ids["uu"], ids["wos"], "oppen")["kvitterad"] is None
+    assert _status(client, ids, "uu", "oppen", "läst", token).status_code == 403
+    assert tjanst.hamta(app_db, ids["uu"], ids["wos"], "oppen")["hantering"] is None
 
 
 def test_extern_ser_inga_medlemskommentarer(client, app_db):

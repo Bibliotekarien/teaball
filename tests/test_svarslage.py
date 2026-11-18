@@ -63,6 +63,8 @@ def test_sidan_visar_staplar_och_tabell(client, app_db):
     assert 'aria-label="Halv: 25 procent, har börjat svara"' in sida
     assert 'aria-label="Tyst: 0 procent, har inte börjat"' in sida
     assert "bg-emerald-600" in sida and "bg-amber-400" in sida
+    # Bara den klara stapeln bär ✓ — färgen skiljer inte ensam 98 från 100 %.
+    assert sida.count(">✓</span>") == 1
     assert "1 av 4" in sida  # tabellen
     # Ärvda svar räknas alltid här, så sidan har ingen arvsväxel.
     assert 'name="arvda"' not in sida

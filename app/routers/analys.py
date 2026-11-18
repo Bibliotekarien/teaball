@@ -57,6 +57,9 @@ def svarslage(
             "rader": rader,
             "antal": {lage: sum(r["lage"] == lage for r in rader)
                       for lage in ("klar", "påbörjad", "ej påbörjad")},
+            # Alla medlemmar ser samma träd, så totalen är densamma för alla.
+            # Får medlemmar olika urval (flera organisationer) måste texten
+            # på sidan räkna per medlem i stället.
             "att_besvara": rader[0]["totalt"] if rader else 0,
         },
     )

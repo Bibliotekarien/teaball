@@ -1,14 +1,16 @@
 {# Medlemmarnas kommentarer — delat av kommentarsvyn för medlemskommentarer
    och nodblocket i behovsträdet. Varje kommentar visar medlemmens namn,
    svaret (färgen följer svaret, som i analysen), vilken av svarets två
-   kommentarer det är och för den öppna vem den delas med. Att kvittera och
-   radera är admins: skrivbar styr bara knapparna. #}
+   kommentarer det är och för den öppna vem den delas med. Att hantera
+   (läst, arkiverad) är admins: skrivbar styr bara knapparna. Hanteringen
+   gäller bara förvaltningens vyer — medlemmens kommentar rörs aldrig. #}
 
 {# pill: det blå antalspillret bland radens brickor i trädet — renderas bara
    när raden markerats (services/medlemskommentarer.markera_antal), dvs.
-   aldrig för extern roll. Olästa ger en mörkare ton och en prick, så de syns
-   utan att man fäller ut. Utan kommentarer ett tomt platshållar-span, så
-   OOB-swappen har något att ersätta. #}
+   aldrig för extern roll. Räknar olästa och lästa (arkiverade är
+   undanlagda). Olästa ger en mörkare ton och en prick, så de syns utan att
+   man fäller ut. Utan kommentarer ett tomt platshållar-span, så OOB-swappen
+   har något att ersätta. #}
 {% macro pill(nod_id, antal, oob=false, oppen=false) %}
 {% set totalt = antal.totalt %}
 {% set olasta = antal.olasta %}
@@ -24,46 +26,52 @@
 </span>
 {% endmacro %}
 
-{# Kvittera och radera. Radera frågar först (hx-confirm) — det
-   tömmer kommentaren på medlemmens svar, även för medlemmen. #}
+{% macro statusknapp(c, status, etikett, fran, request, mal) %}
+{% set adress = "/kommentarer/medlemmar/" ~ c.medlem_id ~ "/" ~ c.funktion_id ~ "/" ~ c.falt ~ "/status" %}
+<form method="post" action="{{ adress }}" hx-post="{{ adress }}"
+      hx-target="{{ mal }}" hx-swap="outerHTML" class="inline">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+  <input type="hidden" name="fran" value="{{ fran }}">
+  <button name="status" value="{{ status }}"
+          class="rounded border border-stone-300 bg-white px-1.5 py-0.5 text-xs text-stone-600 hover:bg-stone-100">{{ etikett|safe }}</button>
+</form>
+{% endmacro %}
+
+{# Knapparna per läge, som de interna kommentarernas: oläst bockas av eller
+   arkiveras; läst kan arkiveras eller bli oläst igen; arkiverad kan tas
+   fram som läst eller oläst. Inget går förlorat, så ingen bekräftelse. #}
 {% macro knappar(c, fran, request, mal) %}
-{% set bas = "/kommentarer/medlemmar/" ~ c.medlem_id ~ "/" ~ c.funktion_id ~ "/" ~ c.falt %}
 <span class="flex shrink-0 items-center gap-1">
-  <form method="post" action="{{ bas }}/kvittera" hx-post="{{ bas }}/kvittera"
-        hx-target="{{ mal }}" hx-swap="outerHTML" class="inline">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-    <input type="hidden" name="fran" value="{{ fran }}">
-    {% if c.kvitterad %}
-    <button name="last" value="0" class="rounded border border-stone-300 bg-white px-1.5 py-0.5 text-xs text-stone-600 hover:bg-stone-100">Markera&nbsp;oläst</button>
-    {% else %}
-    <button name="last" value="1" class="rounded border border-stone-300 bg-white px-1.5 py-0.5 text-xs text-stone-600 hover:bg-stone-100">✓&nbsp;Läst</button>
-    {% endif %}
-  </form>
-  <form method="post" action="{{ bas }}/radera" hx-post="{{ bas }}/radera"
-        hx-target="{{ mal }}" hx-swap="outerHTML" class="inline"
-        hx-confirm="Radera kommentaren från {{ c.medlem_namn }}? Den försvinner också för medlemmen.">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-    <input type="hidden" name="fran" value="{{ fran }}">
-    <button class="rounded border border-rose-200 bg-white px-1.5 py-0.5 text-xs text-rose-700 hover:bg-rose-50">Radera</button>
-  </form>
+  {% if not c.hantering %}
+  {{ statusknapp(c, "läst", "✓&nbsp;Läst", fran, request, mal) }}
+  {{ statusknapp(c, "arkiverad", "Arkivera", fran, request, mal) }}
+  {% elif c.hantering == "läst" %}
+  {{ statusknapp(c, "arkiverad", "Arkivera", fran, request, mal) }}
+  {{ statusknapp(c, "oläst", "Markera&nbsp;oläst", fran, request, mal) }}
+  {% else %}
+  {{ statusknapp(c, "läst", "Visa som läst", fran, request, mal) }}
+  {{ statusknapp(c, "oläst", "Markera&nbsp;oläst", fran, request, mal) }}
+  {% endif %}
 </span>
+{% endmacro %}
+
+{% macro hanteringsbricka(c) %}
+{% if not c.hantering %}<span class="rounded bg-sky-100 px-1.5 py-0.5 text-[11px] text-sky-900">oläst</span>
+{% elif c.hantering == "läst" %}<span class="rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] text-emerald-900" title="Läst {{ c.hanterad }} UTC">läst</span>
+{% else %}<span class="rounded bg-stone-200 px-1.5 py-0.5 text-[11px] text-stone-600" title="Arkiverad {{ c.hanterad }} UTC">arkiverad</span>{% endif %}
 {% endmacro %}
 
 {# En kommentar: läsbricka, avsändare och svar på första raden, texten under. #}
 {% macro kommentar(c, fran, request, mal, skrivbar=false) %}
 <div class="flex flex-wrap items-start gap-x-2 gap-y-1">
-  {% if c.kvitterad %}
-  <span class="rounded bg-stone-100 px-1.5 py-0.5 text-[11px] text-stone-500" title="Läskvitterad {{ c.kvitterad }} UTC">läst</span>
-  {% else %}
-  <span class="rounded bg-sky-100 px-1.5 py-0.5 text-[11px] text-sky-900">oläst</span>
-  {% endif %}
+  {{ hanteringsbricka(c) }}
   <span class="min-w-0 flex-1 text-xs text-stone-600">
     <strong class="font-medium text-stone-800">{{ c.medlem_namn }}</strong>
     · <span class="mr-0.5 inline-block h-2 w-2 rounded-full {{ SVAR[c.svar].dot }}"></span>{{ SVAR[c.svar].kort }}
     · {% if c.falt == "oppen" %}öppen kommentar <span class="text-stone-400">({{ OPPEN_DELNING[c.delning] }})</span>{% else %}intern kommentar <span class="text-stone-400">(bara förvaltarna)</span>{% endif %}
   </span>
   {% if skrivbar %}{{ knappar(c, fran, request, mal) }}{% endif %}
-  <p class="w-full whitespace-pre-line break-words text-sm {{ 'text-stone-500' if c.kvitterad else 'text-stone-800' }}">{{ c.text }}</p>
+  <p class="w-full whitespace-pre-line break-words text-sm {{ 'text-stone-500' if c.hantering else 'text-stone-800' }}">{{ c.text }}</p>
 </div>
 {% endmacro %}
 
@@ -73,7 +81,7 @@
   <div class="max-w-prose rounded-md border border-sky-200 bg-sky-50/60 p-2 text-xs">
     <div class="mb-1 flex items-center justify-between">
       <span class="font-medium text-stone-600">Kommentarer från medlemmar</span>
-      <a href="/kommentarer/medlemmar" hx-get="/kommentarer/medlemmar/nod/{{ nod_id }}?oppen=0" hx-target="#medlemskommentarer-{{ nod_id }}" hx-swap="outerHTML"
+      <a href="/trad#rad-{{ nod_id }}" hx-get="/kommentarer/medlemmar/nod/{{ nod_id }}?oppen=0" hx-target="#medlemskommentarer-{{ nod_id }}" hx-swap="outerHTML"
          class="rounded px-1 text-stone-500 hover:bg-stone-200 hover:text-stone-800">dölj&nbsp;listan</a>
     </div>
     {% if kommentarer %}
@@ -83,7 +91,7 @@
       {% endfor %}
     </ul>
     {% else %}
-    <p class="text-stone-500">Inga kommentarer från medlemmar.</p>
+    <p class="text-stone-500">Inga kommentarer att visa.</p>
     {% endif %}
   </div>
   {% endif %}

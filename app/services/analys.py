@@ -1,7 +1,9 @@
-"""Analysis queries (spec 5.3). Every function takes `arvda` — the A3 toggle —
-and switches between the two column-compatible views bedomning_direkt (default)
-and bedomning_effektiv. The view name is chosen from a hardcoded pair, never
-from user input (S5)."""
+"""Analysis queries (spec 5.3). The answer-based functions take `arvda` — the
+A3 toggle — and switch between the two column-compatible views
+bedomning_direkt (default) and bedomning_effektiv. The view name is chosen
+from a hardcoded pair, never from user input (S5). tackning and svarsgrad
+are fixed by definition: coverage always counts direct answers, progress
+always counts inherited ones (as the member's own counter does)."""
 
 import sqlite3
 
@@ -83,14 +85,14 @@ def tackning(conn):
 
 
 def svarsgrad(conn):
-    """Hur långt varje medlem kommit: andelen besvarade noder av dem som går
-    att besvara. Räknas exakt som räknaren i medlemmens egen svarsvy
-    (bedomning.rakna_bedomt över medlemsträdet), så 100 % här är samma sak
-    som att medlemmen ser noll kvar: bara synliga noder, inte driftsatta,
-    utgående eller låsta, och ett ärvt svar räknas som besvarat (A1/B6).
+    """Progress per member: the share of answerable nodes that is answered.
+    Counted exactly like the counter in the member's own view
+    (bedomning.rakna_bedomt over the member tree), so 100 % here means the
+    member sees nothing left: visible nodes only, not driftsatt, utgår or
+    locked, and an inherited answer counts as answered (A1/B6).
 
-    läge: "klar" (allt besvarat), "påbörjad" eller "ej påbörjad". Sorterat
-    på andel fallande, så stapeldiagrammet läses som en trappa."""
+    lage: "klar" (all answered), "påbörjad" or "ej påbörjad". Sorted by
+    share descending, so the bar chart reads as a staircase."""
     rotter = trad.hamta_trad(conn, endast_synliga=True)
     besvarade: dict[int, set[int]] = {}
     for r in conn.execute("SELECT medlem_id, funktion_id FROM bedomning_effektiv"):

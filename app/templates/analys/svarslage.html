@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 {% block titel %}Analys: svarsläge – Teaball{% endblock %}
+{# Bredare än standard: med ~50 medlemmar behöver staplarna och de stående
+   namnen plats, och klickytan per stapel blir större. #}
+{% block huvudbredd %}max-w-6xl{% endblock %}
 {% block innehall %}
 {% include "analys/_subnav.html" %}
 {# Färg efter läge, samma som i staplarna och tabellen. Läget står alltid
@@ -53,7 +56,9 @@
            class="group flex flex-col items-center focus:outline-none">
           <span class="flex h-56 w-full items-end justify-center group-hover:bg-stone-50 group-focus-visible:ring-2 group-focus-visible:ring-blue-700">
             {% if r.bedomda %}
-            <span class="w-full max-w-8 rounded-t {{ LAGE[r.lage].stapel }}" style="height: {{ r.andel }}%"></span>
+            {# ✓ i toppen av en klar stapel: 98 % och 100 % ser lika höga
+               ut, så färgen får inte ensam skilja dem åt. #}
+            <span class="flex w-full max-w-8 justify-center rounded-t {{ LAGE[r.lage].stapel }}" style="height: {{ r.andel }}%">{% if r.lage == "klar" %}<span class="text-[10px] font-bold leading-4 text-white" aria-hidden="true">✓</span>{% endif %}</span>
             {% else %}
             <span class="h-0.5 w-full max-w-8 {{ LAGE[r.lage].stapel }}"></span>
             {% endif %}

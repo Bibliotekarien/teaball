@@ -230,6 +230,36 @@ def foraldrastig(conn, foralder_id) -> list[dict]:
     return _stig(_foralderkarta(conn), foralder_id)
 
 
+def nod_med_stig(conn, nod_id: int) -> dict | None:
+    """A node's funktion_trad row plus its breadcrumb as "stig", or None —
+    the heading of the comment surfaces' per-node pages."""
+    rad = conn.execute("SELECT * FROM funktion_trad WHERE id = ?", (nod_id,)).fetchone()
+    if rad is None:
+        return None
+    rad = dict(rad)
+    rad["stig"] = foraldrastig(conn, rad["foralder_id"])
+    return rad
+
+
+def grupperat_per_nod(conn, per_nod: dict[int, list]) -> list[dict]:
+    """{nod_id: [items]} → [{"nod": row with "stig", "kommentarer": items}]
+    in tree order (funktion_trad.vag), so a comment view reads like the
+    tree. Shared by the internal and the member comment views."""
+    if not per_nod:
+        return []
+    karta = _foralderkarta(conn)
+    grupper = []
+    for nod in conn.execute(
+        f"SELECT * FROM funktion_trad WHERE id IN ({','.join('?' * len(per_nod))})"
+        " ORDER BY vag",
+        tuple(per_nod),
+    ):
+        nod = dict(nod)
+        nod["stig"] = _stig(karta, nod["foralder_id"])
+        grupper.append({"nod": nod, "kommentarer": per_nod[nod["id"]]})
+    return grupper
+
+
 def hitta_nod(rotter: list[dict], nod_id: int) -> dict | None:
     """Locate a node (with its nested barn) in a tree built by hamta_trad."""
     for nod in rotter:

@@ -3,26 +3,29 @@ svar (bedomning, migration 0009) — sedda från förvaltningen. Vyn
 medlemskommentar ger en rad per icke-tom kommentar; en kommentar
 identifieras av (medlem_id, funktion_id, falt).
 
-Förvaltarna läskvitterar dem (migration 0013) och raderar dem när de
-justerat formuleringarna. Att radera tömmer kommentaren på medlemmens svar —
-den försvinner alltså även för medlemmen, men den gamla texten ligger kvar i
-bedomning_historik (D2-triggern)."""
+Förvaltarna hanterar dem (migration 0013): läst eller arkiverad. Det gäller
+bara förvaltningens vyer — medlemmens kommentar rörs aldrig."""
 
 import sqlite3
 
 from app.services import trad
 
-# Kommentarsvyns filter: etikett och SQL-villkor på kvittensen. Ordningen är
-# flikordningen; "olästa" är arbetslistan och därmed standard. Villkoren är
-# hårdkodade — visningsnyckeln från URL:en väljer bara bland dem.
+# Kommentarsvyns filter: etikett och SQL-villkor på hanteringen. Ordningen
+# är flikordningen; "olästa" är arbetslistan och därmed standard. Villkoren
+# är hårdkodade — visningsnyckeln från URL:en väljer bara bland dem.
 VISNINGAR = {
-    "olästa": ("Olästa", "kvitterad IS NULL"),
-    "lästa": ("Lästa", "kvitterad IS NOT NULL"),
+    "olästa": ("Olästa", "k.hantering IS NULL"),
+    "lästa": ("Lästa", "k.hantering = 'läst'"),
+    "arkiverade": ("Arkiverade", "k.hantering = 'arkiverad'"),
     "alla": ("Alla", "1"),
 }
-FALT = {"oppen": "Öppen kommentar", "intern": "Intern kommentar"}
-KOLUMN = {"oppen": "oppen_kommentar", "intern": "intern_kommentar"}
+# Statusbyten från knapparna; "oläst" tar bort hanteringen.
+STATUSAR = ("oläst", "läst", "arkiverad")
+FALT = ("oppen", "intern")
 
+# Ordningen inom en nod: olästa först, sedan medlemsordning, och den öppna
+# kommentaren före den interna (CASE i stället för att lita på alfabetet).
+_ORDNING = "m.namn, CASE k.falt WHEN 'oppen' THEN 0 ELSE 1 END"
 _URVAL = (
     "SELECT k.*, m.namn AS medlem_namn FROM medlemskommentar k"
     " JOIN medlem m ON m.id = k.medlem_id"
@@ -30,13 +33,15 @@ _URVAL = (
 
 
 def antal_per_nod(conn: sqlite3.Connection) -> dict[int, dict[str, int]]:
-    """{nod_id: {"totalt": n, "olasta": n}}."""
+    """{nod_id: {"totalt": n, "olasta": n}} för de kommentarer som visas
+    under noderna (olästa och lästa — arkiverade är undanlagda)."""
     return {
         r["funktion_id"]: {"totalt": r["totalt"], "olasta": r["olasta"]}
         for r in conn.execute(
             "SELECT funktion_id, COUNT(*) AS totalt,"
-            " SUM(kvitterad IS NULL) AS olasta"
-            " FROM medlemskommentar GROUP BY funktion_id"
+            " SUM(hantering IS NULL) AS olasta"
+            " FROM medlemskommentar WHERE hantering IS NOT 'arkiverad'"
+            " GROUP BY funktion_id"
         )
     }
 
@@ -54,10 +59,10 @@ def markera_antal(conn: sqlite3.Connection, noder: list[dict]) -> None:
 
 
 def for_nod(conn: sqlite3.Connection, nod_id: int) -> list[dict]:
-    """Nodens kommentarer: olästa först, sedan i medlemsordning."""
+    """Nodens synliga kommentarer (inte arkiverade), olästa först."""
     return [dict(r) for r in conn.execute(
-        _URVAL + " WHERE k.funktion_id = ?"
-        " ORDER BY k.kvitterad IS NOT NULL, m.namn, k.falt DESC",
+        _URVAL + " WHERE k.funktion_id = ? AND k.hantering IS NOT 'arkiverad'"
+        f" ORDER BY k.hantering IS NOT NULL, {_ORDNING}",
         (nod_id,),
     )]
 
@@ -70,65 +75,40 @@ def hamta(conn, medlem_id: int, funktion_id: int, falt: str) -> dict | None:
     return dict(rad) if rad else None
 
 
-def kvittera(conn, medlem_id: int, funktion_id: int, falt: str, last: bool) -> None:
-    """Markera läst (last=True) eller oläst igen."""
-    if last:
+def satt_status(conn, medlem_id: int, funktion_id: int, falt: str, status: str) -> None:
+    """Oläst, läst eller arkiverad. hanterad stämplas vid varje byte."""
+    if status not in STATUSAR:
+        raise ValueError("Okänd status.")
+    if status == "oläst":
         conn.execute(
-            "INSERT INTO medlemskommentar_kvittens (medlem_id, funktion_id, falt)"
-            " VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
-            (medlem_id, funktion_id, falt),
-        )
-    else:
-        conn.execute(
-            "DELETE FROM medlemskommentar_kvittens"
+            "DELETE FROM medlemskommentar_hantering"
             " WHERE medlem_id = ? AND funktion_id = ? AND falt = ?",
             (medlem_id, funktion_id, falt),
         )
-
-
-def radera(conn, medlem_id: int, funktion_id: int, falt: str) -> None:
-    """Tömmer kommentaren på svaret. Kvittensen rensas av triggern och den
-    gamla texten hamnar i historiken. Svaret och den andra kommentaren
-    står kvar."""
-    if falt not in KOLUMN:
-        raise ValueError("Okänd kommentar.")
+        return
     conn.execute(
-        f"UPDATE bedomning SET {KOLUMN[falt]} = NULL"
-        " WHERE medlem_id = ? AND funktion_id = ?",
-        (medlem_id, funktion_id),
+        "INSERT INTO medlemskommentar_hantering (medlem_id, funktion_id, falt, status)"
+        " VALUES (?, ?, ?, ?) ON CONFLICT (medlem_id, funktion_id, falt) DO UPDATE SET"
+        " status = excluded.status, hanterad = datetime('now')",
+        (medlem_id, funktion_id, falt, status),
     )
 
 
 def antal_per_visning(conn: sqlite3.Connection) -> dict[str, int]:
     """Siffrorna i kommentarsvyns flikar."""
-    rad = conn.execute(
-        "SELECT COUNT(*) AS alla, SUM(kvitterad IS NULL) AS olasta"
-        " FROM medlemskommentar"
-    ).fetchone()
-    alla, olasta = rad["alla"], rad["olasta"] or 0
-    return {"olästa": olasta, "lästa": alla - olasta, "alla": alla}
+    per_status = {"olästa": 0, "lästa": 0, "arkiverade": 0}
+    for hantering, antal in conn.execute(
+        "SELECT hantering, COUNT(*) FROM medlemskommentar GROUP BY hantering"
+    ):
+        per_status[{None: "olästa", "läst": "lästa", "arkiverad": "arkiverade"}[hantering]] = antal
+    return per_status | {"alla": sum(per_status.values())}
 
 
 def grupperat(conn: sqlite3.Connection, visa: str) -> list[dict]:
     """Kommentarerna i visningen grupperade per nod i trädordning, som de
-    interna kommentarernas vy: nodens rad ur funktion_trad + "stig" +
-    "kommentarer" (medlemsordning)."""
+    interna kommentarernas vy."""
     villkor = VISNINGAR.get(visa, VISNINGAR["olästa"])[1]
     per_nod: dict[int, list[dict]] = {}
-    for k in conn.execute(
-        _URVAL + f" WHERE {villkor} ORDER BY m.namn, k.falt DESC"
-    ):
+    for k in conn.execute(_URVAL + f" WHERE {villkor} ORDER BY {_ORDNING}"):
         per_nod.setdefault(k["funktion_id"], []).append(dict(k))
-    if not per_nod:
-        return []
-    karta = trad._foralderkarta(conn)
-    grupper = []
-    for nod in conn.execute(
-        f"SELECT * FROM funktion_trad WHERE id IN ({','.join('?' * len(per_nod))})"
-        " ORDER BY vag",
-        tuple(per_nod),
-    ):
-        nod = dict(nod)
-        nod["stig"] = trad._stig(karta, nod["foralder_id"])
-        grupper.append({"nod": nod, "kommentarer": per_nod[nod["id"]]})
-    return grupper
+    return trad.grupperat_per_nod(conn, per_nod)

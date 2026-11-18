@@ -2,13 +2,15 @@
 från förvaltningen. Två ytor, som de interna kommentarerna:
 
 * /kommentarer/medlemmar — arbetslistan: kommentarerna grupperade per nod i
-  trädordning, filtrerade på läst/oläst (olästa som standard), där varje
-  kommentar läskvitteras eller raderas för sig.
-* nodblocket — under en rad i behovsträdet: nodens kommentarer, utfällda på
-  begäran (htmx) från pillret på raden.
+  trädordning, filtrerade på hantering (olästa som standard), där varje
+  kommentar bockas av som läst eller arkiveras för sig.
+* nodblocket — under en rad i behovsträdet: nodens olästa och lästa
+  kommentarer, utfällda på begäran (htmx) från pillret på raden.
 
-Läsa får alla interna — samma data visas redan i analysen. Att kvittera och
-radera kräver admin. Extern roll når aldrig kommentarerna."""
+Hanteringen gäller bara förvaltningens vyer: medlemmens kommentar rörs
+aldrig, så en arkiverad kommentar syns som förut för medlemmen. Läsa får
+alla interna — samma data visas redan i analysen. Att hantera kräver admin.
+Extern roll når aldrig kommentarerna."""
 
 import logging
 import sqlite3
@@ -28,7 +30,7 @@ audit = logging.getLogger("teaball.audit")
 
 
 def _visning(request: Request, visa: str | None = None) -> str:
-    """Senaste valda fliken (sessionen), så kvitteringens svar visar samma urval."""
+    """Senaste valda fliken (sessionen), så statusbytens svar visar samma urval."""
     if visa in tjanst.VISNINGAR:
         request.session["medlemskommentar_visa"] = visa
         return visa
@@ -50,20 +52,13 @@ def _vysvar(request, conn, principal, visa: str):
     return templates.TemplateResponse(request, mall, ctx)
 
 
-def _nod(conn, nod_id: int) -> dict:
-    rad = conn.execute("SELECT * FROM funktion_trad WHERE id = ?", (nod_id,)).fetchone()
-    if rad is None:
-        raise HTTPException(status_code=404, detail="Noden finns inte.")
-    rad = dict(rad)
-    rad["stig"] = trad.foraldrastig(conn, rad["foralder_id"])
-    return rad
-
-
 def _blocksvar(request, conn, principal, nod_id: int, oppen: bool):
     """Nodblocket. htmx: blocket plus radens pill out-of-band, så antalet
-    följer med kvitteringar och raderingar. Utan JS: en egen sida för noden
-    med blocket utfällt."""
-    nod = _nod(conn, nod_id)
+    följer med statusbytena. Utan JS: en egen sida för noden med blocket
+    utfällt."""
+    nod = trad.nod_med_stig(conn, nod_id)
+    if nod is None:
+        raise HTTPException(status_code=404, detail="Noden finns inte.")
     oppen = oppen or not is_htmx(request)
     ctx = {
         "principal": principal,
@@ -121,39 +116,25 @@ def visa_nod(
     return _blocksvar(request, conn, principal, nod_id, bool(oppen))
 
 
-@router.post("/{medlem_id}/{funktion_id}/{falt}/kvittera")
-def kvittera(
+@router.post("/{medlem_id}/{funktion_id}/{falt}/status")
+def byt_status(
     request: Request,
     medlem_id: int,
     funktion_id: int,
     falt: str,
-    last: str = Form("1"),
+    status: str = Form(...),
     fran: str = Form("vy"),
     principal: Principal = Depends(krav_admin),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
-    """Markera läst (last=1) eller oläst igen (last=0)."""
+    """Läst, arkiverad eller oläst igen. Bara förvaltningens hantering —
+    medlemmens kommentar rörs inte. fran säger vilken yta som ritas om."""
     _kommentar(conn, medlem_id, funktion_id, falt)
-    tjanst.kvittera(conn, medlem_id, funktion_id, falt, last == "1")
+    try:
+        tjanst.satt_status(conn, medlem_id, funktion_id, falt, status)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Okänd status.")
     conn.commit()
-    return _efter_andring(request, conn, principal, funktion_id, fran)
-
-
-@router.post("/{medlem_id}/{funktion_id}/{falt}/radera")
-def radera(
-    request: Request,
-    medlem_id: int,
-    funktion_id: int,
-    falt: str,
-    fran: str = Form("vy"),
-    principal: Principal = Depends(krav_admin),
-    conn: sqlite3.Connection = Depends(get_conn),
-):
-    """Tömmer kommentaren på medlemmens svar (svaret står kvar). Texten
-    loggas inte — den finns i bedomning_historik."""
-    _kommentar(conn, medlem_id, funktion_id, falt)
-    tjanst.radera(conn, medlem_id, funktion_id, falt)
-    conn.commit()
-    audit.info("forvaltare=%s op=radera_medlemskommentar medlem=%s nod=%s falt=%s",
-               principal.namn, medlem_id, funktion_id, falt)
+    audit.info("op=medlemskommentar_status medlem=%s nod=%s falt=%s status=%s",
+               medlem_id, funktion_id, falt, status)
     return _efter_andring(request, conn, principal, funktion_id, fran)
