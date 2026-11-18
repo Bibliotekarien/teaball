@@ -194,6 +194,11 @@ def test_lista_behorigheter(app_db, klient_fabrik):
     extern = klient_fabrik()
     logga_in(extern, app_db, namn="eva", roll="extern")
     assert extern.get("/lista").status_code == 403
+    # Inte heller den fristående raden, som bär kommentarsantalen.
+    nod = skapa_funktion(app_db, "Nod")
+    app_db.commit()
+    assert extern.get(f"/lista/nod/{nod}/rad",
+                      headers={"HX-Request": "true"}).status_code == 403
 
 
 def test_lista_breadcrumb(client, app_db):

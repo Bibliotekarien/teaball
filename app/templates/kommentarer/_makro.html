@@ -145,3 +145,18 @@
   </h2>
 </header>
 {% endmacro %}
+
+{# grensumma: öppna interna kommentarer längre ner i grenen (#111), på en
+   nod med barn i behovsträdet. Syns bara när grenen är hopfälld
+   (.gren-summa i tailwind.in.css). Ramad i stället för fylld, så den inte
+   förväxlas med nodens eget pill. Platshållaren (tomt span, utan
+   blanktecken så :empty träffar) renderas även vid 0, så statusbytens svar
+   kan uppdatera förfädernas summor out-of-band. #}
+{% macro grensumma(nod_id, antal, oob=false) -%}
+<span id="grensumma-intern-{{ nod_id }}"{% if oob %} hx-swap-oob="true"{% endif %} class="gren-summa hidden">
+{%- if antal -%}
+<span class="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs tabular-nums text-amber-900 ring-1 ring-amber-300"
+      title="{{ antal }} {{ 'öppen intern kommentar' if antal == 1 else 'öppna interna kommentarer' }} längre ner i grenen"><span aria-hidden="true">↳</span><svg class="h-3 w-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v6a1.5 1.5 0 0 1-1.5 1.5H7l-3 3v-3h-.5A1.5 1.5 0 0 1 2 9.5v-6z"/></svg>{{ antal }}<span class="sr-only"> {{ 'öppen intern kommentar' if antal == 1 else 'öppna interna kommentarer' }} längre ner i grenen</span></span>
+{%- endif -%}
+</span>
+{%- endmacro %}

@@ -2,7 +2,7 @@
 
 import hashlib
 from functools import lru_cache
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
@@ -154,6 +154,15 @@ templates.env.globals["ORDLISTA"] = ORDLISTA
 
 def is_htmx(request: Request) -> bool:
     return request.headers.get("hx-request") == "true"
+
+
+def htmx_fran(request: Request, sokvag: str) -> bool:
+    """The htmx request comes from the page at sokvag (HX-Current-URL), for
+    out-of-band extras that only exist there — like the tree's branch sums,
+    which the shared comment blocks would otherwise target in vain from the
+    list. Only steers what is rendered, never access."""
+    return is_htmx(request) and urlsplit(
+        request.headers.get("hx-current-url", "")).path == sokvag
 
 
 def med_parametrar(request: Request, **nya: str) -> str:

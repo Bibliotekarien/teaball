@@ -75,12 +75,13 @@ def oppna_kommentarer(conn, medlem_id: int):
     return ut
 
 
-def rakna_bedomt(rotter, effektiva):
+def rakna_bedomt(rotter, besvarade):
     """(bedömda, kvar) over the rendered tree's assessable nodes —
     driftsatt/utgår and locked nodes can't be answered and belong in neither
-    column.
-    An inherited answer counts as bedömd: the parent's answer holds until
-    something more specific is given (A1/B6)."""
+    column. besvarade is any container of answered node ids: the member's
+    effective answers here, so an inherited answer counts as bedömd (the
+    parent's answer holds until something more specific is given, A1/B6);
+    the svarsläge also passes the direct answers alone."""
     bedomda = kvar = 0
     stack = list(rotter)
     while stack:
@@ -88,7 +89,7 @@ def rakna_bedomt(rotter, effektiva):
         stack.extend(n["barn"])
         if ej_rankbar(n):
             continue
-        if n["id"] in effektiva:
+        if n["id"] in besvarade:
             bedomda += 1
         else:
             kvar += 1

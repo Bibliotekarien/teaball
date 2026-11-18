@@ -9,9 +9,10 @@ details[open] > summary .chevron {
   transform: rotate(90deg);
 }
 
-/* Grensummorna i behovsträdet (_nod_makro.html) syns bara när grenen är
-   hopfälld. Olagrad regel, så den vinner över hidden-verktyget. */
-details:not([open]) > summary .gren-summa {
+/* Grensummorna i behovsträdet (kommentarer/_makro.html och
+   _medlemmar_makro.html) syns bara när grenen är hopfälld, och inte alls
+   som tom platshållare. Olagrad regel, så den vinner över hidden-verktyget. */
+details:not([open]) > summary .gren-summa:not(:empty) {
   display: inline-flex;
 }
 

@@ -101,13 +101,13 @@ def svarsgrad(conn):
     besvarade: dict[int, set[int]] = {}
     for r in conn.execute("SELECT medlem_id, funktion_id FROM bedomning_effektiv"):
         besvarade.setdefault(r["medlem_id"], set()).add(r["funktion_id"])
-    direkta: dict[int, set[int]] = {}
-    for r in conn.execute("SELECT medlem_id, funktion_id FROM bedomning"):
-        direkta.setdefault(r["medlem_id"], set()).add(r["funktion_id"])
+    direkt_besvarade: dict[int, set[int]] = {}
+    for r in conn.execute("SELECT medlem_id, funktion_id FROM bedomning_direkt"):
+        direkt_besvarade.setdefault(r["medlem_id"], set()).add(r["funktion_id"])
     rader = []
     for m in conn.execute("SELECT id, namn, kategori FROM medlem"):
         bedomda, kvar = bedomning.rakna_bedomt(rotter, besvarade.get(m["id"], set()))
-        egna, _ = bedomning.rakna_bedomt(rotter, direkta.get(m["id"], set()))
+        direkta, _ = bedomning.rakna_bedomt(rotter, direkt_besvarade.get(m["id"], set()))
         totalt = bedomda + kvar
         if totalt and not kvar:
             lage = "klar"
@@ -116,7 +116,7 @@ def svarsgrad(conn):
         else:
             lage = "ej påbörjad"
         rader.append({
-            **dict(m), "bedomda": bedomda, "direkta": egna, "totalt": totalt, "lage": lage,
+            **dict(m), "bedomda": bedomda, "direkta": direkta, "totalt": totalt, "lage": lage,
             "andel": 100 * bedomda / totalt if totalt else 0,
         })
     rader.sort(key=lambda r: (-r["andel"], r["namn"]))

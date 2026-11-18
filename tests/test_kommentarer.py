@@ -176,6 +176,8 @@ def test_extern_ser_aldrig_kommentarer(client, app_db):
     assert "kommentarantal-" not in trad and "kommentarer-" not in trad
     assert "kommentarpill-" not in trad
     assert 'href="/kommentarer"' not in trad
+    # Inte heller grensummorna (#111) — varken antal eller platshållare.
+    assert "längre ner i grenen" not in trad and "grensumma-" not in trad
     # Extern har ingen knapprad alls (inga ändringar, inga kommentarer).
     assert "knapprad" not in trad
 
@@ -308,3 +310,18 @@ def test_grenen_summerar_oppna_under(conn, trad):
     assert tjanst.hitta_nod(rotter, trad["publicering"])["oppna_under"] == 2
     assert tjanst.hitta_nod(rotter, trad["wos"])["oppna_under"] == 1
     assert tjanst.hitta_nod(rotter, trad["dubblett"])["oppna_under"] == 0
+
+
+def test_ny_kommentar_i_tradet_raknar_om_forfaderna(client, app_db):
+    """#111: en kommentar skriven i trädet syns direkt i förfädernas
+    grensummor (OOB), utan omladdning."""
+    ids = seed_trad(app_db)
+    logga_in(client, app_db)
+    token = _token(client, "/trad")
+    svar = client.post(f"/kommentarer/nod/{ids['dubblett']}",
+                       data={"text": "Kolla", "csrf_token": token},
+                       headers=HTMX | {"X-CSRF-Token": token,
+                                       "HX-Current-URL": "http://testserver/trad"})
+    for forfader in ("wos", "import", "publicering"):
+        assert f'id="grensumma-intern-{ids[forfader]}" hx-swap-oob="true"' in svar.text
+    assert "1 öppen intern kommentar längre ner i grenen" in svar.text

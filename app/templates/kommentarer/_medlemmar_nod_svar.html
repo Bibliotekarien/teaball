@@ -1,5 +1,7 @@
 {% import "kommentarer/_medlemmar_makro.html" as mk %}
 {# htmx-svaret för nodblocket: blocket på sin plats + radens pill OOB, så
-   den följer läge och antal. #}
+   den följer läge och antal. Från trädet också förfädernas grensummor (tom
+   ordbok annars). #}
 {{ mk.block(nod.id, request, oppen, kommentarer, skrivbar) }}
 {{ mk.pill(nod.id, antal, oob=true, oppen=oppen) }}
+{% for foralder_id, summa in grensummor.items() %}{{ mk.grensumma(foralder_id, summa, oob=true) }}{% endfor %}
