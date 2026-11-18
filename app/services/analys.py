@@ -91,15 +91,23 @@ def svarsgrad(conn):
     member sees nothing left: visible nodes only, not driftsatt, utgår or
     locked, and an inherited answer counts as answered (A1/B6).
 
+    direkta counts the same nodes answered by the member themselves (#110):
+    a single answer high up turns a member green through inheritance, and
+    direkta shows how much of it they actually went through.
+
     lage: "klar" (all answered), "påbörjad" or "ej påbörjad". Sorted by
     share descending, so the bar chart reads as a staircase."""
     rotter = trad.hamta_trad(conn, endast_synliga=True)
     besvarade: dict[int, set[int]] = {}
     for r in conn.execute("SELECT medlem_id, funktion_id FROM bedomning_effektiv"):
         besvarade.setdefault(r["medlem_id"], set()).add(r["funktion_id"])
+    direkta: dict[int, set[int]] = {}
+    for r in conn.execute("SELECT medlem_id, funktion_id FROM bedomning"):
+        direkta.setdefault(r["medlem_id"], set()).add(r["funktion_id"])
     rader = []
     for m in conn.execute("SELECT id, namn, kategori FROM medlem"):
         bedomda, kvar = bedomning.rakna_bedomt(rotter, besvarade.get(m["id"], set()))
+        egna, _ = bedomning.rakna_bedomt(rotter, direkta.get(m["id"], set()))
         totalt = bedomda + kvar
         if totalt and not kvar:
             lage = "klar"
@@ -108,7 +116,7 @@ def svarsgrad(conn):
         else:
             lage = "ej påbörjad"
         rader.append({
-            **dict(m), "bedomda": bedomda, "totalt": totalt, "lage": lage,
+            **dict(m), "bedomda": bedomda, "direkta": egna, "totalt": totalt, "lage": lage,
             "andel": 100 * bedomda / totalt if totalt else 0,
         })
     rader.sort(key=lambda r: (-r["andel"], r["namn"]))

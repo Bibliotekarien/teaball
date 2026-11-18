@@ -16,7 +16,7 @@ from app.auth.core import Principal, krav_admin, krav_intern
 from app.auth.csrf import krav_csrf
 from app.db import get_conn
 from app.routers.trad import STATUSAR, TYPER
-from app.services import kommentarer
+from app.services import kommentarer, medlemskommentarer
 from app.services import trad as tjanst
 from app.services.trad import LISTSORTERING
 from app.web import is_htmx, templates
@@ -45,6 +45,7 @@ def _listsvar(request, conn, principal, fel: str | None = None,
         dolj_lasta=filter.get("dolj_lasta", False),
     )
     kommentarer.markera_antal(conn, rader)
+    medlemskommentarer.markera_antal(conn, rader)
     ctx = {
         "principal": principal,
         "rader": rader,
@@ -128,6 +129,7 @@ def _hamta_rad(conn, nod_id: int) -> dict:
     rad = dict(rad)
     rad["stig"] = tjanst.foraldrastig(conn, rad["foralder_id"])
     kommentarer.markera_antal(conn, [rad])
+    medlemskommentarer.markera_antal(conn, [rad])
     return rad
 
 

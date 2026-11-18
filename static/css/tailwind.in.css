@@ -9,6 +9,12 @@ details[open] > summary .chevron {
   transform: rotate(90deg);
 }
 
+/* Grensummorna i behovsträdet (_nod_makro.html) syns bara när grenen är
+   hopfälld. Olagrad regel, så den vinner över hidden-verktyget. */
+details:not([open]) > summary .gren-summa {
+  display: inline-flex;
+}
+
 /* SortableJS drag feedback. */
 .sortable-ghost {
   opacity: 0.4;

@@ -4,7 +4,7 @@ från förvaltningen. Två ytor, som de interna kommentarerna:
 * /kommentarer/medlemmar — arbetslistan: kommentarerna grupperade per nod i
   trädordning, filtrerade på hantering (olästa som standard), där varje
   kommentar bockas av som läst eller arkiveras för sig.
-* nodblocket — under en rad i behovsträdet: nodens olästa och lästa
+* nodblocket — under en rad i listvyn och behovsträdet: nodens olästa och lästa
   kommentarer, utfällda på begäran (htmx) från pillret på raden.
 
 Hanteringen gäller bara förvaltningens vyer: medlemmens kommentar rörs

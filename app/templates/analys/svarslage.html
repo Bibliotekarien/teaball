@@ -18,7 +18,8 @@
   besvara som medlemmen har besvarat. Det är samma räkning som medlemmen själv
   ser i sin svarsvy: bara noder som visas för medlemmar, inte driftsatta,
   utgående eller låsta, och ett svar på en överordnad nod gäller också
-  noderna under den.</p>
+  noderna under den. Hur många noder medlemmen svarat på själv står i
+  verktygstipset och i tabellen.</p>
 
 {% if not rader %}
 <p class="rounded-md border border-stone-200 bg-white p-4 text-sm text-stone-400">Inga medlemmar ännu.</p>
@@ -51,7 +52,7 @@
       {% set procent = r.andel | int %}
       <li class="min-w-0 flex-1">
         <a href="/analys/medlemmar?medlem_id={{ r.id }}"
-           title="{{ r.namn }}: {{ r.bedomda }} av {{ r.totalt }} noder besvarade ({{ procent }} %) — {{ LAGE[r.lage].etikett | lower }}"
+           title="{{ r.namn }}: {{ r.bedomda }} av {{ r.totalt }} noder besvarade ({{ procent }} %), varav {{ r.direkta }} med egna svar — {{ LAGE[r.lage].etikett | lower }}"
            aria-label="{{ r.namn }}: {{ procent }} procent, {{ LAGE[r.lage].etikett | lower }}"
            class="group flex flex-col items-center focus:outline-none">
           <span class="flex h-56 w-full items-end justify-center group-hover:bg-stone-50 group-focus-visible:ring-2 group-focus-visible:ring-blue-700">
@@ -79,6 +80,7 @@
         <th class="px-3 py-2 font-normal">Medlem</th>
         <th class="px-3 py-2 font-normal">Läge</th>
         <th class="px-3 py-2 text-right font-normal">Besvarade</th>
+        <th class="px-3 py-2 text-right font-normal" title="Noder medlemmen själv svarat på. Resten är besvarade genom ett svar på en överordnad nod.">Varav egna svar</th>
         <th class="px-3 py-2 text-right font-normal">Andel</th>
       </tr>
     </thead>
@@ -88,6 +90,7 @@
         <td class="px-3 py-1.5"><a href="/analys/medlemmar?medlem_id={{ r.id }}" class="text-blue-800 hover:underline">{{ r.namn }}</a></td>
         <td class="px-3 py-1.5 text-stone-500"><span class="mr-1.5 inline-block h-2 w-2 rounded-sm {{ LAGE[r.lage].stapel }}"></span>{{ LAGE[r.lage].etikett }}</td>
         <td class="px-3 py-1.5 text-right tabular-nums">{{ r.bedomda }} av {{ r.totalt }}</td>
+        <td class="px-3 py-1.5 text-right tabular-nums text-stone-500">{{ r.direkta }}</td>
         <td class="px-3 py-1.5 text-right tabular-nums">{{ r.andel | int }}&nbsp;%</td>
       </tr>
       {% endfor %}

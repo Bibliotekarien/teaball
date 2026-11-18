@@ -292,3 +292,19 @@ def test_intern_far_inte_redigera_noden_i_kommentarsvyn(client, app_db):
     vy = client.get("/kommentarer").text
     assert "/redigera" not in vy
     assert client.get(f"/kommentarer/nod/{ids['wos']}/redigera", headers=HTMX).status_code == 403
+
+
+def test_grenen_summerar_oppna_under(conn, trad):
+    """#111: öppna kommentarer längre ner räknas upp till förfäderna;
+    behandlade räknas inte."""
+    from app.services import kommentarer
+    from app.services import trad as tjanst
+    kommentarer.skapa(conn, trad["dubblett"], "Kolla")
+    kommentarer.skapa(conn, trad["wos"], "Också")
+    behandlad = kommentarer.skapa(conn, trad["wos"], "Klar")
+    kommentarer.satt_status(conn, behandlad, "behandlad")
+    rotter = tjanst.hamta_trad(conn)
+    kommentarer.markera_antal(conn, rotter)
+    assert tjanst.hitta_nod(rotter, trad["publicering"])["oppna_under"] == 2
+    assert tjanst.hitta_nod(rotter, trad["wos"])["oppna_under"] == 1
+    assert tjanst.hitta_nod(rotter, trad["dubblett"])["oppna_under"] == 0

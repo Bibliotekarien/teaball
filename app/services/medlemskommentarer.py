@@ -49,13 +49,20 @@ def antal_per_nod(conn: sqlite3.Connection) -> dict[int, dict[str, int]]:
 def markera_antal(conn: sqlite3.Connection, noder: list[dict]) -> None:
     """Sätter "medlemskommentarer" på varje nod, även nästlade barn. Rader
     utan fältet renderas utan medlemskommentarer — så extern roll och
-    exporterna aldrig visar dem."""
+    exporterna aldrig visar dem.
+
+    "olasta_under" är olästa kommentarer längre ner i grenen (#111), så en
+    hopfälld gren säger att den har något att läsa. Summeras över barnen
+    som renderas — i ett filtrerat träd alltså bara över det som syns."""
     antal = antal_per_nod(conn)
-    stack = list(noder)
-    while stack:
-        nod = stack.pop()
+
+    def markera(nod) -> int:
         nod["medlemskommentarer"] = antal.get(nod["id"], {"totalt": 0, "olasta": 0})
-        stack.extend(nod.get("barn", ()))
+        nod["olasta_under"] = sum(markera(b) for b in nod.get("barn", ()))
+        return nod["medlemskommentarer"]["olasta"] + nod["olasta_under"]
+
+    for nod in noder:
+        markera(nod)
 
 
 def for_nod(conn: sqlite3.Connection, nod_id: int) -> list[dict]:

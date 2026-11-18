@@ -190,3 +190,40 @@ def test_extern_ser_inga_medlemskommentarer(client, app_db):
     assert "medlemskommentarer-" not in trad
     for adress in ("/kommentarer/medlemmar", f"/kommentarer/medlemmar/nod/{ids['wos']}"):
         assert client.get(adress, follow_redirects=False).status_code in (303, 403)
+
+
+def test_listvyn_visar_pill_och_block(client, app_db):
+    """#112: samma pill och block som i trädet, under raden i listan."""
+    ids = _seed(app_db)
+    logga_in(client, app_db, "ivar", roll="intern")
+    lista = client.get("/lista").text
+    assert 'aria-label="3 kommentarer från medlemmar, 3 olästa"' in lista
+    assert 'id="medlemskommentarer-' + str(ids["wos"]) + '"' in lista
+    assert "Formuleringen är otydlig" not in lista
+    # Den fristående raden (avbryt i inline-redigeringen) har dem också.
+    rad = client.get(f"/lista/nod/{ids['wos']}/rad", headers=HTMX).text
+    assert 'id="medlemskommentarpill-' + str(ids["wos"]) + '"' in rad
+
+
+def test_grenen_summerar_olasta_under(conn):
+    """#111: WoS ligger under Import under Publicering. Import och
+    Publicering får summan av det olästa längre ner; WoS själv ingen."""
+    ids = _seed(conn)
+    tjanst.satt_status(conn, ids["lu"], ids["wos"], "intern", "läst")
+    from app.services import trad
+    rotter = trad.hamta_trad(conn)
+    tjanst.markera_antal(conn, rotter)
+    publicering = trad.hitta_nod(rotter, ids["publicering"])
+    assert publicering["olasta_under"] == 2
+    assert trad.hitta_nod(rotter, ids["import"])["olasta_under"] == 2
+    assert trad.hitta_nod(rotter, ids["wos"])["olasta_under"] == 0
+    assert trad.hitta_nod(rotter, ids["export"])["olasta_under"] == 0
+
+
+def test_tradet_visar_grensumman(client, app_db):
+    ids = _seed(app_db)
+    logga_in(client, app_db, "ivar", roll="intern")
+    rad = client.get("/trad").text.split(f'id="rad-{ids["import"]}"', 1)[1]
+    rad = rad.split('id="rad-', 1)[0]
+    assert 'class="gren-summa hidden' in rad
+    assert "3 olästa kommentarer från medlemmar längre ner i grenen" in rad

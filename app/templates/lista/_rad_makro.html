@@ -1,6 +1,7 @@
 {% from "_ankare.html" import ankare %}
 {% import "_heroicons.html" as hi %}
 {% import "kommentarer/_makro.html" as k %}
+{% import "kommentarer/_medlemmar_makro.html" as mk %}
 {# En rad i listvyn. Eget makro så raden kan renderas fristående (GET
    /lista/nod/<id>/rad — avbryt i inline-redigeringen byter tillbaka bara den
    raden i stället för att ladda om hela listan och tappa sorteringen). id:t
@@ -37,6 +38,7 @@
   </span>
   {% endif %}
   {% if n.kommentarer is defined %}{{ k.pill(n.id, n.kommentarer) }}{% endif %}
+  {% if n.medlemskommentarer is defined %}{{ mk.pill(n.id, n.medlemskommentarer) }}{% endif %}
   {% if not n.synlig_stig %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Visas inte för medlemmar">{{ hi.ikon("eye-slash") }} dold</span>{% endif %}
   {% if n.rankning_last %}<span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600" title="Låst från rankning{% if n.rankning_last_kommentar %}: {{ n.rankning_last_kommentar }}{% endif %}">{{ hi.ikon("lock-closed") }} låst</span>{% endif %}
   <span class="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500" title="{{ TYP_BESKRIVNING[n.typ] }}">{{ TYP_LABEL[n.typ] }}</span>
@@ -59,5 +61,6 @@
   </div>
   {% endif %}
   {% if n.kommentarer is defined %}{{ k.block(n.id, request) }}{% endif %}
+  {% if n.medlemskommentarer is defined %}{{ mk.block(n.id, request) }}{% endif %}
 </li>
 {% endmacro %}
