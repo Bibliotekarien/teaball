@@ -56,6 +56,17 @@ for fil in "$KATALOG"/*.db; do
     misslyckade+=("$namn")
     continue
   fi
+  # SQLite öppnar -shm för skrivning även vid läsning, och läser -wal. En
+  # symlänk där hade kunnat få jobbet att skriva i backupmålet eller läsa
+  # värdens filer. Kontrollen minskar glappet mot backup.sh men stänger det
+  # inte; se docs/drift-bibliotekarien-vps.md, Backup.
+  for sido in "$fil-wal" "$fil-shm"; do
+    if [ -L "$sido" ] || { [ -e "$sido" ] && [ ! -f "$sido" ]; }; then
+      echo "Hoppar över $fil: $sido är inte en vanlig fil." >&2
+      misslyckade+=("$namn")
+      continue 2
+    fi
+  done
   antal=$((antal + 1))
   "$BACKUP" "$fil" "$MAL/$namn" || misslyckade+=("$namn")
 done
