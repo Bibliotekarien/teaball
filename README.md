@@ -32,6 +32,9 @@ Dra-och-släpp i behovsträdet är en progressiv förbättring (SortableJS, vend
   `docker compose up -d --build` med `docker-compose.yml`.
 - **Instansen på bibliotekarien-vps:**
   [`docs/drift-bibliotekarien-vps.md`](docs/drift-bibliotekarien-vps.md).
+- **Överlämning till en annan organisation:**
+  [`docs/overlamning.md`](docs/overlamning.md) — blockerare, flytt mellan
+  servrar, vad som försvinner med plattformen, ansvar och checklista.
 
 ## Förvaltning
 
