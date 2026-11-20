@@ -7,7 +7,7 @@
 # merge → build → up -d → status.
 #
 # Varför root och inte service-användaren: root kör filer ur arbetskopian
-# (det här skriptet, backup.sh via timern, compose-filen). Ägde teaball dem
+# (det här skriptet, backupskripten via timern, compose-filen). Ägde teaball dem
 # kunde den användaren skriva kod som root sedan körde. Därför ska teaball
 # inte heller sitta i docker-gruppen, som är root i praktiken
 # (SECURITY_REVIEW.md Risk 1 i bibliotekarien-platform; piloten var

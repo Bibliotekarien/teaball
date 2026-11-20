@@ -2,21 +2,33 @@
 # Installera: sudo cp deploy/teaball-backup.{service,timer} /etc/systemd/system/
 #             sudo systemctl daemon-reload && sudo systemctl enable --now teaball-backup.timer
 #
-# Tar en konsistent kopia av varje organisations SQLite-fil i named-volymen
-# (spec I4: .backup-API, integritetskontroll, utrymmeskoll, rotation 30
-# dagliga + 12 månatliga), i /opt/teaball/backups/<hostnamn>/. Misslyckas en
-# organisation misslyckas jobbet, och då avbryts också deploy.sh.
+# Tar en konsistent kopia av varje organisations SQLite-fil (spec I4:
+# backup-API, integritetskontroll, utrymmeskoll, rotation 30 dagliga + 12
+# månatliga), i /opt/teaball/backups/<hostnamn>/. Misslyckas en
+# organisation kopieras de övriga ändå, men jobbet misslyckas, och då
+# avbryts också deploy.sh.
 #
-# Körs som teaball (uid 1505), samma användare som containern, inte som root.
-# Datakatalogen är skrivbar för containern; root ska inte öppna en databas
-# som en komprometterad container har kunnat preparera. Den enda förmåga
-# jobbet behöver utöver det är att ta sig igenom /var/lib/docker (root-only):
-# CAP_DAC_READ_SEARCH, som bara ger läsning. Skrivbart är enbart målet och
-# datakatalogen (SQLite kan behöva röra -shm-filen när WAL används).
+# Två steg, eftersom datakatalogen är skrivbar för containern (#108):
+#
+# 1. ExecStartPre (root, "+"): scripts/ogonblick.py i en engångscontainer
+#    av appens image tar ögonblickskopiorna med backup-API:t, inne i
+#    containerns namnrymd och som dess användare. Där vinner en
+#    komprometterad container inget på en symlänk. Root öppnar alltså inga
+#    filer i volymen, utan startar bara en container. compose run fungerar
+#    även när web är stoppad.
+# 2. ExecStart (teaball, uid 1505): scripts/backup_kopiera.py kopierar
+#    kopiorna som vanliga filer, med O_NOFOLLOW och fstat på den öppna
+#    filen, och integritetskontrollerar dem i målet i en underprocess utan
+#    förmågor. Det öppnar ingen SQLite-fil som containern kan skriva i.
+# 3. ExecStopPost (root, "+"): ögonblickskopiorna tas bort ur volymen.
+#
+# Steg 2 kör som teaball, inte root, och utan docker-gruppen. Den enda
+# förmåga det behöver är att ta sig igenom /var/lib/docker (root-only):
+# CAP_DAC_READ_SEARCH, som bara ger läsning. Skrivbart är enbart målet;
+# datakatalogen är skrivskyddad för jobbet.
 #
 # Backupkatalogen måste ägas av teaball:
 #   sudo install -d -o teaball -g teaball -m 700 /opt/teaball/backups
-#   sudo chown -R teaball:teaball /opt/teaball/backups   # befintliga kopior
 
 [Unit]
 Description=teaball SQLite backup
@@ -34,7 +46,24 @@ NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
-ReadWritePaths=/opt/teaball/backups /var/lib/docker/volumes/teaball_teaball-data/_data
-ExecStart=/opt/teaball/app/scripts/backup_alla.sh \
-    /var/lib/docker/volumes/teaball_teaball-data/_data/organisationer \
+ReadWritePaths=/opt/teaball/backups
+# En stor fil eller en hängande docker ska inte låta deploy.sh vänta för evigt.
+TimeoutStartSec=30min
+# "-": också när ögonblickskopian misslyckas för en organisation ska de
+# övriga kopieras. Felet når ändå jobbet: ogonblick.py lämnar en
+# <namn>.misslyckad som backup_kopiera.py avslutas med fel på, och utan
+# några färska kopior alls misslyckas det också. "+": root, utan
+# sandlådan ovan. HOME och DOCKER_CONFIG pekar på roots egna, så att docker
+# inte läser klientkonfiguration eller plugins ur teaballs hemkatalog.
+ExecStartPre=-+/usr/bin/env HOME=/root DOCKER_CONFIG=/root/.docker \
+    /usr/bin/docker compose -f /opt/teaball/app/docker-compose.prod.yml \
+    run --rm --no-deps -T web python scripts/ogonblick.py
+ExecStart=/usr/bin/python3 -I /opt/teaball/app/scripts/backup_kopiera.py \
+    /var/lib/docker/volumes/teaball_teaball-data/_data/ogonblick \
     /opt/teaball/backups
+# Efteråt, även när kopieringen misslyckats: ögonblickskopiorna tas bort ur
+# volymen, så att den inte bär en extra kopia av varje databas mellan
+# körningarna.
+ExecStopPost=-+/usr/bin/env HOME=/root DOCKER_CONFIG=/root/.docker \
+    /usr/bin/docker compose -f /opt/teaball/app/docker-compose.prod.yml \
+    run --rm --no-deps -T web python scripts/ogonblick.py --rensa
