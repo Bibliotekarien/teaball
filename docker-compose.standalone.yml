@@ -52,6 +52,10 @@ services:
       MATOMO_URL: ${MATOMO_URL:-}
       MATOMO_SITE_ID: ${MATOMO_SITE_ID:-}
       MATOMO_TOKEN: ${MATOMO_TOKEN:-}
+      # Den som driftar installationen. Med flera organisationer nämns den som
+      # personuppgiftsbiträde på integritetssidan; tomt = gul markering.
+      DRIFTARE: ${DRIFTARE:-}
+      DRIFTARE_KONTAKT: ${DRIFTARE_KONTAKT:-}
     healthcheck:
       # python i stället för curl — curl finns inte i python:3.12-slim.
       test: ["CMD", "python3", "-c",

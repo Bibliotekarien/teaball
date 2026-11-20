@@ -41,6 +41,9 @@ services:
       # med scripts/organisationer.py matomo; MATOMO_SITE_ID används inte.
       MATOMO_URL: ${MATOMO_URL:-}
       MATOMO_TOKEN: ${MATOMO_TOKEN:-}
+      # Personuppgiftsbiträdet på integritetssidan; tomt = gul markering.
+      DRIFTARE: ${DRIFTARE:-}
+      DRIFTARE_KONTAKT: ${DRIFTARE_KONTAKT:-}
     healthcheck:
       # python i stället för curl — curl finns inte i python:3.12-slim.
       test: ["CMD", "python3", "-c",

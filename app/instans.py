@@ -1,5 +1,6 @@
 """Instansens texter: organisationen, systemet som ersätts och integritetssidans
-personuppgiftsansvarig och kontaktväg. De bor i tabellen instans (en rad) och
+personuppgiftsansvarig, kontaktväg, rättsliga grund, lagringsplats och
+gallring. De bor i tabellen instans (en rad) och
 redigeras av admin på /installningar. Samma rad bär organisationens
 Matomo-sajt, som bara operatören sätter (spara_matomo, migration 0011).
 
@@ -30,6 +31,30 @@ MAXLANGD = {
     "nuvarande_system": 200,
     "personuppgiftsansvarig": 300,
     "dataskydd_kontakt": 300,
+    "rattslig_grund": 600,
+    "lagringsplats": 600,
+    "gallring": 600,
+}
+
+# Texten som stod fast på integritetssidan före migration 0014. En databas
+# som redan visade den får den som värde (fyll_integritetstexter), så att
+# dess sida inte ändras.
+TIDIGARE = {
+    "rattslig_grund": "Den rättsliga grunden är uppgift av allmänt intresse respektive "
+                      "berättigat intresse (artikel 6.1 e och f i dataskyddsförordningen).",
+    "lagringsplats": "Tjänsten och dess säkerhetskopior driftas på servrar inom EU. Ingen "
+                     "överföring av personuppgifter sker till land utanför EU/EES.",
+    "gallring": "Rutiner för hur länge historiken sparas är under utformning.",
+}
+
+# Förslag under fälten på /installningar. Bara förslag: ett tomt fält ger den
+# gula markeringen, aldrig texten. Gallringen får en mall och inte den
+# tidigare texten, som inte säger hur länge något sparas.
+FORSLAG = {
+    "rattslig_grund": TIDIGARE["rattslig_grund"],
+    "lagringsplats": TIDIGARE["lagringsplats"],
+    "gallring": "Historiken sparas i [antal] månader efter att behovsarbetet avslutats "
+                "och raderas sedan.",
 }
 
 
@@ -39,6 +64,9 @@ class Instans:
     nuvarande_system: str = ""
     personuppgiftsansvarig: str = ""
     dataskydd_kontakt: str = ""
+    rattslig_grund: str = ""
+    lagringsplats: str = ""
+    gallring: str = ""
     # Sätts av operatören (scripts/organisationer.py matomo), inte på
     # /installningar; se migration 0011.
     matomo_site_id: str = ""
@@ -130,13 +158,38 @@ def fyll_fran_miljon(conn: sqlite3.Connection) -> None:
         "SELECT EXISTS (SELECT 1 FROM forvaltare) OR EXISTS (SELECT 1 FROM funktion)"
     ).fetchone()[0]
     if i_bruk:
-        spara(conn, **fran_miljo)
+        # spara tömmer fält som inte skickas med. Integritetstexterna från
+        # migration 0014 finns inte i miljön och ska stå kvar.
+        nuvarande = las(conn)
+        spara(conn, **({f: getattr(nuvarande, f) for f in MAXLANGD} | fran_miljo))
         if satta:
             logger.info("Instansens texter fyllda från miljön: %s", ", ".join(satta))
     elif satta:
         logger.warning("Ny databas fylls inte från miljön, ange texterna under "
                        "Inställningar: %s", ", ".join(satta))
     conn.execute("UPDATE instans SET fran_miljon = 1 WHERE id = 1")
+    conn.commit()
+
+
+def fyll_integritetstexter(conn: sqlite3.Connection) -> None:
+    """En gång per databas efter migration 0014: en databas i bruk får den
+    tidigare fasta texten för rättslig grund, lagringsplats och gallring, så
+    att dess integritetssida ser likadan ut efter uppgraderingen. En ny, tom
+    databas får inget, och med flera organisationer får ingen något: texten
+    gällde DiVA-konsortiet, och en annan organisation ska ange sin egen."""
+    rad = conn.execute("SELECT integritetstexter_fyllda FROM instans WHERE id = 1").fetchone()
+    if rad is None or rad["integritetstexter_fyllda"]:
+        return
+    i_bruk = conn.execute(
+        "SELECT EXISTS (SELECT 1 FROM forvaltare) OR EXISTS (SELECT 1 FROM funktion)"
+    ).fetchone()[0]
+    if i_bruk and not organisationer.fler_an_en():
+        conn.execute(
+            "UPDATE instans SET rattslig_grund = ?, lagringsplats = ?, gallring = ? WHERE id = 1",
+            (TIDIGARE["rattslig_grund"], TIDIGARE["lagringsplats"], TIDIGARE["gallring"]),
+        )
+        logger.info("Integritetssidans tidigare texter sparade i databasen.")
+    conn.execute("UPDATE instans SET integritetstexter_fyllda = 1 WHERE id = 1")
     conn.commit()
 
 

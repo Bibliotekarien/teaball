@@ -23,7 +23,7 @@
     <article class="space-y-6 text-sm leading-relaxed text-stone-700">
       <div>
         <h2 class="font-serif text-2xl text-stone-900">Personuppgifter &amp; integritet</h2>
-        <p class="mt-1 text-xs text-stone-500">Senast uppdaterad 17 november 2026.</p>
+        <p class="mt-1 text-xs text-stone-500">Senast uppdaterad 18 november 2026.</p>
       </div>
 
       <p>
@@ -58,6 +58,22 @@
           innan tjänsten tas i skarp drift.</span>
           {% endif %}
         </p>
+        {# The operator, from DRIFTARE in the environment. With more than one
+           organisation (organisationer.fler_an_en) it processes their data on
+           their behalf, so it must be named; otherwise only if set. #}
+        {% if driftare %}
+        <p class="mt-2">
+          Tjänsten driftas av {{ driftare }}, som är personuppgiftsbiträde och
+          behandlar uppgifterna för den personuppgiftsansvariges räkning.
+          {%- if driftare_kontakt %} Kontakt: {{ driftare_kontakt }}.{% endif %}
+        </p>
+        {% elif flera_organisationer %}
+        <p class="mt-2">
+          Tjänsten driftas av en annan organisation, som är personuppgiftsbiträde.
+          <span class="rounded bg-amber-50 px-1 text-amber-800">Driftaren och dess
+          kontaktväg fylls i här innan tjänsten tas i skarp drift.</span>
+        </p>
+        {% endif %}
       </section>
 
       <section>
@@ -93,10 +109,13 @@
         <p class="mt-1">
           Uppgifterna behandlas för att genomföra det gemensamma behovsarbetet:
           samla in och jämföra medlemmarnas behov, identifiera blockerare för
-          driftsättning och planera migreringsordning. Den rättsliga grunden är
-          uppgift av allmänt intresse respektive berättigat intresse (artikel 6.1 e
-          och f i dataskyddsförordningen). Inga automatiserade beslut eller
-          profilering förekommer.
+          driftsättning och planera migreringsordning.
+          {# Legal basis, storage location and retention are set per instance
+             under Inställningar (#105); empty keeps the amber marker. #}
+          {% if rattslig_grund %}{{ rattslig_grund }}{% else %}<span
+          class="rounded bg-amber-50 px-1 text-amber-800">Den rättsliga grunden
+          fylls i här innan tjänsten tas i skarp drift.</span>{% endif %}
+          Inga automatiserade beslut eller profilering förekommer.
         </p>
       </section>
 
@@ -119,7 +138,12 @@
           När en bedömning ändras eller tas bort bevaras den tidigare versionen i en
           historik, så att arbetets utveckling går att följa. Det innebär att uppgifter
           kan finnas kvar i historiken även efter att en medlem har tagits bort ur
-          tjänsten. Rutiner för hur länge historiken sparas är under utformning.
+          tjänsten.
+          {% if gallring %}{{ gallring }}{% else %}<span
+          class="rounded bg-amber-50 px-1 text-amber-800">Hur länge historiken
+          sparas fylls i här innan tjänsten tas i skarp drift.</span>{% endif %}
+          {# Fixed, not part of the field: backups are the operator's, with the
+             same rotation for every organisation on the installation. #}
           Säkerhetskopior lagras med rullande gallring.
         </p>
       </section>
@@ -130,7 +154,7 @@
           {% if matomo %}
           {% if matomo_hos_operatoren %}
           Anonym besöksstatistik samlas in med en självhostad Matomo-installation
-          hos den som driftar tjänsten, i en egen sajt, åtskild från andra organisationers.
+          hos {% if driftare %}{{ driftare }}{% else %}den som driftar tjänsten{% endif %}, i en egen sajt, åtskild från andra organisationers.
           {% else %}
           Anonym besöksstatistik samlas in med en egen, självhostad
           Matomo-installation.
@@ -166,8 +190,10 @@
       <section>
         <h3 class="font-semibold text-stone-900">Var uppgifterna lagras</h3>
         <p class="mt-1">
-          Tjänsten och dess säkerhetskopior driftas på servrar inom EU. Ingen
-          överföring av personuppgifter sker till land utanför EU/EES.
+          {% if lagringsplats %}{{ lagringsplats }}{% else %}<span
+          class="rounded bg-amber-50 px-1 text-amber-800">Var tjänsten och dess
+          säkerhetskopior driftas, och om uppgifter överförs utanför EU/EES, fylls
+          i här innan tjänsten tas i skarp drift.</span>{% endif %}
         </p>
       </section>
 

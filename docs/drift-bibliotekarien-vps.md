@@ -309,7 +309,11 @@ filen till `/opt` igen, så att den beskriver det gamla läget.
 
 1. **Avtal först.** En organisation med egna medlemmar tas inte i skarp
    drift förrän biträdesavtalet finns och driftaren är namngiven på
-   integritetssidan (Bibliotekarien/teaball#105).
+   integritetssidan: `DRIFTARE` och `DRIFTARE_KONTAKT` i `/opt/teaball/app/.env`,
+   sedan `sudo docker compose -f docker-compose.prod.yml up -d` så att
+   containern får dem. Organisationens
+   admin fyller i rättslig grund, lagringsplats och gallring under
+   Inställningar; integritetssidan visar gula markeringar för det som saknas.
 2. **DNS** för hostnamnet till serverns IP. Vänta tills `dig +short
    <hostnamn>` svarar med serverns adress; Caddy hämtar certifikatet vid
    omladdningen.

@@ -39,6 +39,7 @@ Fyll i `.env`:
 | `SECRET_KEY` | Slumpad nyckel som signerar sessionscookies. Generera med `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`. Appen vägrar starta utan. |
 | `PUBLIC_BASE_URL` | Den publika adressen, t.ex. `https://teaball.example.org`. Används i medlemmarnas svarslänkar. |
 | `MATOMO_*` | Lämna tomma om ni inte har en egen Matomo — då är statistiken avstängd, och integritetssidan säger det. |
+| `DRIFTARE`, `DRIFTARE_KONTAKT` | Den som driftar installationen och dess kontaktväg. Nämns som personuppgiftsbiträde på integritetssidan. Kan lämnas tomma med en organisation. Finns mer än en organisation i katalogen (avsnitt 10) visar sidan en gul markering tills de är satta. |
 
 Skapa datakatalogen. Containern kör som uid/gid 1505, som måste äga den:
 
@@ -132,12 +133,13 @@ sköts under **Konton** i appen.
 
 Fyll sedan i instansens texter under **Inställningar**: organisationen,
 systemet som ersätts (används i förklaringen av statusen *utreds*, "Finns i
-…"), personuppgiftsansvarig och kontaktväg för dataskyddsfrågor. Tomma fält
-ger neutral text. Så länge personuppgiftsansvarig och kontaktväg saknas visar
-integritetssidan en gul markering om att de ska fyllas i före skarp drift.
-Läs igenom sidan (`/integritet`) innan ni öppnar tjänsten. Den säger till
-exempel att tjänsten och säkerhetskopiorna driftas inom EU, och det måste
-stämma för er. Roller och kontohantering beskrivs i
+…"), personuppgiftsansvarig och kontaktväg för dataskyddsfrågor, och
+integritetssidans rättsliga grund, var uppgifterna lagras och gallringen.
+Under de tre sista står ett förslag, men inget fylls i av sig självt: det
+måste stämma för er. Organisation och system ger neutral text när de är
+tomma. Så länge något av de övriga saknas visar integritetssidan en gul
+markering om att det ska fyllas i före skarp drift. Läs igenom sidan
+(`/integritet`) innan ni öppnar tjänsten. Roller och kontohantering beskrivs i
 [README](README.md#skapa-förvaltarkonton).
 
 Har ni migrerat en databas från en annan instans (avsnitt 6) finns kontona
@@ -441,8 +443,9 @@ Starten migrerar filen om backupen har ett äldre schema.
 **Inte klart än:**
 - **Personuppgiftsbiträde:** driver ni Teaball åt andra organisationer är ni
   deras personuppgiftsbiträde och behöver ett biträdesavtal med var och en.
-  Integritetssidan nämner er bara som den som samlar statistiken, inte vid
-  namn och inte som personuppgiftsbiträde.
+  När avtalen finns: sätt `DRIFTARE` och `DRIFTARE_KONTAKT` i `.env` och
+  starta om. Integritetssidan nämner er då som personuppgiftsbiträde; till
+  dess visar den en gul markering.
 - En databasfil som kopieras in för hand (t.ex. en återställd backup med
   äldre schema) migreras först vid nästa omstart, så starta om efter en
   sådan. `lista` visar om någon väntar på migrering.
